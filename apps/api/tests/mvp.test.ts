@@ -157,10 +157,17 @@ describe("YKMS-02 — الطلبات والدفع والمطبخ", () => {
   });
 
   it("تسجيل دفعة وإكمال الطلب (payment)", async () => {
+    const shift = await asOwner(
+      request(app).post("/api/v1/shifts/open").send({ branch_id: branchId, opening_cash: 100 })
+    );
+    expect([200, 201]).toContain(shift.status);
+
     const pay = await asOwner(
       request(app).post(`/api/v1/orders/${orderId}/payments`).send({ method: "cash", amount: orderTotal })
     );
     expect(pay.status).toBe(201);
+    expect(pay.body.data.shift_id).toBeTruthy();
+
     const done = await asOwner(
       request(app).patch(`/api/v1/orders/${orderId}/status`).send({ status: "completed" })
     );

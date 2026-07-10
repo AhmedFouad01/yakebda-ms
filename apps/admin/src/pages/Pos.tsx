@@ -7,24 +7,46 @@ import { brand } from "../config/brand";
 import { useMe } from "../lib/me";
 
 /**
- * YKMS-02D — Cashier POS Operating System.
- * Dark black/yellow Ya Kebda workspace with menu details, cart, calculator,
- * shift, payment, printing and reports-connected order writes.
+ * YKMS-02D polish — Cashier POS Operating System.
+ * الصالة مقفولة مؤقتًا: POS يدعم تيك أواي ودليفري فقط، مع كارت مرن، آلة حاسبة،
+ * إحصائيات شيفت، وتفاصيل صنف بدون اختيارات مخترعة خارج المنيو.
  */
 
 interface MenuModifier { id: string; name_ar: string; price_delta: string | number }
 interface MenuGroup { id: string; name_ar: string; min_select: number; max_select: number; is_required: boolean; modifiers: MenuModifier[] }
 interface MenuVariant { id: string; name_ar: string; price_delta: string | number }
 interface MenuProduct {
-  id: string; name_ar: string; effective_price: number; is_available: boolean; image_url?: string | null;
-  ingredients_ar?: string | null; portion_note_ar?: string | null;
-  availability_note_ar?: string | null; variants: MenuVariant[]; modifier_groups: MenuGroup[];
+  id: string;
+  name_ar: string;
+  effective_price: number;
+  is_available: boolean;
+  image_url?: string | null;
+  ingredients_ar?: string | null;
+  portion_note_ar?: string | null;
+  availability_note_ar?: string | null;
+  variants: MenuVariant[];
+  modifier_groups: MenuGroup[];
 }
 interface MenuCategory { id: string; name_ar: string; products: MenuProduct[] }
 interface Branch { id: string; name: string }
-interface Shift { id: string; opened_at: string; opening_cash: string | number }
+interface Shift {
+  id: string;
+  opened_at: string;
+  opening_cash: string | number;
+  totals?: {
+    cash_sales: number;
+    card_sales: number;
+    wallet_sales: number;
+    cash_in: number;
+    cash_out: number;
+    expected_cash: number;
+    orders_count: number;
+  };
+}
 interface Settings { show_product_images: boolean; require_open_shift_for_cash: boolean; enabled_payment_methods: string[]; receipt_printing_enabled: boolean; allow_discounts: boolean }
 interface CartLine { key: string; product: MenuProduct; variant?: MenuVariant | null; modifiers: MenuModifier[]; qty: number; notes: string }
+
+type PosOrderType = "takeaway" | "delivery";
 
 const money = (v: number) => `${v.toFixed(2)} ${t.reports.egp}`;
 const unitPrice = (l: CartLine) => l.product.effective_price + Number(l.variant?.price_delta ?? 0) + l.modifiers.reduce((s, m) => s + Number(m.price_delta), 0);
@@ -52,9 +74,7 @@ export function Pos() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [picking, setPicking] = useState<MenuProduct | null>(null);
-  const [orderType, setOrderType] = useState<"dine_in" | "takeaway" | "delivery">(params.get("table") ? "dine_in" : "takeaway");
-  const [tableId, setTableId] = useState(params.get("table") ?? "");
-  const [tables, setTables] = useState<Array<{ id: string; name_ar: string; status: string }>>([]);
+  const [orderType, setOrderType] = useState<PosOrderType>("takeaway");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string; address?: string }>>([]);
   const [customerId, setCustomerId] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -69,20 +89,32 @@ export function Pos() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api<{ data: Branch[] }>("/branches").then((r) => { setBranches(r.data); if (!branchId && r.data.length) setBranchId(r.data[0].id); });
+    api<{ data: Branch[] }>("/branches").then((r) => {
+      setBranches(r.data);
+      if (!branchId && r.data.length) setBranchId(r.data[0].id);
+    });
     if (can("customers.manage")) api<{ data: typeof customers }>("/customers").then((r) => setCustomers(r.data)).catch(() => {});
   }, [can]);
 
   async function loadShift(b: string) {
-    try { const r = await api<{ data: Shift | null }>(`/shifts/current?branch_id=${b}`); setShift(r.data); }
-    catch { setShift(null); }
+    try {
+      const r = await api<{ data: Shift | null }>(`/shifts/current?branch_id=${b}`);
+      setShift(r.data);
+    } catch {
+      setShift(null);
+    }
   }
 
   useEffect(() => {
     if (!branchId) return;
-    api<{ data: { categories: MenuCategory[] } }>(`/branches/${branchId}/menu`).then((r) => { setCategories(r.data.categories); setActiveCat((cur) => cur || r.data.categories[0]?.id || ""); });
-    api<{ data: Settings }>(`/settings?branch_id=${branchId}`).then((r) => { setSettings(r.data); setPayment((p) => (r.data.enabled_payment_methods.includes(p) ? p : r.data.enabled_payment_methods[0])); });
-    api<{ data: typeof tables }>(`/tables?branch_id=${branchId}`).then((r) => setTables(r.data)).catch(() => {});
+    api<{ data: { categories: MenuCategory[] } }>(`/branches/${branchId}/menu`).then((r) => {
+      setCategories(r.data.categories);
+      setActiveCat((cur) => cur || r.data.categories[0]?.id || "");
+    });
+    api<{ data: Settings }>(`/settings?branch_id=${branchId}`).then((r) => {
+      setSettings(r.data);
+      setPayment((p) => (r.data.enabled_payment_methods.includes(p) ? p : r.data.enabled_payment_methods[0]));
+    });
     loadShift(branchId);
   }, [branchId]);
 
@@ -115,41 +147,64 @@ export function Pos() {
   async function openShift() {
     const cash = window.prompt(t.shift.openingCash, "0");
     if (cash == null) return;
-    try { await api("/shifts/open", { method: "POST", body: { branch_id: branchId, opening_cash: Number(cash) || 0 } }); await loadShift(branchId); setError(""); }
-    catch (e: any) { setError(e.message); }
+    try {
+      await api("/shifts/open", { method: "POST", body: { branch_id: branchId, opening_cash: Number(cash) || 0 } });
+      await loadShift(branchId);
+      setError("");
+    } catch (e: any) {
+      setError(e.message);
+    }
   }
+
   async function closeShift() {
     if (!shift) return;
-    const cash = window.prompt(t.shift.closingCash, "0");
+    const cash = window.prompt(t.shift.closingCash, String(shift.totals?.expected_cash ?? 0));
     if (cash == null) return;
-    try { await api(`/shifts/${shift.id}/close`, { method: "POST", body: { actual_cash: Number(cash) || 0 } }); await loadShift(branchId); setError(""); }
-    catch (e: any) { setError(e.message); }
+    try {
+      await api(`/shifts/${shift.id}/close`, { method: "POST", body: { actual_cash: Number(cash) || 0 } });
+      await loadShift(branchId);
+      setError("");
+    } catch (e: any) {
+      setError(e.message);
+    }
   }
 
   async function fireOrder(opts: { submit: boolean; pay: boolean; print: boolean }) {
-    setError(""); setMsg("");
+    setError("");
+    setMsg("");
     if (!cart.length || busy) return;
     setBusy(true);
     try {
-      const res = await api<{ data: FullOrder }>("/orders", { method: "POST", body: {
-        branch_id: branchId,
-        order_type: orderType,
-        table_id: orderType === "dine_in" && tableId ? tableId : null,
-        customer_id: orderType === "delivery" && customerId ? customerId : null,
-        delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
-        delivery_fee: orderType === "delivery" ? deliveryFee : 0,
-        submit: opts.submit,
-        discount: settings?.allow_discounts ? discount : 0,
-        notes: orderNotes || null,
-        items: cart.map((l) => ({ product_id: l.product.id, variant_id: l.variant?.id ?? null, qty: l.qty, notes: l.notes || null, modifier_ids: l.modifiers.map((m) => m.id) })),
-      }});
+      const res = await api<{ data: FullOrder }>("/orders", {
+        method: "POST",
+        body: {
+          branch_id: branchId,
+          order_type: orderType,
+          table_id: null,
+          customer_id: orderType === "delivery" && customerId ? customerId : null,
+          delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
+          delivery_fee: orderType === "delivery" ? deliveryFee : 0,
+          submit: opts.submit,
+          discount: settings?.allow_discounts ? discount : 0,
+          notes: orderNotes || null,
+          items: cart.map((l) => ({ product_id: l.product.id, variant_id: l.variant?.id ?? null, qty: l.qty, notes: l.notes || null, modifier_ids: l.modifiers.map((m) => m.id) })),
+        },
+      });
       let order = res.data;
       if (opts.pay && payment !== "unpaid") await api(`/orders/${order.id}/payments`, { method: "POST", body: { method: payment, amount: Number(order.total) } });
       if (opts.print && settings?.receipt_printing_enabled) await api(`/orders/${order.id}/print`, { method: "POST", body: {} });
       order = (await api<{ data: FullOrder }>(`/orders/${order.id}`)).data;
-      setDone(order); setCart([]); setDiscount(0); setOrderNotes(""); setMsg(`${t.pos.orderCreated} ${order.order_no}`);
-    } catch (e: any) { setError(e.message); }
-    finally { setBusy(false); }
+      setDone(order);
+      setCart([]);
+      setDiscount(0);
+      setOrderNotes("");
+      await loadShift(branchId);
+      setMsg(`${t.pos.orderCreated} ${order.order_no}`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function calcPress(k: string) {
@@ -157,7 +212,10 @@ export function Pos() {
     if (k === "⌫") return setCalc((v) => v.slice(0, -1));
     if (k === "=") return setCalc((v) => safeCalc(v));
     if (k === "خصم") return setDiscount(Number(calc || 0));
-    if (k === "دليفري") return setDeliveryFee(Number(calc || 0));
+    if (k === "دليفري") {
+      setOrderType("delivery");
+      return setDeliveryFee(Number(calc || 0));
+    }
     setCalc((v) => v + k);
   }
 
@@ -188,16 +246,36 @@ export function Pos() {
         </section>
 
         <aside className="posx-cart">
-          <h3>{t.pos.cart}</h3>
-          {error && <div className="alert">{error}</div>}{msg && <div className="ok">{msg}</div>}
+          <div className="posx-cart-head">
+            <h3>{t.pos.cart}</h3>
+            <span>{cart.reduce((s, l) => s + l.qty, 0)} صنف</span>
+          </div>
+          {error && <div className="alert dark-alert">{error}</div>}{msg && <div className="ok dark-ok">{msg}</div>}
+          <div className="posx-shift-stats">
+            <div><b>{money(Number(shift?.opening_cash ?? 0))}</b><span>افتتاحي</span></div>
+            <div><b>{money(Number(shift?.totals?.cash_sales ?? 0))}</b><span>نقدي</span></div>
+            <div><b>{shift?.totals?.orders_count ?? 0}</b><span>طلبات</span></div>
+            <div><b>{money(Number(shift?.totals?.expected_cash ?? 0))}</b><span>متوقع</span></div>
+          </div>
           <div className="posx-cart-lines">
             {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
-            {cart.map((l, idx) => <div key={idx} className="posx-line"><div className="posx-line-head"><span>{l.product.name_ar}{l.variant ? ` (${l.variant.name_ar})` : ""}</span><span>{money(unitPrice(l) * l.qty)}</span></div>{l.modifiers.length > 0 && <div className="posx-line-mods">{l.modifiers.map((m) => m.name_ar).join("، ")}</div>}<div className="posx-line-actions"><button onClick={() => setCart((c) => c.map((x, i) => (i === idx ? { ...x, qty: x.qty + 1 } : x)))}>+</button><span>{l.qty}</span><button onClick={() => setCart((c) => c.map((x, i) => (i === idx && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x)))}>−</button><button className="rm" onClick={() => setCart((c) => c.filter((_, i) => i !== idx))}>✕</button><input placeholder={t.pos.itemNotes} value={l.notes} onChange={(e) => setCart((c) => c.map((x, i) => (i === idx ? { ...x, notes: e.target.value } : x)))} /></div></div>)}
+            {cart.map((l, idx) => (
+              <div key={idx} className="posx-line">
+                <div className="posx-line-head"><span>{l.product.name_ar}{l.variant ? ` (${l.variant.name_ar})` : ""}</span><span>{money(unitPrice(l) * l.qty)}</span></div>
+                {l.modifiers.length > 0 && <div className="posx-line-mods">{l.modifiers.map((m) => m.name_ar).join("، ")}</div>}
+                <div className="posx-line-actions">
+                  <button onClick={() => setCart((c) => c.map((x, i) => (i === idx ? { ...x, qty: x.qty + 1 } : x)))}>+</button>
+                  <span>{l.qty}</span>
+                  <button onClick={() => setCart((c) => c.map((x, i) => (i === idx && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x)))}>−</button>
+                  <button className="rm" onClick={() => setCart((c) => c.filter((_, i) => i !== idx))}>✕</button>
+                  <input placeholder={t.pos.itemNotes} value={l.notes} onChange={(e) => setCart((c) => c.map((x, i) => (i === idx ? { ...x, notes: e.target.value } : x)))} />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="posx-opts">
-            <div className="seg dark">{(["dine_in", "takeaway", "delivery"] as const).map((k) => <button key={k} className={orderType === k ? "active" : ""} onClick={() => setOrderType(k)}>{t.orders.types[k]}</button>)}</div>
-            {orderType === "dine_in" && <select value={tableId} onChange={(e) => setTableId(e.target.value)}><option value="">{t.pos.table}…</option>{tables.map((x) => <option key={x.id} value={x.id}>{x.name_ar} — {t.tables.statuses[x.status]}</option>)}</select>}
+            <div className="seg dark"><button className={orderType === "takeaway" ? "active" : ""} onClick={() => setOrderType("takeaway")}>{t.orders.types.takeaway}</button><button className={orderType === "delivery" ? "active" : ""} onClick={() => setOrderType("delivery")}>{t.orders.types.delivery}</button></div>
             {orderType === "delivery" && <><select value={customerId} onChange={(e) => { setCustomerId(e.target.value); const c = customers.find((x) => x.id === e.target.value); if (c?.address) setDeliveryAddress(c.address); }}><option value="">{t.pos.customer}…</option>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` — ${c.phone}` : ""}</option>)}</select><input placeholder={t.pos.deliveryAddress} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} /><input type="number" min={0} placeholder={t.pos.deliveryFee} value={deliveryFee || ""} onChange={(e) => setDeliveryFee(Number(e.target.value))} /></>}
             {settings?.allow_discounts !== false && <input type="number" min={0} placeholder={t.pos.discount} value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} />}
             <input placeholder={t.pos.orderNotes} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
@@ -214,7 +292,7 @@ export function Pos() {
       </div>
 
       {picking && <OptionPicker product={picking} onCancel={() => setPicking(null)} onAdd={(variant, mods) => { addProduct(picking, variant, mods); setPicking(null); }} />}
-      {done && <div className="modal-back" onClick={() => setDone(null)}><div className="modal" onClick={(e) => e.stopPropagation()}><Receipt order={done} /><div className="pos-actions">{settings?.receipt_printing_enabled && <button className="primary" onClick={async () => { try { await api(`/orders/${done.id}/print`, { method: "POST", body: {} }); setMsg(`${t.pos.orderCreated} ${done.order_no} — ${t.pos.printReceipt} ✓`); } catch (e: any) { setError(e.message); } }}>{t.pos.printReceipt}</button>}<button onClick={() => setDone(null)}>{t.pos.close}</button></div></div></div>}
+      {done && <div className="modal-back" onClick={() => setDone(null)}><div className="modal receipt-modal" onClick={(e) => e.stopPropagation()}><Receipt order={done} /><div className="pos-actions">{settings?.receipt_printing_enabled && <button className="primary" onClick={async () => { try { await api(`/orders/${done.id}/print`, { method: "POST", body: {} }); setMsg(`${t.pos.orderCreated} ${done.order_no} — ${t.pos.printReceipt} ✓`); } catch (e: any) { setError(e.message); } }}>{t.pos.printReceipt}</button>}<button onClick={() => setDone(null)}>{t.pos.close}</button></div></div></div>}
     </div>
   );
 }
@@ -222,7 +300,17 @@ export function Pos() {
 function OptionPicker({ product, onAdd, onCancel }: { product: MenuProduct; onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void; onCancel: () => void }) {
   const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
   const [mods, setMods] = useState<MenuModifier[]>([]);
-  function toggleMod(g: MenuGroup, m: MenuModifier) { setMods((cur) => { if (cur.some((x) => x.id === m.id)) return cur.filter((x) => x.id !== m.id); const inGroup = cur.filter((x) => g.modifiers.some((gm) => gm.id === x.id)); if (inGroup.length >= g.max_select) return cur; return [...cur, m]; }); }
-  const valid = product.modifier_groups.every((g) => { const n = mods.filter((x) => g.modifiers.some((gm) => gm.id === x.id)).length; return n >= (g.is_required ? Math.max(1, g.min_select) : g.min_select); });
-  return <div className="modal-back" onClick={onCancel}><div className="modal" onClick={(e) => e.stopPropagation()} dir="rtl"><h3>{t.pos.chooseOptions} — {product.name_ar}</h3>{product.ingredients_ar && <p className="muted">{product.ingredients_ar}</p>}{product.variants.length > 0 && <div className="seg wrap">{product.variants.map((v) => <button key={v.id} className={variant?.id === v.id ? "active" : ""} onClick={() => setVariant(v)}>{v.name_ar}{Number(v.price_delta) ? ` (+${Number(v.price_delta)})` : ""}</button>)}</div>}{product.modifier_groups.map((g) => <div key={g.id} className="mod-group"><div className="mod-group-name">{g.name_ar} {g.is_required ? `— ${t.menu.required}` : ""}</div><div className="seg wrap">{g.modifiers.map((m) => <button key={m.id} className={mods.some((x) => x.id === m.id) ? "active" : ""} onClick={() => toggleMod(g, m)}>{m.name_ar}{Number(m.price_delta) ? ` (+${Number(m.price_delta)})` : ""}</button>)}</div></div>)}<div className="pos-actions"><button className="primary" disabled={!valid} onClick={() => onAdd(variant, mods)}>{t.pos.addToCart}</button><button onClick={onCancel}>{t.common.cancel}</button></div></div></div>;
+  function toggleMod(g: MenuGroup, m: MenuModifier) {
+    setMods((cur) => {
+      if (cur.some((x) => x.id === m.id)) return cur.filter((x) => x.id !== m.id);
+      const inGroup = cur.filter((x) => g.modifiers.some((gm) => gm.id === x.id));
+      if (inGroup.length >= g.max_select) return cur;
+      return [...cur, m];
+    });
+  }
+  const valid = product.modifier_groups.every((g) => {
+    const n = mods.filter((x) => g.modifiers.some((gm) => gm.id === x.id)).length;
+    return n >= (g.is_required ? Math.max(1, g.min_select) : g.min_select);
+  });
+  return <div className="modal-back" onClick={onCancel}><div className="modal option-modal" onClick={(e) => e.stopPropagation()} dir="rtl"><h3>{t.pos.chooseOptions} — {product.name_ar}</h3>{product.ingredients_ar && <p className="muted">{product.ingredients_ar}</p>}{product.variants.length > 0 && <div className="seg wrap">{product.variants.map((v) => <button key={v.id} className={variant?.id === v.id ? "active" : ""} onClick={() => setVariant(v)}>{v.name_ar}{Number(v.price_delta) ? ` (+${Number(v.price_delta)})` : ""}</button>)}</div>}{product.modifier_groups.map((g) => <div key={g.id} className="mod-group"><div className="mod-group-name">{g.name_ar} {g.is_required ? `— ${t.menu.required}` : ""}</div><div className="seg wrap">{g.modifiers.map((m) => <button key={m.id} className={mods.some((x) => x.id === m.id) ? "active" : ""} onClick={() => toggleMod(g, m)}>{m.name_ar}{Number(m.price_delta) ? ` (+${Number(m.price_delta)})` : ""}</button>)}</div></div>)}<div className="pos-actions"><button className="primary" disabled={!valid} onClick={() => onAdd(variant, mods)}>{t.pos.addToCart}</button><button onClick={onCancel}>{t.common.cancel}</button></div></div></div>;
 }

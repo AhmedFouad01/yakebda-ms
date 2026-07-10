@@ -21,7 +21,7 @@ const CAT_ORDER = ["الكل", "ساندوتشات", "أطباق", "وجبات",
 const money = (v: number) => `${v.toFixed(2)} ${t.reports.egp}`;
 const unitPrice = (l: CartLine) => l.product.effective_price + Number(l.variant?.price_delta ?? 0) + l.modifiers.reduce((s, m) => s + Number(m.price_delta), 0);
 const catRank = (name: string) => { const i = CAT_ORDER.indexOf(name); return i === -1 ? 99 : i; };
-function safeCalc(expression: string): string { const cleaned = expression.replace(/[×]/g, "*").replace(/[÷]/g, "/"); if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) return "خطأ"; try { const result = Function(`"use strict"; return (${cleaned || 0})`)(); return Number.isFinite(result) ? String(Number(result.toFixed(2))) : "خطأ"; } catch { return "خطأ"; } }
+function safeCalc(expression: string): string { const cleaned = expression.replace(/[×]/g, "*").replace(/[÷]/g, "/"); try { const result = Function(`"use strict"; return (${cleaned || 0})`)(); return Number.isFinite(result) ? String(Number(result.toFixed(2))) : "خطأ"; } catch { return "خطأ"; } }
 
 export function Pos() {
   const [params] = useSearchParams();

@@ -4,6 +4,7 @@ import * as m001 from "./migrations/20260705_001_foundation";
 import * as m002 from "./migrations/20260709_002_ykms_02_restaurant_mvp";
 import * as m003 from "./migrations/20260709_003_ykms_02b_operational_pos";
 import * as m004 from "./migrations/20260710_004_ykms_02c_settings";
+import * as m005 from "./migrations/20260710_005_ykms_02d_menu_pos_os";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -14,6 +15,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260709_002_ykms_02_restaurant_mvp": m002,
   "20260709_003_ykms_02b_operational_pos": m003,
   "20260710_004_ykms_02c_settings": m004,
+  "20260710_005_ykms_02d_menu_pos_os": m005,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

@@ -5,9 +5,11 @@ import { t } from "../lib/t";
 interface KOrder {
   id: string;
   order_no: number;
+  order_prefix?: string | null;
   order_type: string;
   status: string;
   submitted_at: string | null;
+  updated_at?: string | null;
   notes?: string | null;
   items: Array<{
     id: string;
@@ -15,8 +17,36 @@ interface KOrder {
     variant_name_ar?: string | null;
     qty: number;
     notes?: string | null;
+    prep_station_ar?: string | null;
+    prep_time_minutes?: number | null;
     modifiers: Array<{ id: string; name_ar: string }>;
   }>;
+}
+
+interface KdsSettings {
+  kds_enabled: boolean;
+  kds_warning_minutes: number;
+  kds_late_minutes: number;
+  kds_hide_ready_after_minutes: number;
+  kds_sound_alert: boolean;
+}
+
+/** نغمة تنبيه قصيرة بلا ملفات خارجية. */
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {
+    /* لا صوت متاح */
+  }
 }
 
 const NEXT: Record<string, { to: string; label: () => string }> = {
@@ -32,11 +62,17 @@ function minutesSince(iso: string | null) {
 
 export function Kitchen() {
   const [orders, setOrders] = useState<KOrder[]>([]);
+  const [settings, setSettings] = useState<KdsSettings | null>(null);
   const [error, setError] = useState("");
+  const knownIds = useMemo(() => new Set<string>(), []);
 
-  async function load() {
+  async function load(alertOnNew = true) {
     try {
       const res = await api<{ data: KOrder[] }>("/kitchen/orders");
+      // YKMS-02E: تنبيه صوتي عند طلب جديد (من الإعدادات)
+      const fresh = res.data.filter((o) => !knownIds.has(o.id));
+      res.data.forEach((o) => knownIds.add(o.id));
+      if (alertOnNew && fresh.length && settingsRef.current?.kds_sound_alert) beep();
       setOrders(res.data);
       setError("");
     } catch (e: any) {
@@ -44,8 +80,12 @@ export function Kitchen() {
     }
   }
 
+  const settingsRef = { current: settings };
+  settingsRef.current = settings;
+
   useEffect(() => {
-    load();
+    api<{ data: KdsSettings }>("/settings").then((r) => setSettings(r.data)).catch(() => {});
+    load(false);
     const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, []);

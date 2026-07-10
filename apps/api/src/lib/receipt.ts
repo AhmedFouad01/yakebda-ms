@@ -44,7 +44,14 @@ interface ReceiptOrder {
 
 const money = (v: string | number) => `${Number(v).toFixed(2)} ج.م`;
 
-export function renderReceiptPayload(order: ReceiptOrder) {
+export interface ReceiptOptions {
+  footer?: string;
+  paperWidthMm?: 58 | 80;
+  copies?: number;
+  taxDisplay?: "combined" | "detailed";
+}
+
+export function renderReceiptPayload(order: ReceiptOrder, opts: ReceiptOptions = {}) {
   const lines: string[] = [];
   lines.push("يا كبدة — YAKEBDA MS");
   lines.push(order.branch_name);
@@ -66,13 +73,45 @@ export function renderReceiptPayload(order: ReceiptOrder) {
   lines.push("--------------------------------");
   lines.push(`الإجمالي الفرعي: ${money(order.subtotal)}`);
   if (Number(order.discount) > 0) lines.push(`الخصم: -${money(order.discount)}`);
+  if (Number((order as { service_fee?: string | number }).service_fee ?? 0) > 0)
+    lines.push(`رسوم الخدمة: ${money((order as { service_fee?: string | number }).service_fee!)}`);
   if (Number(order.delivery_fee) > 0) lines.push(`رسوم التوصيل: ${money(order.delivery_fee)}`);
+  if (opts.taxDisplay === "detailed" && Number((order as { vat_amount?: string | number }).vat_amount ?? 0) > 0)
+    lines.push(`ض.ق.م: ${money((order as { vat_amount?: string | number }).vat_amount!)}`);
+  if (Number((order as { rounding_adjustment?: string | number }).rounding_adjustment ?? 0) !== 0)
+    lines.push(`تقريب: ${money((order as { rounding_adjustment?: string | number }).rounding_adjustment!)}`);
   lines.push(`الإجمالي: ${money(order.total)}`);
   for (const p of order.payments) {
     lines.push(`طريقة الدفع: ${PAYMENT_AR[p.method] ?? p.method} — ${money(p.amount)}`);
   }
   if (order.notes) lines.push(`ملاحظات: ${order.notes}`);
   lines.push("--------------------------------");
-  lines.push("شكرًا لاختيارك يا كبدة");
-  return { template: "receipt_v1", dir: "rtl", lines };
+  lines.push(opts.footer || "شكرًا لاختيارك يا كبدة");
+  return {
+    template: "receipt_v1",
+    dir: "rtl",
+    paper_width_mm: opts.paperWidthMm ?? 80,
+    copies: opts.copies ?? 1,
+    lines,
+  };
+}
+
+/** YKMS-02E — تذكرة مطبخ: أصناف وكميات وملاحظات فقط (بلا أسعار). */
+export function renderKitchenTicketPayload(order: ReceiptOrder, paperWidthMm: 58 | 80 = 80) {
+  const lines: string[] = [];
+  lines.push("تذكرة مطبخ — يا كبدة");
+  lines.push(`طلب ${order.order_no}${order.order_type ? ` — ${ORDER_TYPE_AR[order.order_type] ?? order.order_type}` : ""}`);
+  lines.push(`الوقت: ${new Date(order.created_at).toLocaleTimeString("ar-EG")}`);
+  lines.push("--------------------------------");
+  for (const item of order.items) {
+    const name = item.variant_name_ar ? `${item.name_ar} (${item.variant_name_ar})` : item.name_ar;
+    lines.push(`${item.qty} × ${name}`);
+    for (const m of item.modifiers) lines.push(`  + ${m.name_ar}`);
+    if (item.notes) lines.push(`  ملاحظة: ${item.notes}`);
+  }
+  if (order.notes) {
+    lines.push("--------------------------------");
+    lines.push(`ملاحظات الطلب: ${order.notes}`);
+  }
+  return { template: "kitchen_ticket_v1", dir: "rtl", paper_width_mm: paperWidthMm, lines };
 }

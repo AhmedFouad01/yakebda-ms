@@ -15,6 +15,8 @@ const categorySchema = z.object({
   description_ar: z.string().optional().nullable(),
   sort_order: z.number().int().default(0),
   is_active: z.boolean().default(true),
+  default_prep_station_id: z.string().uuid().optional().nullable(),
+  default_prep_time_minutes: z.number().int().min(0).optional(),
 });
 
 const productSchema = z.object({
@@ -25,6 +27,11 @@ const productSchema = z.object({
   sku: z.string().optional().nullable(),
   base_price: z.number().nonnegative(),
   image_url: z.string().optional().nullable(),
+  pos_visible: z.boolean().optional(),
+  kitchen_printable: z.boolean().optional(),
+  discountable: z.boolean().optional(),
+  prep_station_id: z.string().uuid().optional().nullable(),
+  unavailability_reason_ar: z.string().optional().nullable(),
   ingredients_ar: z.string().optional().nullable(),
   portion_note_ar: z.string().optional().nullable(),
   cost_price: z.number().nonnegative().optional().default(0),
@@ -63,6 +70,11 @@ const importSchema = z.object({
       base_price: z.number().nonnegative(),
       description_ar: z.string().optional().nullable(),
       image_url: z.string().optional().nullable(),
+  pos_visible: z.boolean().optional(),
+  kitchen_printable: z.boolean().optional(),
+  discountable: z.boolean().optional(),
+  prep_station_id: z.string().uuid().optional().nullable(),
+  unavailability_reason_ar: z.string().optional().nullable(),
       ingredients_ar: z.string().optional().nullable(),
       portion_note_ar: z.string().optional().nullable(),
       cost_price: z.number().nonnegative().optional().default(0),

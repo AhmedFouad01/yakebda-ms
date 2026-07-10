@@ -24,6 +24,15 @@ export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }>
   { key: "customers.manage", name_ar: "إدارة العملاء", group: "العملاء" },
   { key: "reports.view", name_ar: "عرض التقارير", group: "التقارير" },
   { key: "settings.manage", name_ar: "إدارة الإعدادات", group: "الإعدادات" },
+  { key: "orders.cancel", name_ar: "إلغاء الطلبات", group: "الطلبات" },
+  { key: "orders.discount_above_limit", name_ar: "اعتماد خصم فوق حد الكاشير", group: "الطلبات" },
+  { key: "orders.refund", name_ar: "استرداد المدفوعات (لاحقًا)", group: "الطلبات" },
+  { key: "orders.delete_item_after_submit", name_ar: "حذف صنف بعد إرسال المطبخ (لاحقًا)", group: "الطلبات" },
+  { key: "products.edit", name_ar: "تعديل الأصناف والأسعار", group: "المنيو" },
+  { key: "products.disable", name_ar: "إيقاف الأصناف", group: "المنيو" },
+  { key: "drivers.manage", name_ar: "إدارة السائقين", group: "التوصيل" },
+  { key: "delivery.assign", name_ar: "تعيين سائق للطلبات", group: "التوصيل" },
+  { key: "permissions.manage", name_ar: "إدارة خريطة الصلاحيات", group: "المستخدمون" },
 ];
 
 export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all" }> = [
@@ -51,6 +60,14 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
       "customers.manage",
       "reports.view",
       "settings.manage",
+      "orders.cancel",
+      "orders.discount_above_limit",
+      "orders.refund",
+      "orders.delete_item_after_submit",
+      "products.edit",
+      "products.disable",
+      "drivers.manage",
+      "delivery.assign",
     ],
   },
   {
@@ -62,6 +79,8 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
   { key: "kitchen", name_ar: "موظف المطبخ", perms: ["kitchen.view", "kitchen.update"] },
   { key: "inventory_clerk", name_ar: "مسؤول المخزون", perms: [] },
   { key: "accountant", name_ar: "المحاسب", perms: ["audit.view", "reports.view"] },
+  { key: "driver", name_ar: "سائق", perms: [] },
+  { key: "admin", name_ar: "أدمن النظام", perms: "all" },
   { key: "integrations_admin", name_ar: "مسؤول التكاملات", perms: ["api_clients.manage", "audit.view"] },
 ];
 
@@ -300,6 +319,31 @@ export async function seedMvp(
     phone: "01000000002",
     address: "القاهرة — مدينة نصر",
   });
+
+  // --- YKMS-02E: محطات التحضير الافتراضية ---
+  const stationIds: Record<string, string> = {};
+  const stations = ["جريل", "قلاية", "تجهيز", "مشروبات"];
+  for (let i = 0; i < stations.length; i++) {
+    const sid = newId();
+    stationIds[stations[i]] = sid;
+    await db("prep_stations").insert({ id: sid, account_id: accountId, name_ar: stations[i], sort_order: i });
+  }
+  // ربط افتراضي: البطاطس/فواتح الشهية → قلاية، مشروبات → مشروبات، الحواوشي/ساندوتشات/أطباق/وجبات → جريل، إضافات → تجهيز
+  const catStation: Record<string, string> = {
+    "ساندوتشات": "جريل",
+    "أطباق": "جريل",
+    "وجبات": "جريل",
+    "الحواوشي": "جريل",
+    "البطاطس": "قلاية",
+    "فواتح الشهية": "قلاية",
+    "إضافات": "تجهيز",
+    "مشروبات": "مشروبات",
+  };
+  for (const [catName, stName] of Object.entries(catStation)) {
+    await db("categories")
+      .where({ account_id: accountId, name_ar: catName })
+      .update({ default_prep_station_id: stationIds[stName] });
+  }
 
   // --- Default settings (account-level rows; باقي القيم الافتراضية تعيش في الكود) ---
   for (const [key, value] of Object.entries({

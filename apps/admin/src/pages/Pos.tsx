@@ -28,6 +28,7 @@ interface MenuProduct {
   name_ar: string;
   effective_price: number;
   is_available: boolean;
+  pos_visible?: boolean;
   image_url?: string | null;
   ingredients_ar?: string | null;
   portion_note_ar?: string | null;
@@ -62,6 +63,21 @@ interface Settings {
   enabled_payment_methods: string[];
   receipt_printing_enabled: boolean;
   allow_discounts: boolean;
+  // YKMS-02E — الإعدادات مصدر الحقيقة
+  order_type_takeaway_enabled: boolean;
+  order_type_delivery_enabled: boolean;
+  default_delivery_fee: number;
+  min_delivery_order: number;
+  max_discount_without_manager: number;
+  max_cashier_discount_percent: number;
+  discount_reason_required: boolean;
+  vat_enabled: boolean;
+  vat_percentage: number;
+  prices_include_vat: boolean;
+  service_fee_enabled: boolean;
+  service_fee_type: "percent" | "fixed";
+  service_fee_value: number;
+  rounding_rule: "none" | "nearest_050" | "nearest_1";
 }
 interface CartLine {
   key: string;
@@ -139,6 +155,7 @@ export function Pos() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   const [calc, setCalc] = useState("");
@@ -197,11 +214,21 @@ export function Pos() {
       setPayment((current) =>
         response.data.enabled_payment_methods.includes(current) ? current : (response.data.enabled_payment_methods[0] as PaymentMethod)
       );
+      // YKMS-02E: النوع الافتراضي يتبع الإعدادات (الصالة مخفية أصلًا)
+      setOrderType((current) => {
+        if (current === "takeaway" && !response.data.order_type_takeaway_enabled && response.data.order_type_delivery_enabled) return "delivery";
+        if (current === "delivery" && !response.data.order_type_delivery_enabled && response.data.order_type_takeaway_enabled) return "takeaway";
+        return current;
+      });
     });
     loadShift(branchId);
   }, [branchId]);
 
-  const allProducts = useMemo(() => categories.flatMap((category) => category.products), [categories]);
+  // YKMS-02E: إخفاء الأصناف غير المرئية في POS (pos_visible === false)
+  const allProducts = useMemo(
+    () => categories.flatMap((category) => category.products).filter((p) => p.pos_visible !== false),
+    [categories]
+  );
   const visibleProducts = useMemo(() => {
     if (search) {
       return allProducts.filter(
@@ -212,11 +239,44 @@ export function Pos() {
       );
     }
     if (activeCat === "الكل") return allProducts;
-    return categories.find((category) => category.name_ar === activeCat)?.products ?? [];
+    return (categories.find((category) => category.name_ar === activeCat)?.products ?? []).filter((p) => p.pos_visible !== false);
   }, [categories, allProducts, activeCat, search]);
 
   const subtotal = cart.reduce((sum, line) => sum + unitPrice(line) * line.qty, 0);
-  const total = Math.max(0, subtotal - discount) + (orderType === "delivery" ? deliveryFee : 0);
+  // YKMS-02E: أنواع الطلب المفعّلة (الصالة تبقى مخفية) + تقدير الرسوم/الضريبة مطابق للخادم
+  const enabledOrderTypes = (["takeaway", "delivery"] as const).filter((type) =>
+    type === "takeaway" ? settings?.order_type_takeaway_enabled !== false : settings?.order_type_delivery_enabled !== false
+  );
+  const afterDiscount = Math.max(0, subtotal - discount);
+  const activeDeliveryFee = orderType === "delivery" ? deliveryFee : 0;
+  const serviceFeeEstimate = settings?.service_fee_enabled
+    ? settings.service_fee_type === "percent"
+      ? Math.round(afterDiscount * (settings.service_fee_value / 100) * 100) / 100
+      : settings.service_fee_value
+    : 0;
+  let vatEstimate = 0;
+  let total = afterDiscount + serviceFeeEstimate + activeDeliveryFee;
+  if (settings?.vat_enabled && settings.vat_percentage > 0) {
+    const rate = settings.vat_percentage / 100;
+    if (settings.prices_include_vat) {
+      vatEstimate = Math.round((total - total / (1 + rate)) * 100) / 100;
+    } else {
+      vatEstimate = Math.round((afterDiscount + serviceFeeEstimate) * rate * 100) / 100;
+      total += vatEstimate;
+    }
+  }
+  if (settings && settings.rounding_rule !== "none") {
+    const step = settings.rounding_rule === "nearest_050" ? 0.5 : 1;
+    total = Math.round(total / step) * step;
+  }
+  total = Math.round(total * 100) / 100;
+  const belowMinDelivery = orderType === "delivery" && (settings?.min_delivery_order ?? 0) > 0 && subtotal < (settings?.min_delivery_order ?? 0);
+  const discountOverLimit =
+    discount > 0 &&
+    !!settings &&
+    (discount > settings.max_discount_without_manager ||
+      (subtotal > 0 && (discount / subtotal) * 100 > settings.max_cashier_discount_percent));
+  const discountReasonMissing = discount > 0 && !!settings?.discount_reason_required && !discountReason.trim();
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
@@ -300,6 +360,7 @@ export function Pos() {
           delivery_fee: orderType === "delivery" ? deliveryFee : 0,
           submit: opts.submit,
           discount: settings?.allow_discounts ? discount : 0,
+          discount_reason: discount > 0 ? discountReason || null : null,
           notes: orderNotes || null,
           items: cart.map((line) => ({
             product_id: line.product.id,
@@ -321,6 +382,7 @@ export function Pos() {
       setDone(order);
       setCart([]);
       setDiscount(0);
+      setDiscountReason("");
       setOrderNotes("");
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
@@ -513,8 +575,18 @@ export function Pos() {
 
           <div className="posx-opts">
             <div className="seg dark">
-              {(["takeaway", "delivery"] as const).map((type) => (
-                <button key={type} className={orderType === type ? "active" : ""} onClick={() => setOrderType(type)}>{t.orders.types[type]}</button>
+              {enabledOrderTypes.map((type) => (
+                <button
+                  key={type}
+                  className={orderType === type ? "active" : ""}
+                  onClick={() => {
+                    setOrderType(type);
+                    // YKMS-02E: رسوم التوصيل الافتراضية من الإعدادات عند التحويل للدليفري
+                    if (type === "delivery" && !deliveryFee && settings?.default_delivery_fee) setDeliveryFee(settings.default_delivery_fee);
+                  }}
+                >
+                  {t.orders.types[type]}
+                </button>
               ))}
             </div>
             {orderType === "delivery" && (
@@ -527,7 +599,16 @@ export function Pos() {
                 <input type="number" min={0} placeholder={t.pos.deliveryFee} value={deliveryFee || ""} onChange={(e) => setDeliveryFee(Number(e.target.value))} />
               </>
             )}
-            {settings?.allow_discounts !== false && <input type="number" min={0} placeholder={t.pos.discount} value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} />}
+            {settings?.allow_discounts !== false && (
+              <>
+                <input type="number" min={0} placeholder={t.pos.discount} value={discount || ""} onChange={(e) => setDiscount(Number(e.target.value))} />
+                {discount > 0 && settings?.discount_reason_required && (
+                  <input placeholder={t.pos.discountReason} value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
+                )}
+                {discountOverLimit && <div className="posx-warn">{t.pos.discountNeedsManager}</div>}
+              </>
+            )}
+            {belowMinDelivery && <div className="posx-warn">{t.pos.belowMinDelivery} ({money(settings?.min_delivery_order ?? 0)})</div>}
             <input placeholder={t.pos.orderNotes} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
             <div className="seg dark wrap">
               {enabledMethods.map((method) => (
@@ -550,7 +631,9 @@ export function Pos() {
           <div className="posx-totals">
             <div className="receipt-row"><span>{t.pos.subtotal}</span><span>{money(subtotal)}</span></div>
             {discount > 0 && <div className="receipt-row"><span>{t.pos.discount}</span><span>{money(discount)}</span></div>}
+            {serviceFeeEstimate > 0 && <div className="receipt-row"><span>{t.pos.serviceFee}</span><span>{money(serviceFeeEstimate)}</span></div>}
             {orderType === "delivery" && deliveryFee > 0 && <div className="receipt-row"><span>{t.pos.deliveryFee}</span><span>{money(deliveryFee)}</span></div>}
+            {vatEstimate > 0 && <div className="receipt-row"><span>{t.pos.vat} ({settings?.vat_percentage}%)</span><span>{money(vatEstimate)}</span></div>}
             <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{money(total)}</span></div>
           </div>
 

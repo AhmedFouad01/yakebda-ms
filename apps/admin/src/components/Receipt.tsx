@@ -4,13 +4,21 @@ import { t } from "../lib/t";
 export interface FullOrder {
   id: string;
   order_no: number;
+  order_prefix?: string | null;
   order_type: string;
   status: string;
   branch_name: string;
   table_name_ar?: string | null;
   customer_name?: string | null;
+  customer_phone?: string | null;
+  driver_id?: string | null;
+  driver_name?: string | null;
   delivery_address?: string | null;
   delivery_fee: string | number;
+  service_fee?: string | number;
+  vat_amount?: string | number;
+  rounding_adjustment?: string | number;
+  discount_reason?: string | null;
   subtotal: string | number;
   discount: string | number;
   total: string | number;
@@ -49,13 +57,15 @@ export function Receipt({ order }: { order: FullOrder }) {
       <hr />
       <div className="receipt-row">
         <span>
-          {t.receipt.orderNo} {order.order_no}
+          {t.receipt.orderNo} {order.order_prefix ?? ""}{order.order_no}
         </span>
         <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
       </div>
       {order.table_name_ar && <div className="receipt-line">{t.pos.table}: {order.table_name_ar}</div>}
       {order.customer_name && <div className="receipt-line">{t.pos.customer}: {order.customer_name}</div>}
+      {order.customer_phone && <div className="receipt-line">{t.receipt.phone}: {order.customer_phone}</div>}
       {order.delivery_address && <div className="receipt-line">{t.pos.deliveryAddress}: {order.delivery_address}</div>}
+      {order.driver_name && <div className="receipt-line">{t.receipt.driver}: {order.driver_name}</div>}
       <div className="receipt-line">
         {t.receipt.date}: {new Date(order.created_at).toLocaleString("ar-EG")}
       </div>
@@ -89,10 +99,28 @@ export function Receipt({ order }: { order: FullOrder }) {
           <span>-{money(order.discount)}</span>
         </div>
       )}
+      {Number(order.service_fee ?? 0) > 0 && (
+        <div className="receipt-row">
+          <span>{t.pos.serviceFee}</span>
+          <span>{money(order.service_fee!)}</span>
+        </div>
+      )}
       {Number(order.delivery_fee) > 0 && (
         <div className="receipt-row">
           <span>{t.receipt.deliveryFee}</span>
           <span>{money(order.delivery_fee)}</span>
+        </div>
+      )}
+      {Number(order.vat_amount ?? 0) > 0 && (
+        <div className="receipt-row">
+          <span>{t.pos.vat}</span>
+          <span>{money(order.vat_amount!)}</span>
+        </div>
+      )}
+      {Number(order.rounding_adjustment ?? 0) !== 0 && (
+        <div className="receipt-row">
+          <span>{t.receipt.rounding}</span>
+          <span>{money(order.rounding_adjustment!)}</span>
         </div>
       )}
       <div className="receipt-row receipt-total">

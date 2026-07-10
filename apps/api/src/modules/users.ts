@@ -87,6 +87,13 @@ export function roleRoutes(db: Knex): Router {
   r.get("/", async (req, res, next) => {
     try {
       const roles = await db("roles").where({ account_id: req.user!.accountId }).orderBy("key");
+      const rp = await db("role_permissions as rp")
+        .join("permissions as p", "p.key", "rp.permission_key")
+        .whereIn("rp.role_id", roles.map((r2: { id: string }) => r2.id))
+        .select("rp.role_id", "p.key", "p.name_ar", "p.group");
+      for (const role of roles as Array<{ id: string; permissions?: unknown }>) {
+        role.permissions = rp.filter((x: { role_id: string }) => x.role_id === role.id);
+      }
       const perms = await db("role_permissions").whereIn("role_id", roles.map((x) => x.id));
       res.json({
         data: roles.map((ro) => ({

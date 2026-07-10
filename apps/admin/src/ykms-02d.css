@@ -1,0 +1,83 @@
+/* YKMS-02D — Ya Kebda black/yellow operating skin */
+:root {
+  --yk-black: #090b0d;
+  --yk-black-2: #11161a;
+  --yk-panel: #171e23;
+  --yk-line: #293139;
+  --yk-yellow: #f6c026;
+  --yk-yellow-2: #ffdc62;
+  --yk-text: #f5f0df;
+  --yk-muted: #aeb3aa;
+}
+
+.sidebar { background: var(--yk-black); }
+.sidebar .brand-mark { color: var(--yk-yellow); }
+.sidebar a.active { background: #1f252b; color: var(--yk-yellow); box-shadow: inset 3px 0 0 var(--yk-yellow); }
+button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+.card .num, .set-card h3 { color: #111; }
+
+.posx { background: var(--yk-black); color: var(--yk-text); }
+.posx-head { background: var(--yk-black-2); border-bottom-color: var(--yk-line); }
+.posx-brand strong { color: var(--yk-yellow); }
+.posx-brand span { color: var(--yk-muted); }
+.posx-head select, .posx-search, .posx-opts select, .posx-opts input {
+  background: var(--yk-black); color: var(--yk-text); border-color: var(--yk-line);
+}
+.posx-shift { border-color: var(--yk-line); }
+.posx-shift.on { color: #78e08f; border-color: #1f6f46; }
+.posx-shift.off { color: var(--yk-yellow); border-color: #665214; }
+.posx-menu { background: var(--yk-black); }
+.posx-cats button { background: var(--yk-panel); border-color: var(--yk-line); color: var(--yk-text); }
+.posx-cats button.active, .seg.dark button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+.posx-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.posx-card {
+  background: var(--yk-panel); border-color: var(--yk-line); color: var(--yk-text);
+  min-height: 178px; justify-content: flex-start;
+}
+.posx-card:hover { border-color: var(--yk-yellow); box-shadow: 0 0 0 1px rgba(246, 192, 38, 0.35); }
+.posx-card-img.ph { background: linear-gradient(135deg, #1e2328, #3c3210); color: var(--yk-yellow); }
+.posx-card-price, .posx-total, .posx-line-mods { color: var(--yk-yellow); }
+.posx-card-size { color: var(--yk-yellow-2); font-size: 12px; font-weight: 800; }
+.posx-card-ing { color: var(--yk-muted); font-size: 11px; line-height: 1.35; max-height: 32px; overflow: hidden; }
+.posx-cart { background: var(--yk-black-2); border-inline-start-color: var(--yk-line); }
+.posx-cart h3, .posx-empty { color: var(--yk-muted); }
+.posx-line { border-bottom-color: var(--yk-line); }
+.posx-line-actions button, .seg.dark button, .posx-fire button {
+  background: var(--yk-black); border-color: var(--yk-line); color: var(--yk-text);
+}
+.posx-line-actions input { background: var(--yk-black); border-color: var(--yk-line); color: var(--yk-text); }
+.posx-warn { color: var(--yk-yellow); }
+.posx-totals { border-top-color: var(--yk-line); }
+.posx-fire button.hot { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+.posx-fire button.ghost { color: var(--yk-muted); }
+
+.posx-calc {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  background: #0d1114; border: 1px solid var(--yk-line); border-radius: 12px;
+  padding: 8px; margin-top: 10px;
+}
+.posx-calc-display {
+  grid-column: span 4; background: #050607; color: var(--yk-yellow);
+  border: 1px solid #30343a; border-radius: 8px; padding: 8px 10px; text-align: left;
+  min-height: 36px; font-weight: 800; overflow: hidden;
+}
+.posx-calc button {
+  border: 1px solid var(--yk-line); border-radius: 8px; background: var(--yk-panel);
+  color: var(--yk-text); padding: 8px 4px; font-weight: 800; font-family: inherit;
+}
+.posx-calc button:nth-last-child(-n+2) { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
+
+.menu-product-form input { min-width: 180px; }
+.import-grid { display: grid; grid-template-columns: minmax(320px, 1fr); gap: 14px; }
+.import-panel { padding: 16px; }
+.import-panel h3 { margin-top: 0; }
+.json-import {
+  width: 100%; min-height: 420px; resize: vertical; direction: ltr;
+  background: #0d1114; color: #f5f0df; border: 1px solid var(--yk-line);
+  border-radius: 10px; padding: 12px; font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .posx-body { grid-template-columns: 1fr; }
+  .posx-cart { border-inline-start: 0; border-top: 1px solid var(--yk-line); }
+}

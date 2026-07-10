@@ -24,25 +24,30 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .posx-head select, .posx-search, .posx-opts select, .posx-opts input {
   background: var(--yk-black); color: var(--yk-text); border-color: var(--yk-line);
 }
+.posx-admin-link { color: var(--yk-yellow); border: 1px solid var(--yk-yellow); border-radius: 9px; padding: 8px 12px; text-decoration: none; font-weight: 800; font-size: 12px; white-space: nowrap; }
 .posx-shift { border-color: var(--yk-line); }
 .posx-shift.on { color: #78e08f; border-color: #1f6f46; }
 .posx-shift.off { color: var(--yk-yellow); border-color: #665214; }
 .posx-menu { background: var(--yk-black); }
 .posx-cats button { background: var(--yk-panel); border-color: var(--yk-line); color: var(--yk-text); }
 .posx-cats button.active, .seg.dark button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.posx-body { grid-template-columns: 1fr minmax(390px, 440px); }
-.posx-grid { grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); align-content: start; }
-.posx-card { background: var(--yk-panel); border-color: var(--yk-line); color: var(--yk-text); min-height: 178px; justify-content: flex-start; }
+.posx-body { grid-template-columns: 1fr minmax(410px, 460px); }
+.posx-grid { grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); align-content: start; }
+.posx-card { background: var(--yk-panel); border-color: var(--yk-line); color: var(--yk-text); min-height: 205px; justify-content: flex-start; }
 .posx-card:hover { border-color: var(--yk-yellow); box-shadow: 0 0 0 1px rgba(246, 192, 38, 0.35); }
 .posx-card-img.ph { background: linear-gradient(135deg, #1e2328, #3c3210); color: var(--yk-yellow); }
 .posx-card-price, .posx-total, .posx-line-mods { color: var(--yk-yellow); }
 .posx-card-size { color: var(--yk-yellow-2); font-size: 12px; font-weight: 800; }
 .posx-card-ing { color: var(--yk-muted); font-size: 11px; line-height: 1.35; max-height: 32px; overflow: hidden; }
-.posx-cart { background: var(--yk-black-2); border-inline-start-color: var(--yk-line); padding: 12px 14px; }
+.posx-card-actions { margin-top: auto; display: grid; grid-template-columns: 32px 1fr 32px; gap: 6px; align-items: center; width: 100%; }
+.posx-card-actions button { border: 1px solid var(--yk-line); background: #0d1114; color: var(--yk-text); border-radius: 8px; min-height: 30px; font-weight: 900; }
+.posx-card-actions button:last-child, .posx-card-actions button.details { grid-column: span 3; background: transparent; color: var(--yk-yellow); border-color: #5d4b14; }
+.posx-card-actions span { text-align: center; color: var(--yk-yellow); font-weight: 900; }
+.posx-cart { background: var(--yk-black-2); border-inline-start-color: var(--yk-line); padding: 12px 14px; min-height: 0; }
 .posx-cart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .posx-cart-head h3 { margin: 0; color: var(--yk-text); }
-.posx-cart-head span, .posx-empty { color: var(--yk-muted); }
-.posx-cart-lines { flex: 0 1 auto; max-height: 30vh; overflow-y: auto; padding-inline-end: 2px; scrollbar-width: thin; }
+.posx-cart-head strong, .posx-empty { color: var(--yk-muted); }
+.posx-cart-lines { flex: 1 1 160px; min-height: 140px; max-height: none; overflow-y: auto; padding-inline-end: 2px; scrollbar-width: thin; }
 .posx-line { border: 1px solid var(--yk-line); background: #0d1114; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
 .posx-line-actions button, .seg.dark button, .posx-fire button { background: var(--yk-black); border-color: var(--yk-line); color: var(--yk-text); }
 .posx-line-actions input { background: var(--yk-black); border-color: var(--yk-line); color: var(--yk-text); }
@@ -66,8 +71,7 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .import-panel h3 { margin-top: 0; }
 .json-import { width: 100%; min-height: 420px; resize: vertical; direction: ltr; background: #0d1114; color: #f5f0df; border: 1px solid var(--yk-line); border-radius: 10px; padding: 12px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 
-/* White modals/receipts must stay readable. */
-.modal, .option-modal, .receipt-modal { background: #fff; color: #111; }
+.modal, .option-modal, .receipt-modal, .posx-picker { background: #fff; color: #111; }
 .modal h3, .modal .muted, .modal .mod-group-name { color: #111; }
 .modal .seg button { color: #111; background: #fff; border-color: #d6d6d6; }
 .modal .seg button.active, .modal button.primary { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }

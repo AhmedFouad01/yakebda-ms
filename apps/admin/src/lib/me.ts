@@ -12,6 +12,7 @@ export interface Me {
   accountId: string;
   branchId?: string | null;
   permissions: string[];
+  roles: string[];
 }
 
 let cached: Me | null = null;
@@ -43,7 +44,10 @@ export async function loadMe(): Promise<Me | null> {
 }
 
 export function can(me: Me | null, permission: string): boolean {
-  return !!me?.permissions?.includes(permission);
+  if (!me) return false;
+  // YKMS-02F: المالك/الأدمن لا يُقفلان في الواجهة أبدًا (مطابق لدفاع الخادم)
+  if (me.roles?.includes("owner") || me.roles?.includes("admin")) return true;
+  return !!me.permissions?.includes(permission);
 }
 
 export function useMe(): { me: Me | null; ready: boolean; can: (p: string) => boolean } {

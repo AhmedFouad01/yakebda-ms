@@ -302,6 +302,60 @@ export function productRoutes(db: Knex): Router {
     }
   });
 
+  // YKMS-02F: منتج واحد كامل لمحرر الأصناف — بيانات + أحجام + روابط الإضافات
+  r.get("/:id", async (req, res, next) => {
+    try {
+      const product = await db("products").where({ id: req.params.id, account_id: req.user!.accountId }).first();
+      if (!product) throw err.notFound();
+      const variants = await db("product_variants").where({ product_id: product.id }).orderBy("sort_order", "asc");
+      const links = await db("product_modifier_groups").where({ product_id: product.id }).orderBy("sort_order", "asc");
+      res.json({ data: { ...product, variants, modifier_group_ids: links.map((l) => l.modifier_group_id) } });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02F: تعديل/حذف حجم — يحرّر الأحجام الحقيقية فقط دون اختراع أصناف
+  r.patch("/variants/:variantId", requirePermission("menu.manage"), async (req, res, next) => {
+    try {
+      const body = variantSchema.partial().safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      const row = await db("product_variants as v")
+        .join("products as p", "p.id", "v.product_id")
+        .where("v.id", req.params.variantId)
+        .where("p.account_id", req.user!.accountId)
+        .select("v.id")
+        .first();
+      if (!row) throw err.notFound();
+      await db("product_variants").where({ id: row.id }).update(body.data);
+      res.json({ data: await db("product_variants").where({ id: row.id }).first(), message: ar.messages.updated });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  r.delete("/variants/:variantId", requirePermission("menu.manage"), async (req, res, next) => {
+    try {
+      const row = await db("product_variants as v")
+        .join("products as p", "p.id", "v.product_id")
+        .where("v.id", req.params.variantId)
+        .where("p.account_id", req.user!.accountId)
+        .select("v.id")
+        .first();
+      if (!row) throw err.notFound();
+      const used = await db("order_items").where({ variant_id: row.id }).first();
+      if (used) {
+        // مستخدم في طلبات — تعطيل بدل الحذف حفاظًا على السجل
+        await db("product_variants").where({ id: row.id }).update({ is_active: false });
+      } else {
+        await db("product_variants").where({ id: row.id }).del();
+      }
+      res.json({ data: { id: row.id }, message: ar.messages.deleted });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   r.post("/:id/variants", requirePermission("menu.manage"), async (req, res, next) => {
     try {
       const body = variantSchema.safeParse(req.body);

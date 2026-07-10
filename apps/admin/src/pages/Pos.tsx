@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
@@ -78,6 +78,8 @@ interface Settings {
   service_fee_type: "percent" | "fixed";
   service_fee_value: number;
   rounding_rule: "none" | "nearest_050" | "nearest_1";
+  require_customer_for_delivery: boolean;
+  require_address_for_delivery: boolean;
 }
 interface CartLine {
   key: string;
@@ -139,6 +141,7 @@ function safeCalc(expression: string): string {
 
 export function Pos() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const { can } = useMe();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState(params.get("branch") ?? "");
@@ -491,7 +494,7 @@ export function Pos() {
             <span>Fast Food POS</span>
           </div>
         </div>
-        <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+        <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
           {branches.map((branch) => (
             <option key={branch.id} value={branch.id}>{branch.name}</option>
           ))}
@@ -500,9 +503,16 @@ export function Pos() {
           {shift ? t.shift.openTitle : t.shift.noShift}
           {can("shifts.manage") && <button onClick={shift ? closeShift : openShift}>{shift ? t.shift.close : t.shift.open}</button>}
         </div>
-        {can("menu.manage") && <button className="posx-admin-link" onClick={openItemsPanel}>إدارة الأصناف</button>}
-        {can("shifts.manage") && <button className="posx-admin-link" onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
-        <button className="posx-admin-link muted" onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
+        {/* YKMS-02F: أدوات الإدارة كلها تحت قائمة واحدة — لا أزرار كبيرة دائمة */}
+        <details className="posx-adminmenu">
+          <summary>الإدارة ▾</summary>
+          <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
+            {can("menu.manage") && <button onClick={openItemsPanel}>إدارة الأصناف</button>}
+            {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
+            <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
+            {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
+          </div>
+        </details>
         <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </header>
 

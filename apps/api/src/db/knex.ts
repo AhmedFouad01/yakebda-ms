@@ -7,6 +7,7 @@ import * as m004 from "./migrations/20260710_004_ykms_02c_settings";
 import * as m005 from "./migrations/20260710_005_ykms_02d_menu_pos_os";
 import * as m006 from "./migrations/20260710_006_ykms_02d_menu_cleanup";
 import * as m007 from "./migrations/20260710_007_ykms_02e_settings_architecture";
+import * as m008 from "./migrations/20260710_008_ykms_02f_operational_ui";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -20,6 +21,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260710_005_ykms_02d_menu_pos_os": m005,
   "20260710_006_ykms_02d_menu_cleanup": m006,
   "20260710_007_ykms_02e_settings_architecture": m007,
+  "20260710_008_ykms_02f_operational_ui": m008,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

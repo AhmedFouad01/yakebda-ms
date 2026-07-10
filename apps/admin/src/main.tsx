@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import "./styles.css";
 import "./ykms-02d.css";
+import "./ykms-02f.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

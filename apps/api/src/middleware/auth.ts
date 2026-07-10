@@ -89,6 +89,9 @@ export function requirePermission(...keys: string[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     const u = req.user;
     if (!u) return next(err.unauthorized());
+    // YKMS-02F: المالك/الأدمن لا يُقفلان أبدًا حتى لو كانت role_permissions ناقصة
+    // في قاعدة قديمة (الهجرة 008 تزامن الكتالوج، وهذا دفاع إضافي).
+    if (u.roles.includes("owner") || u.roles.includes("admin")) return next();
     const ok = keys.every((k) => u.permissions.includes(k));
     if (!ok) return next(err.forbidden());
     next();

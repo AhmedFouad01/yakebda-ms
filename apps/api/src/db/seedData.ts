@@ -84,6 +84,26 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
   { key: "integrations_admin", name_ar: "مسؤول التكاملات", perms: ["api_clients.manage", "audit.view"] },
 ];
 
+/**
+ * YKMS-02F — مزامنة علاجية idempotent:
+ * تُدخل أي صلاحيات ناقصة من الكتالوج وتمنح أدوار owner/admin كل الصلاحيات
+ * في كل الحسابات. آمنة على البيانات وتعمل على قواعد قديمة وجديدة.
+ */
+export async function syncPermissionCatalog(db: Knex): Promise<void> {
+  for (const p of PERMISSIONS) {
+    await db("permissions").insert(p).onConflict("key").ignore();
+  }
+  const fullRoles = await db("roles").whereIn("key", ["owner", "admin"]);
+  for (const role of fullRoles) {
+    for (const p of PERMISSIONS) {
+      await db("role_permissions")
+        .insert({ role_id: role.id, permission_key: p.key })
+        .onConflict(["role_id", "permission_key"])
+        .ignore();
+    }
+  }
+}
+
 export interface SeedResult {
   accountId: string;
   branchId: string;

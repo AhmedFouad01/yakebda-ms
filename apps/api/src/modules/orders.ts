@@ -82,8 +82,13 @@ async function setStatus(
   if (!TRANSITIONS[order.status]?.includes(to)) throw err.validation({ status: ar.errors.bad_status_transition });
   const patch: Record<string, unknown> = { status: to, updated_at: db.fn.now() };
   if (to === "submitted") patch.submitted_at = db.fn.now();
+  if (to === "in_kitchen") patch.in_kitchen_at = db.fn.now(); // YKMS-02F: مصدر مؤقت المطبخ
+  if (to === "ready") patch.ready_at = db.fn.now();
   if (to === "completed") patch.completed_at = db.fn.now();
-  if (to === "cancelled" && cancelReason) patch.cancel_reason = cancelReason;
+  if (to === "cancelled") {
+    patch.cancelled_at = db.fn.now();
+    if (cancelReason) patch.cancel_reason = cancelReason;
+  }
   await db("orders").where({ id: order.id }).update(patch);
   await db("order_status_history").insert({
     id: newId(),

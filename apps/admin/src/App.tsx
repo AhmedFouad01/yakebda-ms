@@ -1,5 +1,6 @@
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
-import { getToken, setToken } from "./lib/api";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { AppShell } from "./components/ui/AppShell";
+import { getToken } from "./lib/api";
 import { t } from "./lib/t";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
@@ -17,8 +18,7 @@ import { Orders } from "./pages/Orders";
 import { Customers } from "./pages/Customers";
 import { Reports } from "./pages/Reports";
 import { SettingsPage } from "./pages/Settings";
-import { brand } from "./config/brand";
-import { useMe, clearMe } from "./lib/me";
+import { useMe } from "./lib/me";
 import { ReactNode } from "react";
 
 /** الحارس: يعرض رسالة واضحة فقط عند فتح مسار مباشرة بدون صلاحية. */
@@ -31,60 +31,13 @@ function Guard({ perm, anyOf, children }: { perm?: string; anyOf?: string[]; chi
 }
 
 function Shell() {
-  const nav = useNavigate();
-  const { ready, can } = useMe();
+  // YKMS-02F: AppShell موحد — AppBar + NavDrawer + Sidebar للشاشات الإدارية،
+  // وPOS يحصل على كامل المساحة مع بقاء التنقل العلوي ظاهرًا دائمًا.
   if (!getToken()) return <Navigate to="/login" replace />;
-
-  // YKMS-02D: الصالة والطاولات مخفية الآن بقرار تشغيل — لا تظهر في القائمة ولا المسارات.
-  const links: Array<[string, string, string[] | null]> = [
-    ["/", t.nav.dashboard, null],
-    ["/pos", t.nav.pos, ["orders.create"]],
-    ["/kitchen", t.nav.kitchen, ["kitchen.view"]],
-    ["/menu", t.nav.menu, ["menu.manage"]],
-    ["/orders", t.nav.orders, ["orders.manage", "orders.create"]],
-    ["/customers", t.nav.customers, ["customers.manage"]],
-    ["/branches", t.nav.branches, ["branches.manage"]],
-    ["/users", t.nav.users, ["users.manage"]],
-    ["/devices", t.nav.devices, ["devices.manage"]],
-    ["/hardware", t.nav.hardware, ["hardware.manage"]],
-    ["/print-jobs", t.nav.printJobs, ["print_jobs.manage", "print_jobs.create"]],
-    ["/reports", t.nav.reports, ["reports.view"]],
-    ["/api-clients", t.nav.apiClients, ["api_clients.manage"]],
-    ["/audit", t.nav.audit, ["audit.view"]],
-    ["/settings", t.nav.settings, null],
-  ].filter(([, , perms]) => !ready || !perms || (perms as string[]).some(can)) as Array<[string, string, string[] | null]>;
-
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand-box">
-          <img src={brand.logoPath} alt={brand.nameAr} className="brand-logo" />
-          <div>
-            <div className="brand-mark">{brand.nameAr}</div>
-            <div className="brand-sub">{brand.systemName} — {t.appTagline}</div>
-          </div>
-        </div>
-        <nav>
-          {links.map(([to, label]) => (
-            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => (isActive ? "active" : "")}>{label}</NavLink>
-          ))}
-        </nav>
-        <div className="spacer" />
-        <button
-          className="logout"
-          onClick={() => {
-            setToken(null);
-            clearMe();
-            nav("/login");
-          }}
-        >
-          {t.nav.logout}
-        </button>
-      </aside>
-      <main className="main">
-        <Outlet />
-      </main>
-    </div>
+    <AppShell>
+      <Outlet />
+    </AppShell>
   );
 }
 

@@ -14,7 +14,6 @@ import { Pos } from "./pages/Pos";
 import { Kitchen } from "./pages/Kitchen";
 import { Menu } from "./pages/Menu";
 import { Orders } from "./pages/Orders";
-import { Tables } from "./pages/Tables";
 import { Customers } from "./pages/Customers";
 import { Reports } from "./pages/Reports";
 import { SettingsPage } from "./pages/Settings";
@@ -35,14 +34,14 @@ function Shell() {
   const nav = useNavigate();
   const { ready, can } = useMe();
   if (!getToken()) return <Navigate to="/login" replace />;
-  // YKMS-02C: القائمة تعرض فقط ما يملك المستخدم صلاحيته (لا ضجيج 403)
+
+  // YKMS-02D: الصالة والطاولات مخفية الآن بقرار تشغيل — لا تظهر في القائمة ولا المسارات.
   const links: Array<[string, string, string[] | null]> = [
     ["/", t.nav.dashboard, null],
     ["/pos", t.nav.pos, ["orders.create"]],
     ["/kitchen", t.nav.kitchen, ["kitchen.view"]],
     ["/menu", t.nav.menu, ["menu.manage"]],
     ["/orders", t.nav.orders, ["orders.manage", "orders.create"]],
-    ["/tables", t.nav.tables, ["tables.manage", "orders.create"]],
     ["/customers", t.nav.customers, ["customers.manage"]],
     ["/branches", t.nav.branches, ["branches.manage"]],
     ["/users", t.nav.users, ["users.manage"]],
@@ -54,6 +53,7 @@ function Shell() {
     ["/audit", t.nav.audit, ["audit.view"]],
     ["/settings", t.nav.settings, null],
   ].filter(([, , perms]) => !ready || !perms || (perms as string[]).some(can)) as Array<[string, string, string[] | null]>;
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -66,9 +66,7 @@ function Shell() {
         </div>
         <nav>
           {links.map(([to, label]) => (
-            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => (isActive ? "active" : "")}>
-              {label}
-            </NavLink>
+            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => (isActive ? "active" : "")}>{label}</NavLink>
           ))}
         </nav>
         <div className="spacer" />
@@ -101,7 +99,6 @@ export function App() {
           <Route path="/kitchen" element={<Guard perm="kitchen.view"><Kitchen /></Guard>} />
           <Route path="/menu" element={<Guard perm="menu.manage"><Menu /></Guard>} />
           <Route path="/orders" element={<Guard anyOf={["orders.manage", "orders.create"]}><Orders /></Guard>} />
-          <Route path="/tables" element={<Guard anyOf={["tables.manage", "orders.create"]}><Tables /></Guard>} />
           <Route path="/customers" element={<Guard perm="customers.manage"><Customers /></Guard>} />
           <Route path="/reports" element={<Guard perm="reports.view"><Reports /></Guard>} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -112,6 +109,7 @@ export function App() {
           <Route path="/print-jobs" element={<PrintJobs />} />
           <Route path="/api-clients" element={<ApiClients />} />
           <Route path="/audit" element={<Audit />} />
+          <Route path="/tables" element={<Navigate to="/pos" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

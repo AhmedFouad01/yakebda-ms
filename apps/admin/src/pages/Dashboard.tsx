@@ -3,16 +3,21 @@ import { t, fmtTime } from "../lib/t";
 import { useList } from "./hooks";
 import { api } from "../lib/api";
 import { brand } from "../config/brand";
+import { useMe } from "../lib/me";
 
 export function Dashboard() {
+  const { ready, can } = useMe();
   const [summary, setSummary] = useState<{ sales_today: number; orders_today: number; open_orders: number } | null>(null);
   useEffect(() => {
-    api<{ data: typeof summary }>("/reports/summary").then((r) => setSummary(r.data)).catch(() => {});
-  }, []);
-  const branches = useList("/branches");
-  const devices = useList("/devices");
-  const jobs = useList("/print-jobs");
-  const audit = useList("/audit-logs");
+    // YKMS-02C: لا نطلب التقارير إلا بصلاحيتها — لا ضجيج 403
+    if (ready && can("reports.view")) {
+      api<{ data: typeof summary }>("/reports/summary").then((r) => setSummary(r.data)).catch(() => {});
+    }
+  }, [ready]);
+  const branches = useList("/branches"); // متاح لأي مستخدم مسجل
+  const devices = useList(ready && can("devices.manage") ? "/devices" : null);
+  const jobs = useList(ready && (can("print_jobs.manage") || can("print_jobs.create")) ? "/print-jobs" : null);
+  const audit = useList(ready && can("audit.view") ? "/audit-logs" : null);
 
   return (
     <>

@@ -21,6 +21,10 @@ export const ar = {
     bad_status_transition: "لا يمكن نقل الطلب إلى هذه الحالة من حالته الحالية.",
     product_unavailable: "هذا الصنف غير متاح حاليًا في الفرع",
     no_receipt_printer: "لا توجد طابعة إيصالات نشطة في هذا الفرع.",
+    shift_required_for_cash: "لا يمكن قبول دفع نقدي بدون شيفت مفتوح في الفرع.",
+    shift_already_open: "يوجد شيفت مفتوح بالفعل في هذا الفرع.",
+    payment_method_disabled: "طريقة الدفع هذه غير مفعلة في الإعدادات.",
+    receipt_printing_disabled: "طباعة الإيصالات غير مفعلة في الإعدادات.",
   },
   messages: {
     login_ok: "تم تسجيل الدخول بنجاح.",
@@ -29,6 +33,8 @@ export const ar = {
     deleted: "تم الحذف بنجاح.",
     token_created_once:
       "تم إنشاء الرمز. انسخه الآن — لن يظهر مرة أخرى لأسباب أمنية.",
+    shift_opened: "تم فتح الشيفت.",
+    shift_closed: "تم إغلاق الشيفت.",
     print_job_queued: "تمت إضافة مهمة الطباعة إلى الطابور.",
   },
 } as const;

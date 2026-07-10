@@ -23,6 +23,7 @@ export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }>
   { key: "tables.manage", name_ar: "إدارة الطاولات", group: "الطاولات" },
   { key: "customers.manage", name_ar: "إدارة العملاء", group: "العملاء" },
   { key: "reports.view", name_ar: "عرض التقارير", group: "التقارير" },
+  { key: "settings.manage", name_ar: "إدارة الإعدادات", group: "الإعدادات" },
 ];
 
 export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all" }> = [
@@ -49,6 +50,7 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
       "tables.manage",
       "customers.manage",
       "reports.view",
+      "settings.manage",
     ],
   },
   {
@@ -298,6 +300,24 @@ export async function seedMvp(
     phone: "01000000002",
     address: "القاهرة — مدينة نصر",
   });
+
+  // --- Default settings (account-level rows; باقي القيم الافتراضية تعيش في الكود) ---
+  for (const [key, value] of Object.entries({
+    restaurant_name: "يا كبدة",
+    brand_name_ar: "يا كبدة",
+    currency: "EGP",
+  })) {
+    await db("settings")
+      .insert({
+        id: newId(),
+        account_id: accountId,
+        branch_id: null,
+        key,
+        value: JSON.stringify(value),
+      })
+      .onConflict(["account_id", "branch_id", "key"])
+      .ignore();
+  }
 
   // --- POS device + receipt printer for the main branch ---
   const posDeviceId = newId();

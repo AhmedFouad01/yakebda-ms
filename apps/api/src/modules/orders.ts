@@ -7,6 +7,7 @@ import { writeAudit } from "../lib/audit";
 import { requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { renderReceiptPayload } from "../lib/receipt";
+import { getSettings } from "./settings";
 
 /**
  * YKMS-02/03-lite — Orders & POS flow.
@@ -319,13 +320,20 @@ export function orderRoutes(db: Knex): Router {
       const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!order) throw err.notFound();
       if (order.status === "cancelled") throw err.validation({ status: ar.errors.bad_status_transition });
+      // YKMS-02C: الإعدادات تتحكم في طرق الدفع وشرط الشيفت للنقدي
+      const settings = await getSettings(db, req.user!.accountId, order.branch_id);
+      if (!settings.enabled_payment_methods.includes(body.data.method)) {
+        throw err.validation({ method: ar.errors.payment_method_disabled });
+      }
       let shiftId: string | null = null;
       if (body.data.method !== "unpaid") {
         const shift = await db("shifts")
           .where({ account_id: req.user!.accountId, branch_id: order.branch_id, cashier_user_id: req.user!.id, status: "open" })
           .first();
-        // Cash operation must be attached to an open cashier shift. Card/wallet also attach when the current cashier has a shift.
-        if (body.data.method === "cash" && !shift) throw err.validation({ shift: "لا يمكن تسجيل دفع نقدي بدون شيفت مفتوح للكاشير." });
+        // Cash operation may require an open cashier shift depending on settings. Card/wallet also attach when a shift exists.
+        if (body.data.method === "cash" && settings.require_open_shift_for_cash && !shift) {
+          throw err.validation({ shift: ar.errors.shift_required_for_cash });
+        }
         shiftId = shift?.id ?? null;
       }
       const id = newId();
@@ -361,6 +369,10 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await loadFullOrder(db, req.user!.accountId, req.params.id);
       if (!order) throw err.notFound();
+      const settings = await getSettings(db, req.user!.accountId, order.branch_id);
+      if (!settings.receipt_printing_enabled) {
+        throw err.validation({ printing: ar.errors.receipt_printing_disabled });
+      }
       const endpoint = body.data.endpoint_id
         ? await db("hardware_endpoints as h")
             .join("branches as b", "b.id", "h.branch_id")

@@ -17,28 +17,43 @@ import { Orders } from "./pages/Orders";
 import { Tables } from "./pages/Tables";
 import { Customers } from "./pages/Customers";
 import { Reports } from "./pages/Reports";
+import { SettingsPage } from "./pages/Settings";
 import { brand } from "./config/brand";
+import { useMe, clearMe } from "./lib/me";
+import { ReactNode } from "react";
+
+/** الحارس: يعرض رسالة واضحة فقط عند فتح مسار مباشرة بدون صلاحية. */
+function Guard({ perm, anyOf, children }: { perm?: string; anyOf?: string[]; children: ReactNode }) {
+  const { ready, can } = useMe();
+  if (!ready) return null;
+  const ok = perm ? can(perm) : anyOf ? anyOf.some(can) : true;
+  if (!ok) return <div className="alert" dir="rtl">{t.notAllowed}</div>;
+  return <>{children}</>;
+}
 
 function Shell() {
   const nav = useNavigate();
+  const { ready, can } = useMe();
   if (!getToken()) return <Navigate to="/login" replace />;
-  const links: Array<[string, string]> = [
-    ["/", t.nav.dashboard],
-    ["/pos", t.nav.pos],
-    ["/kitchen", t.nav.kitchen],
-    ["/menu", t.nav.menu],
-    ["/orders", t.nav.orders],
-    ["/tables", t.nav.tables],
-    ["/customers", t.nav.customers],
-    ["/branches", t.nav.branches],
-    ["/users", t.nav.users],
-    ["/devices", t.nav.devices],
-    ["/hardware", t.nav.hardware],
-    ["/print-jobs", t.nav.printJobs],
-    ["/reports", t.nav.reports],
-    ["/api-clients", t.nav.apiClients],
-    ["/audit", t.nav.audit],
-  ];
+  // YKMS-02C: القائمة تعرض فقط ما يملك المستخدم صلاحيته (لا ضجيج 403)
+  const links: Array<[string, string, string[] | null]> = [
+    ["/", t.nav.dashboard, null],
+    ["/pos", t.nav.pos, ["orders.create"]],
+    ["/kitchen", t.nav.kitchen, ["kitchen.view"]],
+    ["/menu", t.nav.menu, ["menu.manage"]],
+    ["/orders", t.nav.orders, ["orders.manage", "orders.create"]],
+    ["/tables", t.nav.tables, ["tables.manage", "orders.create"]],
+    ["/customers", t.nav.customers, ["customers.manage"]],
+    ["/branches", t.nav.branches, ["branches.manage"]],
+    ["/users", t.nav.users, ["users.manage"]],
+    ["/devices", t.nav.devices, ["devices.manage"]],
+    ["/hardware", t.nav.hardware, ["hardware.manage"]],
+    ["/print-jobs", t.nav.printJobs, ["print_jobs.manage", "print_jobs.create"]],
+    ["/reports", t.nav.reports, ["reports.view"]],
+    ["/api-clients", t.nav.apiClients, ["api_clients.manage"]],
+    ["/audit", t.nav.audit, ["audit.view"]],
+    ["/settings", t.nav.settings, null],
+  ].filter(([, , perms]) => !ready || !perms || (perms as string[]).some(can)) as Array<[string, string, string[] | null]>;
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -61,6 +76,7 @@ function Shell() {
           className="logout"
           onClick={() => {
             setToken(null);
+            clearMe();
             nav("/login");
           }}
         >
@@ -81,13 +97,14 @@ export function App() {
         <Route path="/login" element={<Login />} />
         <Route element={<Shell />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/pos" element={<Pos />} />
-          <Route path="/kitchen" element={<Kitchen />} />
-          <Route path="/menu" element={<Menu />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/tables" element={<Tables />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/reports" element={<Reports />} />
+          <Route path="/pos" element={<Guard perm="orders.create"><Pos /></Guard>} />
+          <Route path="/kitchen" element={<Guard perm="kitchen.view"><Kitchen /></Guard>} />
+          <Route path="/menu" element={<Guard perm="menu.manage"><Menu /></Guard>} />
+          <Route path="/orders" element={<Guard anyOf={["orders.manage", "orders.create"]}><Orders /></Guard>} />
+          <Route path="/tables" element={<Guard anyOf={["tables.manage", "orders.create"]}><Tables /></Guard>} />
+          <Route path="/customers" element={<Guard perm="customers.manage"><Customers /></Guard>} />
+          <Route path="/reports" element={<Guard perm="reports.view"><Reports /></Guard>} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/branches" element={<Branches />} />
           <Route path="/users" element={<Users />} />
           <Route path="/devices" element={<Devices />} />

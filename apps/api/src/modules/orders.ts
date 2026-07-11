@@ -35,6 +35,7 @@ const createOrderSchema = z.object({
   discount_reason: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   submit: z.boolean().default(true), // POS submits immediately by default
+  payment_method: z.enum(["cash", "card", "wallet", "unpaid"]).optional().nullable(),
   items: z
     .array(
       z.object({
@@ -180,6 +181,66 @@ export function orderRoutes(db: Knex): Router {
     }
   });
 
+  // YKMS-02G-E — lightweight POS history for the logged-in cashier's active shift.
+  r.get("/current-shift", requirePermission("orders.create"), async (req, res, next) => {
+    try {
+      const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!q.success) throw err.validation(q.error.flatten());
+
+      const branchId = q.data.branch_id ?? req.user!.branchId;
+      if (!branchId) throw err.validation({ branch_id: "الفرع مطلوب" });
+
+      const branch = await db("branches")
+        .where({ id: branchId, account_id: req.user!.accountId, is_active: true })
+        .first();
+      if (!branch) throw err.notFound();
+
+      const shift = await db("shifts")
+        .where({
+          account_id: req.user!.accountId,
+          branch_id: branchId,
+          cashier_user_id: req.user!.id,
+          status: "open",
+        })
+        .orderBy("opened_at", "desc")
+        .first();
+
+      if (!shift) {
+        res.json({ data: { shift: null, orders: [] } });
+        return;
+      }
+
+      const orders = await db("orders as o")
+        .where({
+          "o.account_id": req.user!.accountId,
+          "o.branch_id": branchId,
+          "o.created_by": req.user!.id,
+        })
+        .where("o.created_at", ">=", shift.opened_at)
+        .orderBy("o.created_at", "desc")
+        .limit(200)
+        .select(
+          "o.id",
+          "o.order_no",
+          "o.order_prefix",
+          "o.order_type",
+          "o.status",
+          "o.total",
+          "o.created_at",
+          "o.submitted_at",
+          "o.in_kitchen_at",
+          "o.ready_at",
+          "o.completed_at",
+          db.raw("(select coalesce(sum(p.amount), 0) from payments p where p.order_id = o.id) as paid_amount"),
+          db.raw("(select coalesce(sum(oi.qty), 0)::int from order_items oi where oi.order_id = o.id) as item_count")
+        );
+
+      res.json({ data: { shift, orders } });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   r.get("/:id", async (req, res, next) => {
     try {
       const order = await loadFullOrder(db, req.user!.accountId, req.params.id);
@@ -300,6 +361,26 @@ export function orderRoutes(db: Knex): Router {
       }
       const { serviceFee, vatAmount, rounding, total } = computeTotals(settings, subtotal, discount, d.delivery_fee);
 
+      let paymentShiftId: string | null = null;
+      const paymentId = d.payment_method && d.payment_method !== "unpaid" ? newId() : null;
+      if (paymentId) {
+        if (!settings.enabled_payment_methods.includes(d.payment_method!)) {
+          throw err.validation({ method: ar.errors.payment_method_disabled });
+        }
+        const activeShift = await db("shifts")
+          .where({
+            account_id: accountId,
+            branch_id: branch.id,
+            cashier_user_id: req.user!.id,
+            status: "open",
+          })
+          .first();
+        if (d.payment_method === "cash" && settings.require_open_shift_for_cash && !activeShift) {
+          throw err.validation({ shift: ar.errors.shift_required_for_cash });
+        }
+        paymentShiftId = activeShift?.id ?? null;
+      }
+
       const orderId = newId();
       await db.transaction(async (trx) => {
         // YKMS-02E: ترقيم من الإعدادات — يومي أو مستمر، لكل فرع أو للحساب
@@ -368,6 +449,17 @@ export function orderRoutes(db: Knex): Router {
           to_status: "draft",
           changed_by: req.user!.id,
         });
+        if (paymentId) {
+          await trx("payments").insert({
+            id: paymentId,
+            order_id: orderId,
+            branch_id: branch.id,
+            method: d.payment_method,
+            amount: total,
+            received_by: req.user!.id,
+            shift_id: paymentShiftId,
+          });
+        }
       });
 
       const created = (await db("orders").where({ id: orderId }).first())!;
@@ -408,6 +500,18 @@ export function orderRoutes(db: Knex): Router {
         meta: { order_no: created.order_no, order_type: d.order_type, total },
         ip: req.ip,
       });
+      if (paymentId) {
+        await writeAudit(db, {
+          accountId,
+          branchId: branch.id,
+          userId: req.user!.id,
+          action: "payment.record",
+          entityType: "payment",
+          entityId: paymentId,
+          meta: { order_no: created.order_no, method: d.payment_method, amount: total },
+          ip: req.ip,
+        });
+      }
       res.status(201).json({ data: await loadFullOrder(db, accountId, orderId), message: ar.messages.created });
     } catch (e) {
       next(e);

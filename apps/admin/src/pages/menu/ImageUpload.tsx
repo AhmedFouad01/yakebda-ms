@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { api, fileToBase64 } from "../../lib/api";
+import { api, fileToBase64, resolveAssetUrl } from "../../lib/api";
 
 /**
  * YKMS-02G — رفع صورة الصنف.
@@ -54,7 +54,7 @@ export function ImageUpload({
         role="button"
       >
         {value ? (
-          <img className="imgup-preview" src={value} alt="" onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.3")} />
+          <img className="imgup-preview" src={resolveAssetUrl(value)} alt="" onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.3")} />
         ) : (
           <div className="imgup-empty">
             <span className="imgup-icon">🖼️</span>

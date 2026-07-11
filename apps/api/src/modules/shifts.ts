@@ -39,12 +39,12 @@ export function shiftRoutes(db: Knex): Router {
   const r = Router();
   r.use(requireUser(db));
 
-  r.get("/current", requirePermission("shifts.manage"), async (req, res, next) => {
+  r.get("/current", async (req, res, next) => {
     try {
       const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
       if (!q.success) throw err.validation(q.error.flatten());
       const row = await db("shifts")
-        .where({ account_id: req.user!.accountId, status: "open" })
+        .where({ account_id: req.user!.accountId, cashier_user_id: req.user!.id, status: "open" })
         .modify((qb) => {
           if (q.data.branch_id) qb.where("branch_id", q.data.branch_id);
           if (!q.data.branch_id && req.user!.branchId) qb.where("branch_id", req.user!.branchId);

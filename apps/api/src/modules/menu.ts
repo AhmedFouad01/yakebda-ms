@@ -424,23 +424,29 @@ export function productRoutes(db: Knex): Router {
       const validationError = validateImage(body.data.mime, buffer.length);
       if (validationError) throw err.validation({ image: validationError });
 
+      const product = body.data.product_id
+        ? await db("products").where({ id: body.data.product_id, account_id: req.user!.accountId }).first()
+        : null;
+      if (body.data.product_id && !product) throw err.notFound();
+
       const stored = await getStorage().save({ data: buffer, mime: body.data.mime, prefix: "products" });
 
-      if (body.data.product_id) {
-        const product = await db("products").where({ id: body.data.product_id, account_id: req.user!.accountId }).first();
-        if (product) {
-          await db("products").where({ id: product.id }).update({ image_url: stored.url, updated_at: db.fn.now() });
-          await writeAudit(db, {
-            accountId: req.user!.accountId,
-            userId: req.user!.id,
-            action: "product.image_upload",
-            entityType: "product",
-            entityId: product.id,
-          });
-        }
+      if (product) {
+        await db("products").where({ id: product.id }).update({ image_url: stored.url, updated_at: db.fn.now() });
+        await writeAudit(db, {
+          accountId: req.user!.accountId,
+          userId: req.user!.id,
+          action: "product.image_upload",
+          entityType: "product",
+          entityId: product.id,
+        });
       }
 
-      res.status(201).json({ data: { url: stored.url, size: stored.size }, message: ar.messages.created });
+      const updatedProduct = product ? await db("products").where({ id: product.id }).first() : null;
+      res.status(201).json({
+        data: { url: stored.url, size: stored.size, product: updatedProduct },
+        message: ar.messages.created,
+      });
     } catch (e) {
       next(e);
     }

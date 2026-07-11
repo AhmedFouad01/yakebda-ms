@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, downloadFile, fileToBase64 } from "../lib/api";
+import { api, downloadFile, fileToBase64, resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
 import { useList } from "./hooks";
 import { ProductEditor } from "./menu/ProductEditor";
@@ -154,7 +154,7 @@ function ProductsTab() {
           <tbody>
             {filtered.map((p) => (
               <tr key={p.id}>
-                <td>{p.image_url ? <img className="menu-thumb" src={p.image_url} alt="" /> : <span className="menu-thumb ph">{p.name_ar.trim().charAt(0)}</span>}</td>
+                <td>{p.image_url ? <img className="menu-thumb" src={resolveAssetUrl(p.image_url)} alt="" /> : <span className="menu-thumb ph">{p.name_ar.trim().charAt(0)}</span>}</td>
                 <td><b>{p.name_ar}</b><div className="muted mono">{p.sku || "بدون SKU"}</div></td>
                 <td>{catName(p.category_id)}</td>
                 <td className="mono">

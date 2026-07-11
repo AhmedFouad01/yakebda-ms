@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
+import { OrderDetail } from "../components/OrderDetail";
 import { useMe } from "../lib/me";
 import { ProductEditor } from "./menu/ProductEditor";
+import { Drawer } from "../components/ui/overlays";
 
 interface MenuModifier {
   id: string;
@@ -58,6 +60,22 @@ interface Shift {
     orders_count: number;
   };
 }
+interface ShiftOrderSummary {
+  id: string;
+  order_no: number;
+  order_prefix?: string | null;
+  order_type: string;
+  status: string;
+  total: string | number;
+  paid_amount: string | number;
+  item_count: number;
+  created_at: string;
+  submitted_at?: string | null;
+  in_kitchen_at?: string | null;
+  ready_at?: string | null;
+  completed_at?: string | null;
+}
+
 interface Settings {
   show_product_images: boolean;
   require_open_shift_for_cash: boolean;
@@ -168,6 +186,11 @@ export function Pos() {
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [history, setHistory] = useState<ShiftOrderSummary[]>([]);
+  const [historyOrder, setHistoryOrder] = useState<FullOrder | null>(null);
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
@@ -203,6 +226,29 @@ export function Pos() {
     }
   }
 
+  async function loadHistory(silent = false) {
+    if (!branchId) return;
+    if (!silent) setHistoryBusy(true);
+    setHistoryError("");
+    try {
+      const response = await api<{ data: { shift: Shift | null; orders: ShiftOrderSummary[] } }>(
+        `/orders/current-shift?branch_id=${branchId}`
+      );
+      setShift(response.data.shift);
+      setHistory(response.data.orders);
+    } catch (e: any) {
+      setHistoryError(e.message);
+    } finally {
+      if (!silent) setHistoryBusy(false);
+    }
+  }
+
+  async function openHistoryOrder(id: string) {
+    const response = await api<{ data: FullOrder }>(`/orders/${id}`);
+    setHistoryOpen(false);
+    setHistoryOrder(response.data);
+  }
+
   async function loadMenu(currentBranchId = branchId, preserve = false) {
     if (!currentBranchId) return;
     const menuEl = document.querySelector(".posx-menu");
@@ -235,6 +281,14 @@ export function Pos() {
     });
     loadShift(branchId);
   }, [branchId]);
+
+  useEffect(() => {
+    if (!historyOpen || !branchId) return;
+    void loadHistory();
+    const timer = window.setInterval(() => void loadHistory(true), 10000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen, branchId]);
 
   // YKMS-02E: إخفاء الأصناف غير المرئية في POS (pos_visible === false)
   const allProducts = useMemo(
@@ -344,7 +398,7 @@ export function Pos() {
     }
   }
 
-  async function fireOrder(opts: { submit: boolean; pay: boolean; print: boolean }) {
+  async function fireOrder() {
     setError("");
     setMsg("");
     if (!cart.length || busy) return;
@@ -359,7 +413,8 @@ export function Pos() {
           customer_id: orderType === "delivery" && customerId ? customerId : null,
           delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
           delivery_fee: orderType === "delivery" ? deliveryFee : 0,
-          submit: opts.submit,
+          submit: true,
+          payment_method: payment,
           discount: settings?.allow_discounts ? discount : 0,
           discount_reason: discount > 0 ? discountReason || null : null,
           notes: orderNotes || null,
@@ -372,14 +427,7 @@ export function Pos() {
           })),
         },
       });
-      let order = response.data;
-      if (opts.pay && payment !== "unpaid") {
-        await api(`/orders/${order.id}/payments`, { method: "POST", body: { method: payment, amount: Number(order.total) } });
-      }
-      if (opts.print && settings?.receipt_printing_enabled) {
-        await api(`/orders/${order.id}/print`, { method: "POST", body: {} });
-      }
-      order = (await api<{ data: FullOrder }>(`/orders/${order.id}`)).data;
+      const order = response.data;
       setDone(order);
       setCart([]);
       setDiscount(0);
@@ -387,6 +435,7 @@ export function Pos() {
       setOrderNotes("");
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
+      if (historyOpen) await loadHistory(true);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -484,35 +533,32 @@ export function Pos() {
 
   return (
     <div className="posx" dir="rtl">
-      <header className="posx-head posx-head-ops">
-        {/* YKMS-02G: هيدر تشغيلي فقط — الهوية والتنقل في AppShell العلوي */}
-        <div className="posx-ops-group">
-          <span className="posx-ops-label">الفرع</span>
-          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>{branch.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className={shift ? "posx-shift on" : "posx-shift off"}>
-          <span className="posx-ops-label">{me?.name ?? "الكاشير"}</span>
-          <span className="posx-shift-state">{shift ? t.shift.openTitle : t.shift.noShift}</span>
-          {can("shifts.manage") && <button onClick={shift ? closeShift : openShift}>{shift ? t.shift.close : t.shift.open}</button>}
-        </div>
-        <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <details className="posx-adminmenu">
-          <summary>الإدارة ▾</summary>
-          <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
-            {can("menu.manage") && <button onClick={openItemsPanel}>إدارة الأصناف</button>}
-            {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
-            <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
-            {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
-          </div>
-        </details>
-      </header>
 
       <div className="posx-body">
         <section className="posx-menu">
+          <div className="posx-menu-tools">
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              ))}
+            </select>
+            <span className={shift ? "posx-shift on" : "posx-shift off"}>
+              <span>{me?.name ?? "الكاشير"}</span>
+              <span>{shift ? t.shift.openTitle : t.shift.noShift}</span>
+              {can("shifts.manage") && <button onClick={shift ? closeShift : openShift}>{shift ? t.shift.close : t.shift.open}</button>}
+            </span>
+            <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
+            <details className="posx-adminmenu">
+              <summary>الإدارة ▾</summary>
+              <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
+                {can("menu.manage") && <button onClick={openItemsPanel}>إدارة الأصناف</button>}
+                {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
+                <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
+                {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
+              </div>
+            </details>
+          </div>
           <div className="posx-cats">
             <button className={activeCat === "الكل" && !search ? "active" : ""} onClick={() => { setActiveCat("الكل"); setSearch(""); }}>الكل</button>
             {categories.map((category) => (
@@ -650,19 +696,64 @@ export function Pos() {
             const fireDisabled = busy || !!fireReason;
             return (
               <div className="posx-fire-wrap">
-                <div className="posx-fire">
-                  <button disabled={fireDisabled} title={fireReason ?? undefined} onClick={() => fireOrder({ submit: true, pay: false, print: false })}>{t.pos.kot}</button>
-                  <button disabled={fireDisabled} title={fireReason ?? undefined} onClick={() => fireOrder({ submit: false, pay: false, print: false })}>{t.pos.bill}</button>
-                  <button className="hot" disabled={fireDisabled || payment === "unpaid" || !!payReason} title={payReason ?? (payment === "unpaid" ? "اختر طريقة دفع" : undefined)} onClick={() => fireOrder({ submit: true, pay: true, print: false })}>{t.pos.billPay}</button>
-                  {settings?.receipt_printing_enabled && <button className="hot" disabled={fireDisabled || !!payReason} title={payReason ?? undefined} onClick={() => fireOrder({ submit: true, pay: payment !== "unpaid", print: true })}>{t.pos.billPrint}</button>}
-                  <button className="ghost" disabled={!cart.length} onClick={() => setCart([])}>{t.pos.clear}</button>
-                </div>
+                <button className="posx-order-now" disabled={fireDisabled || !!payReason} title={payReason ?? undefined} onClick={fireOrder}>
+                  {busy ? "جاري تسجيل الطلب…" : "طلب الآن"}
+                </button>
                 {(payReason ?? fireReason) && <div className="posx-fire-reason">{payReason ?? fireReason}</div>}
               </div>
             );
           })()}
         </aside>
       </div>
+
+      <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="سجل طلبات الشيفت" wide>
+        {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
+        {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
+        {!historyBusy && !historyError && !shift && (
+          <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
+        )}
+        {!historyBusy && !historyError && shift && !history.length && (
+          <div className="posx-history-empty">لم يتم تسجيل طلبات في الشيفت الحالي بعد.</div>
+        )}
+        <div className="posx-history-list">
+          {history.map((order) => {
+            const paid = Number(order.paid_amount);
+            const amount = Number(order.total);
+            const paymentState = paid <= 0 ? "غير مدفوع" : paid < amount ? "مدفوع جزئيًا" : "مدفوع";
+            const kitchenState =
+              order.status === "submitted" ? "في انتظار المطبخ" :
+              order.status === "in_kitchen" ? "قيد التحضير" :
+              order.status === "ready" ? "جاهز" :
+              order.status === "completed" ? "مكتمل" :
+              order.status === "cancelled" ? "ملغي" : "مسودة";
+            return (
+              <button key={order.id} className="posx-history-row" onClick={() => openHistoryOrder(order.id)}>
+                <span className="posx-history-main">
+                  <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
+                  <span>{new Date(order.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span>
+                </span>
+                <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+                <span>{order.item_count} صنف</span>
+                <span>{money(amount)}</span>
+                <span>{paymentState}</span>
+                <span>{kitchenState}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Drawer>
+
+      {historyOrder && (
+        <div className="modal-back" onClick={() => setHistoryOrder(null)}>
+          <div className="modal od-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="od-modal-head">
+              <h3>تفاصيل الطلب #{historyOrder.order_prefix ?? ""}{historyOrder.order_no}</h3>
+              <button className="od-modal-x" onClick={() => setHistoryOrder(null)}>✕</button>
+            </div>
+            <OrderDetail order={historyOrder} />
+          </div>
+        </div>
+      )}
 
       {picking && <OptionPicker product={picking} onCancel={() => setPicking(null)} onAdd={(variant, modifiers) => { addProduct(picking, variant, modifiers); setPicking(null); }} />}
       {/* YKMS-02F: محرر الأصناف الكامل — Drawer فوق POS، السلة/الفئة/التمرير محفوظة */}
@@ -748,7 +839,7 @@ function ItemManager(props: {
         {editing ? (
           <>
             <div className="image-rec">الصورة المقترحة: مربعة 1:1 — 800×800px — JPG/WebP — أقل من 400KB</div>
-            {editForm.image_url && <img className="posx-edit-preview" src={editForm.image_url} alt={editForm.name_ar} />}
+            {editForm.image_url && <img className="posx-edit-preview" src={resolveAssetUrl(editForm.image_url)} alt={editForm.name_ar} />}
             <label>اسم الصنف<input value={editForm.name_ar} onChange={(e) => setEditForm({ ...editForm, name_ar: e.target.value })} /></label>
             <label>السعر<input type="number" min={0} value={editForm.base_price} onChange={(e) => setEditForm({ ...editForm, base_price: Number(e.target.value) })} /></label>
             <label>رابط صورة مربعة<input dir="ltr" value={editForm.image_url} onChange={(e) => setEditForm({ ...editForm, image_url: e.target.value })} /></label>
@@ -836,6 +927,12 @@ function ProductCard({
     return init;
   });
 
+  const imageSrc = resolveAssetUrl(product.image_url);
+  const [imageBroken, setImageBroken] = useState(false);
+  useEffect(() => {
+    setImageBroken(false);
+  }, [imageSrc]);
+
   const priceNow =
     product.effective_price +
     Number(variant?.price_delta ?? 0) +
@@ -849,7 +946,10 @@ function ProductCard({
   return (
     <div className={product.is_available ? "posx-card2" : "posx-card2 off"}>
       <div className="posx-card2-top" onClick={() => (needsChoices ? undefined : add())} role="button">
-        {showImage && (product.image_url ? <img className="posx-card2-img" src={product.image_url} alt={product.name_ar} /> : <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>)}
+        {showImage && (imageSrc && !imageBroken
+          ? <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
+          : <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>
+        )}
         <div className="posx-card2-info">
           <span className="posx-card2-name">{product.name_ar}</span>
           <span className="posx-card2-price">{money(priceNow)}</span>

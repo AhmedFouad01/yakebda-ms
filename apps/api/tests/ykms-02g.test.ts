@@ -200,3 +200,94 @@ describe("YKMS-02G — استيراد/تصدير Excel", () => {
     expect(Number(pep.base_price)).toBe(14);
   });
 });
+
+describe("YKMS-02G-D — CRM تحليلات العملاء", () => {
+  it("ملف العميل يجمّع الطلبات والإنفاق والصنف المفضّل", async () => {
+    const cust = await asOwner(request(app).post("/api/v1/customers").send({ name: "عميل تحليلات", phone: "0155", is_vip: true, tags: "دائم", email: "z@z.com" }));
+    expect(cust.status).toBe(201);
+    expect(cust.body.data.is_vip).toBe(true);
+    const cid = cust.body.data.id;
+    const pepsi = await db("products").where({ name_ar: "بيبسي" }).first();
+    for (let i = 0; i < 2; i++) {
+      const o = await asOwner(request(app).post("/api/v1/orders").send({ branch_id: branchId, order_type: "takeaway", customer_id: cid, submit: true, items: [{ product_id: pepsi.id, qty: 2 }] }));
+      await asOwner(request(app).patch(`/api/v1/orders/${o.body.data.id}/status`).send({ status: "in_kitchen" }));
+      await asOwner(request(app).patch(`/api/v1/orders/${o.body.data.id}/status`).send({ status: "ready" }));
+      await asOwner(request(app).patch(`/api/v1/orders/${o.body.data.id}/status`).send({ status: "completed" }));
+    }
+    const prof = await asOwner(request(app).get(`/api/v1/customers/${cid}`));
+    expect(prof.status).toBe(200);
+    const a = prof.body.data.analytics;
+    expect(a.total_orders).toBe(2);
+    expect(a.completed_orders).toBe(2);
+    // الإنفاق موجب ومتوسط الطلب = الإجمالي/عدد المكتمل (بصرف النظر عن الرسوم/الضريبة)
+    expect(a.total_spend).toBeGreaterThan(0);
+    expect(a.avg_order_value).toBeCloseTo(a.total_spend / 2, 2);
+    expect(a.favourite_product).toBe("بيبسي");
+  });
+
+  it("سجل طلبات العميل مصفح", async () => {
+    const cust = await asOwner(request(app).post("/api/v1/customers").send({ name: "سجل", phone: "0166" }));
+    const pepsi = await db("products").where({ name_ar: "بيبسي" }).first();
+    await asOwner(request(app).post("/api/v1/orders").send({ branch_id: branchId, order_type: "takeaway", customer_id: cust.body.data.id, submit: true, items: [{ product_id: pepsi.id, qty: 1 }] }));
+    const hist = await asOwner(request(app).get(`/api/v1/customers/${cust.body.data.id}/orders`));
+    expect(hist.status).toBe(200);
+    expect(hist.body.data.length).toBe(1);
+  });
+
+  it("قائمة العملاء خفيفة بلا تحليلات لكل صف", async () => {
+    const list = await asOwner(request(app).get("/api/v1/customers"));
+    expect(list.status).toBe(200);
+    if (list.body.data.length) expect("analytics" in list.body.data[0]).toBe(false);
+  });
+});
+
+describe("YKMS-02G-D — RBAC الأدوار والصلاحيات", () => {
+  it("تحديث صلاحيات دور غير نظامي", async () => {
+    const roles = await asOwner(request(app).get("/api/v1/roles"));
+    const cashier = roles.body.data.find((r: { key: string }) => r.key === "cashier");
+    const newPerms = [...new Set([...cashier.permissions, "reports.view"])];
+    const upd = await asOwner(request(app).patch(`/api/v1/roles/${cashier.id}`).send({ permissions: newPerms }));
+    expect(upd.status).toBe(200);
+    const after = await asOwner(request(app).get("/api/v1/roles"));
+    expect(after.body.data.find((r: { key: string }) => r.key === "cashier").permissions).toContain("reports.view");
+  });
+
+  it("يمنع تقليص صلاحيات المالك", async () => {
+    const roles = await asOwner(request(app).get("/api/v1/roles"));
+    const owner = roles.body.data.find((r: { key: string }) => r.key === "owner");
+    const res = await asOwner(request(app).patch(`/api/v1/roles/${owner.id}`).send({ permissions: ["pos.use"] }));
+    expect(res.status).toBe(422);
+  });
+
+  it("يمنع حذف أدوار النظام", async () => {
+    const roles = await asOwner(request(app).get("/api/v1/roles"));
+    const owner = roles.body.data.find((r: { key: string }) => r.key === "owner");
+    const res = await asOwner(request(app).delete(`/api/v1/roles/${owner.id}`));
+    expect(res.status).toBe(422);
+  });
+
+  it("يمنع إيقاف المالك الوحيد النشط", async () => {
+    const users = await asOwner(request(app).get("/api/v1/users"));
+    const ownerUser = users.body.data.find((u: { roles: Array<{ key: string }> }) => u.roles.some((r) => r.key === "owner"));
+    const res = await asOwner(request(app).patch(`/api/v1/users/${ownerUser.id}`).send({ is_active: false }));
+    expect(res.status).toBe(422);
+  });
+
+  it("يفرض الصلاحيات من الخلفية (كاشير يُمنع من users.manage)", async () => {
+    await asOwner(request(app).post("/api/v1/users").send({ name: "كاشير اختبار", pin: "8888", role_keys: ["cashier"], branch_id: branchId }));
+    const cashLogin = await request(app).post("/api/v1/auth/pin-login").send({ branch_id: branchId, pin: "8888" });
+    const denied = await request(app).get("/api/v1/users").set("Authorization", `Bearer ${cashLogin.body.token}`);
+    expect(denied.status).toBe(403);
+  });
+
+  it("تكرار دور مع صلاحياته", async () => {
+    const roles = await asOwner(request(app).get("/api/v1/roles"));
+    const manager = roles.body.data.find((r: { key: string }) => r.key === "manager");
+    const dup = await asOwner(request(app).post(`/api/v1/roles/${manager.id}/duplicate`).send({ key: "manager_night", name_ar: "مدير وردية ليلية" }));
+    expect(dup.status).toBe(201);
+    const after = await asOwner(request(app).get("/api/v1/roles"));
+    const copy = after.body.data.find((r: { key: string }) => r.key === "manager_night");
+    expect(copy).toBeTruthy();
+    expect(copy.permissions.length).toBe(manager.permissions.length);
+  });
+});

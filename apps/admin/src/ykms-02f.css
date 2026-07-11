@@ -444,3 +444,62 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .imgup-err { color: #ff6b60; font-size: 11.5px; }
 .stack { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .stack input, .stack select { height: var(--field-h); border: 1px solid var(--yk-line); border-radius: 9px; padding: 0 10px; font-family: inherit; }
+
+/* ================================================================
+   YKMS-02G-D — Customer CRM
+   ================================================================ */
+.crm-search { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.crm-search input { flex: 1; max-width: 420px; height: var(--field-h); border: 1px solid var(--yk-line); border-radius: 9px; padding: 0 12px; font-family: inherit; }
+.crm-table { width: 100%; border-collapse: collapse; }
+.crm-table th, .crm-table td { text-align: start; padding: 9px 10px; border-bottom: 1px solid var(--yk-line); font-size: 13px; vertical-align: middle; }
+.crm-table th { color: var(--yk-muted); font-size: 11.5px; font-weight: 800; }
+.crm-name { background: none; border: 0; color: var(--yk-yellow-2); font-weight: 800; font-family: inherit; font-size: 13.5px; cursor: pointer; padding: 0; text-align: start; }
+.crm-name:hover { text-decoration: underline; }
+.app2-main:not(.full) .crm-name { color: #8a6d10; }
+.crm-badge { display: inline-block; margin-inline-end: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #eef0ee; color: #444; }
+.crm-badge.vip { background: linear-gradient(135deg, var(--yk-yellow), var(--yk-yellow-2)); color: #111; }
+.crm-badge.blocked { background: #fbeeed; color: #9a3a34; }
+.crm-profile-head { margin-bottom: var(--sp-2); }
+.crm-profile-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.crm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.crm-kpi { background: var(--yk-black-2); border: 1px solid var(--yk-line); border-radius: 10px; padding: 12px; text-align: center; }
+.crm-kpi b { display: block; font-size: 18px; color: var(--yk-yellow); }
+.crm-kpi span { font-size: 11px; color: var(--yk-muted); }
+.app2-main:not(.full) .crm-kpi { background: #fafbf9; }
+.app2-main:not(.full) .crm-kpi b { color: #8a6d10; }
+.crm-recent { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-recent-item { background: var(--yk-black-2); border: 1px solid var(--yk-line); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
+.app2-main:not(.full) .crm-recent-item { background: #f2f4f1; }
+.crm-loyalty-note { font-size: 11.5px; padding: 8px 12px; border: 1px dashed var(--yk-line); border-radius: 8px; }
+
+/* ================================================================
+   YKMS-02G-D — Users / Roles / Permissions (RBAC matrix)
+   ================================================================ */
+.perm-chips, .rbac-perms { display: flex; flex-wrap: wrap; gap: 6px; }
+.perm-chips button { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--yk-line); background: var(--yk-black-2); color: var(--yk-text); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.perm-chips button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+.app2-main:not(.full) .perm-chips button { background: #fff; color: #1a1d1a; }
+.app2-main:not(.full) .perm-chips button.active { background: var(--yk-yellow); color: #111; }
+
+.rbac-layout { display: grid; grid-template-columns: 220px 1fr; gap: var(--sp-3); align-items: start; }
+.rbac-roles { border: 1px solid var(--yk-line); border-radius: 12px; overflow: hidden; background: var(--yk-panel); }
+.app2-main:not(.full) .rbac-roles { background: #fff; }
+.rbac-roles-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--yk-line); font-weight: 800; font-size: 13px; }
+.rbac-role { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--yk-line); padding: 11px 12px; font-family: inherit; font-size: 13px; font-weight: 700; color: inherit; cursor: pointer; text-align: start; }
+.rbac-role:hover { background: rgba(246,192,38,0.06); }
+.rbac-role.active { background: rgba(246,192,38,0.12); box-shadow: inset 3px 0 0 var(--yk-yellow); }
+.rbac-role span:first-child { flex: 1; }
+.rbac-sys { font-size: 10px; background: #eef0ee; color: #666; border-radius: 999px; padding: 1px 7px; }
+.rbac-count { font-size: 11px; color: var(--yk-muted); font-variant-numeric: tabular-nums; }
+.rbac-matrix { border: 1px solid var(--yk-line); border-radius: 12px; padding: var(--sp-3); background: var(--yk-panel); }
+.app2-main:not(.full) .rbac-matrix { background: #fff; }
+.rbac-matrix-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: var(--sp-2); }
+.rbac-matrix-head h3 { margin: 0; font-size: 15px; }
+.rbac-group { border: 1px solid var(--yk-line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.rbac-group-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: 800; font-size: 12.5px; color: var(--yk-yellow-2); }
+.app2-main:not(.full) .rbac-group-head { color: #8a6d10; }
+.rbac-perm { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--yk-line); border-radius: 999px; padding: 4px 12px 4px 8px; font-size: 12px; font-weight: 700; }
+.rbac-perm.on { border-color: var(--yk-yellow); background: rgba(246,192,38,0.08); }
+.rbac-perm.ro { opacity: 0.75; }
+.rbac-save { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+@media (max-width: 1100px) { .rbac-layout { grid-template-columns: 1fr; } }

@@ -44,10 +44,9 @@ export async function loadMe(): Promise<Me | null> {
 }
 
 export function can(me: Me | null, permission: string): boolean {
-  if (!me) return false;
-  // YKMS-02F: المالك/الأدمن لا يُقفلان في الواجهة أبدًا (مطابق لدفاع الخادم)
-  if (me.roles?.includes("owner") || me.roles?.includes("admin")) return true;
-  return !!me.permissions?.includes(permission);
+  // لا تجاوز بأسماء الأدوار: الصلاحيات وحدها مصدر الحقيقة —
+  // owner/admin يحصلان على كل الصلاحيات فعليًا عبر مزامنة الهجرة 008.
+  return !!me?.permissions?.includes(permission);
 }
 
 export function useMe(): { me: Me | null; ready: boolean; can: (p: string) => boolean } {

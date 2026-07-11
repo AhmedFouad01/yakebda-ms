@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
 import { useMe } from "../lib/me";
+import { ProductEditor } from "./menu/ProductEditor";
 
 interface MenuModifier {
   id: string;
@@ -157,6 +158,7 @@ export function Pos() {
   const [customerId, setCustomerId] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [editorProductId, setEditorProductId] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
@@ -201,12 +203,19 @@ export function Pos() {
     }
   }
 
-  async function loadMenu(currentBranchId = branchId) {
+  async function loadMenu(currentBranchId = branchId, preserve = false) {
     if (!currentBranchId) return;
+    const menuEl = document.querySelector(".posx-menu");
+    const scrollTop = preserve ? menuEl?.scrollTop ?? 0 : 0;
     const response = await api<{ data: { categories: MenuCategory[] } }>(`/branches/${currentBranchId}/menu`);
     const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
     setCategories(sorted);
-    setActiveCat("الكل");
+    if (!preserve) setActiveCat("الكل");
+    // YKMS-02F: العودة من محرر الأصناف تُرجع نفس موضع التمرير — لا تدمير لحالة POS
+    if (preserve) requestAnimationFrame(() => {
+      const el = document.querySelector(".posx-menu");
+      if (el) el.scrollTop = scrollTop;
+    });
   }
 
   useEffect(() => {
@@ -544,7 +553,7 @@ export function Pos() {
                     <span>{qty}</span>
                     <button onClick={() => quickAdd(product)} disabled={!product.is_available}>+</button>
                     {(product.variants.length > 0 || product.modifier_groups.length > 0) && <button className="details" onClick={() => pick(product)}>تفاصيل</button>}
-                    {can("menu.manage") && <button className="details edit" onClick={() => startEdit(product)}>تعديل</button>}
+                    {can("menu.manage") && <button className="details edit" onClick={() => setEditorProductId(product.id)}>تعديل</button>}
                   </div>
                 </div>
               );
@@ -554,12 +563,7 @@ export function Pos() {
 
         <aside className="posx-cart">
           <div className="posx-cart-head"><h3>{t.pos.cart}</h3><strong>{itemCount} صنف</strong></div>
-          <div className="posx-shift-stats">
-            <div><span>افتتاحي</span><b>{money(Number(shift?.opening_cash ?? 0))}</b></div>
-            <div><span>نقدي</span><b>{money(Number(shift?.totals?.cash_sales ?? 0))}</b></div>
-            <div><span>طلبات</span><b>{shift?.totals?.orders_count ?? 0}</b></div>
-            <div><span>متوقع</span><b>{money(Number(shift?.totals?.expected_cash ?? 0))}</b></div>
-          </div>
+          {/* YKMS-02F: إحصائيات الشيفت انتقلت لشاشة «إدارة الشيفت» — السلة للتشغيل فقط */}
           {error && <div className="alert dark-alert">{error}</div>}
           {msg && <div className="ok dark-ok">{msg}</div>}
 
@@ -647,17 +651,50 @@ export function Pos() {
             <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{money(total)}</span></div>
           </div>
 
-          <div className="posx-fire">
-            <button disabled={!cart.length || busy} onClick={() => fireOrder({ submit: true, pay: false, print: false })}>{t.pos.kot}</button>
-            <button disabled={!cart.length || busy} onClick={() => fireOrder({ submit: false, pay: false, print: false })}>{t.pos.bill}</button>
-            <button className="hot" disabled={!cart.length || busy || payment === "unpaid" || cashBlocked} onClick={() => fireOrder({ submit: true, pay: true, print: false })}>{t.pos.billPay}</button>
-            {settings?.receipt_printing_enabled && <button className="hot" disabled={!cart.length || busy || cashBlocked} onClick={() => fireOrder({ submit: true, pay: payment !== "unpaid", print: true })}>{t.pos.billPrint}</button>}
-            <button className="ghost" disabled={!cart.length} onClick={() => setCart([])}>{t.pos.clear}</button>
-          </div>
+          {(() => {
+            // YKMS-02F: أسباب تعطيل واضحة — لا زر معطّل بلا تفسير
+            const deliveryIncomplete =
+              orderType === "delivery" &&
+              ((settings?.require_customer_for_delivery !== false && !customerId) ||
+                (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()));
+            const fireReason = !cart.length
+              ? "السلة فارغة"
+              : deliveryIncomplete
+                ? "بيانات الدليفري ناقصة"
+                : belowMinDelivery
+                  ? "أقل من الحد الأدنى للتوصيل"
+                  : discountReasonMissing
+                    ? "سبب الخصم مطلوب"
+                    : discountOverLimit && !can("orders.discount_above_limit")
+                      ? "الخصم يتطلب موافقة مدير"
+                      : null;
+            const payReason = fireReason ?? (cashBlocked ? "يجب فتح شيفت" : null);
+            const fireDisabled = busy || !!fireReason;
+            return (
+              <div className="posx-fire-wrap">
+                <div className="posx-fire">
+                  <button disabled={fireDisabled} title={fireReason ?? undefined} onClick={() => fireOrder({ submit: true, pay: false, print: false })}>{t.pos.kot}</button>
+                  <button disabled={fireDisabled} title={fireReason ?? undefined} onClick={() => fireOrder({ submit: false, pay: false, print: false })}>{t.pos.bill}</button>
+                  <button className="hot" disabled={fireDisabled || payment === "unpaid" || !!payReason} title={payReason ?? (payment === "unpaid" ? "اختر طريقة دفع" : undefined)} onClick={() => fireOrder({ submit: true, pay: true, print: false })}>{t.pos.billPay}</button>
+                  {settings?.receipt_printing_enabled && <button className="hot" disabled={fireDisabled || !!payReason} title={payReason ?? undefined} onClick={() => fireOrder({ submit: true, pay: payment !== "unpaid", print: true })}>{t.pos.billPrint}</button>}
+                  <button className="ghost" disabled={!cart.length} onClick={() => setCart([])}>{t.pos.clear}</button>
+                </div>
+                {(payReason ?? fireReason) && <div className="posx-fire-reason">{payReason ?? fireReason}</div>}
+              </div>
+            );
+          })()}
         </aside>
       </div>
 
       {picking && <OptionPicker product={picking} onCancel={() => setPicking(null)} onAdd={(variant, modifiers) => { addProduct(picking, variant, modifiers); setPicking(null); }} />}
+      {/* YKMS-02F: محرر الأصناف الكامل — Drawer فوق POS، السلة/الفئة/التمرير محفوظة */}
+      {editorProductId && (
+        <ProductEditor
+          productId={editorProductId}
+          onClose={() => setEditorProductId(null)}
+          onSaved={() => loadMenu(branchId, true).catch((e: Error) => setError(e.message))}
+        />
+      )}
       {done && (
         <div className="modal-back" onClick={() => setDone(null)}>
           <div className="modal receipt-modal" onClick={(e) => e.stopPropagation()}>

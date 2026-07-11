@@ -212,3 +212,95 @@
 
 /* ——— استقرار 1366×768: لا سكرول أفقي إطلاقًا ——— */
 html, body { overflow-x: hidden; }
+
+/* ================================================================
+   YKMS-02F — POS viewport stability (يعلو 02D)
+   ================================================================ */
+
+/* السلة: flex بدل grid بصفوف مفهرسة — مصونة ضد العناصر الشرطية،
+   وأزرار الدفع لا تخرج من الشاشة أبدًا */
+.posx-cart { display: flex !important; flex-direction: column; gap: 8px; }
+.posx-cart > * { flex: 0 0 auto; }
+.posx-cart .posx-cart-lines { flex: 1 1 auto; min-height: 70px; overflow-y: auto; }
+.posx-cart .posx-opts { max-height: 34dvh; overflow-y: auto; }
+.posx-fire-wrap { flex: 0 0 auto; }
+.posx-fire-reason { color: var(--yk-yellow); font-size: 12px; font-weight: 800; padding-top: 4px; text-align: center; }
+
+/* قائمة الإدارة الموحدة في هيدر POS */
+.posx-adminmenu { position: relative; }
+.posx-adminmenu summary {
+  list-style: none; cursor: pointer; user-select: none;
+  height: 34px; display: inline-flex; align-items: center; padding: 0 14px;
+  background: var(--yk-black); border: 1px solid var(--yk-line);
+  border-radius: 8px; font-size: 13px; font-weight: 800; color: var(--yk-text);
+}
+.posx-adminmenu summary::-webkit-details-marker { display: none; }
+.posx-adminmenu[open] summary { border-color: var(--yk-yellow); color: var(--yk-yellow); }
+.posx-adminmenu-items {
+  position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 80;
+  min-width: 180px; display: flex; flex-direction: column;
+  background: var(--yk-panel); border: 1px solid var(--yk-line); border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.5); overflow: hidden;
+}
+.posx-adminmenu-items button {
+  background: transparent; border: 0; color: var(--yk-text);
+  padding: 11px 16px; text-align: start; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.posx-adminmenu-items button:hover { background: #1f252b; color: var(--yk-yellow); }
+
+/* هيدر POS: أعمدة مرنة بعد دمج الأزرار */
+.posx-head { grid-template-columns: auto minmax(120px, 150px) auto auto minmax(200px, 1fr) !important; }
+
+/* شبكة الأصناف: أعمدة محسوبة — لا بطاقات ضيقة مكدسة على 1366px */
+.posx-grid { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important; }
+@media (max-width: 1440px) {
+  .posx-body { grid-template-columns: minmax(0, 1fr) minmax(360px, 396px) !important; }
+  .posx-grid { grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)) !important; }
+}
+
+/* لا سكرول مزدوج داخل POS */
+.app2-pos .app2-main.full { overflow: hidden; }
+
+/* ——— Product Editor ——— */
+.pedit-image-row { display: flex; gap: var(--sp-4); align-items: flex-start; margin-bottom: var(--sp-3); }
+.pedit-image { width: 96px; height: 96px; flex: 0 0 96px; border-radius: 12px; overflow: hidden; border: 1px solid var(--yk-line); background: var(--yk-black-2); display: grid; place-items: center; }
+.pedit-image img { width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1; }
+.pedit-image-ph { font-size: 34px; font-weight: 900; color: #111; width: 100%; height: 100%; display: grid; place-items: center; background: linear-gradient(135deg, var(--yk-yellow), var(--yk-yellow-2)); }
+.pedit-variants h4 { margin: var(--sp-4) 0 var(--sp-2); color: var(--yk-yellow); font-size: 14px; }
+.pedit-variant-row { display: grid; grid-template-columns: 1fr 110px auto auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) 0; border-bottom: 1px dashed var(--yk-line); }
+.pedit-variant-name { font-weight: 800; font-size: 13.5px; }
+.pedit-variant-add { display: grid; grid-template-columns: 1fr 110px auto; gap: var(--sp-2); margin-top: var(--sp-3); }
+.pedit-group { border-bottom: 1px dashed var(--yk-line); padding: var(--sp-2) 0; }
+.pedit-group-mods { display: flex; flex-wrap: wrap; gap: 6px; padding-inline-start: 50px; }
+.pedit-branches { width: 100%; border-collapse: collapse; }
+.pedit-branches th, .pedit-branches td { text-align: start; padding: var(--sp-2); border-bottom: 1px solid var(--yk-line); font-size: 13px; }
+
+/* ——— Settings layout ——— */
+.setx2 { display: grid; grid-template-columns: 210px 1fr; gap: var(--sp-4); align-items: start; }
+.setx2-nav { position: sticky; top: var(--sp-3); display: flex; flex-direction: column; gap: 3px; background: var(--yk-panel); border: 1px solid var(--yk-line); border-radius: 12px; padding: var(--sp-2); }
+.setx2-nav button { text-align: start; background: transparent; border: 0; border-radius: 8px; padding: 10px 12px; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--yk-text); }
+.setx2-nav button.active { background: var(--yk-yellow); color: #111; }
+.setx2-body { min-width: 0; display: flex; flex-direction: column; }
+.set-sub { font-weight: 800; font-size: 12.5px; color: var(--yk-yellow); margin: var(--sp-3) 0 var(--sp-2); border-top: 1px dashed var(--yk-line); padding-top: var(--sp-2); }
+.app2-main:not(.full) .setx2-nav { background: #fff; border-color: #e2e5df; }
+.app2-main:not(.full) .setx2-nav button { color: #23261f; }
+.app2-main:not(.full) .setx2-nav button.active { background: var(--yk-yellow); color: #111; }
+.app2-main:not(.full) .set-sub { color: #8a5b00; }
+@media (max-width: 1000px) { .setx2 { grid-template-columns: 1fr; } .setx2-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
+
+/* جداول الإعدادات المنقولة */
+.set-card table, .uif-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.set-card th, .set-card td, .uif-card th, .uif-card td { text-align: start; padding: 8px; border-bottom: 1px solid var(--yk-line); }
+.set-img { display: flex; align-items: center; gap: 8px; }
+.set-img img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; aspect-ratio: 1; }
+.set-role { border-top: 1px dashed var(--yk-line); padding: 10px 0; }
+.set-perms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+
+/* ——— Kitchen running timer + timestamps ——— */
+.kds-timer { font-variant-numeric: tabular-nums; font-weight: 900; }
+.kds-received { font-size: 11.5px; color: var(--yk-muted); margin: 2px 0; }
+.kds-station { color: #7fd4c4; font-size: 12px; font-weight: 700; }
+.kds-card.kds-warn { border-color: #e9a13b !important; box-shadow: 0 0 0 1px #e9a13b; }
+.kds-card.kds-late { border-color: #d64541 !important; box-shadow: 0 0 0 2px #d64541; }
+.kds-card.kds-late .kds-timer { color: #ff6b60; }

@@ -307,9 +307,19 @@ export function productRoutes(db: Knex): Router {
     try {
       const product = await db("products").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!product) throw err.notFound();
-      const variants = await db("product_variants").where({ product_id: product.id }).orderBy("sort_order", "asc");
+      const variants = await db("product_variants").where({ product_id: product.id }).orderBy("created_at", "asc");
       const links = await db("product_modifier_groups").where({ product_id: product.id }).orderBy("sort_order", "asc");
-      res.json({ data: { ...product, variants, modifier_group_ids: links.map((l) => l.modifier_group_id) } });
+      const branchPrices = await db("branch_product_prices").where({ product_id: product.id });
+      const branchAvailability = await db("branch_product_availability").where({ product_id: product.id });
+      res.json({
+        data: {
+          ...product,
+          variants,
+          modifier_group_ids: links.map((l) => l.modifier_group_id),
+          branch_prices: branchPrices,
+          branch_availability: branchAvailability,
+        },
+      });
     } catch (e) {
       next(e);
     }

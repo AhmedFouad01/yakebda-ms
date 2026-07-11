@@ -8,7 +8,10 @@ interface KOrder {
   order_prefix?: string | null;
   order_type: string;
   status: string;
+  created_at: string;
   submitted_at: string | null;
+  in_kitchen_at?: string | null;
+  ready_at?: string | null;
   updated_at?: string | null;
   notes?: string | null;
   items: Array<{
@@ -60,10 +63,31 @@ function minutesSince(iso: string | null) {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 }
 
+/** YKMS-02F: الزمن المنقضي مشتق من timestamp — MM:SS، وHH:MM:SS بعد ساعة. */
+function formatElapsed(iso: string | null, nowMs: number): string {
+  if (!iso) return "--:--";
+  const totalSec = Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const sec = totalSec % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+}
+
+/** الطابع الزمني الدقيق بصيغة عربية: "10 يوليو 2026 — 02:31:18 م". */
+function formatExact(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+  const time = d.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return `${date} — ${time}`;
+}
+
 export function Kitchen() {
   const [orders, setOrders] = useState<KOrder[]>([]);
   const [settings, setSettings] = useState<KdsSettings | null>(null);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(Date.now());
   const knownIds = useMemo(() => new Set<string>(), []);
 
   async function load(alertOnNew = true) {
@@ -88,6 +112,12 @@ export function Kitchen() {
     load(false);
     const id = setInterval(load, 5000);
     return () => clearInterval(id);
+  }, []);
+
+  // YKMS-02F: نبضة كل ثانية للمؤقت الجاري — تُنظَّف بشكل صحيح (لا تسريب ذاكرة)
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
   }, []);
 
   async function advance(o: KOrder) {
@@ -133,19 +163,29 @@ export function Kitchen() {
           <div key={status} className="kds-col">
             <div className={`kds-col-head st-${status}`}>{label} <span>{orders.filter((o) => o.status === status).length}</span></div>
             {orders.filter((o) => o.status === status).map((o) => {
-              const age = minutesSince(o.submitted_at);
+              // YKMS-02F: الزمن الجاري مشتق من timestamp الخادم — لا تخزين لدقائق منقضية
+              const anchor = o.submitted_at ?? o.created_at;
+              const mins = minutesSince(anchor);
+              const warn = settings?.kds_warning_minutes ?? 7;
+              const late = settings?.kds_late_minutes ?? 12;
+              const slaClass = o.status === "ready" ? "" : mins >= late ? " kds-late" : mins >= warn ? " kds-warn" : "";
               return (
-                <div key={o.id} className={`kds-card st-${o.status}`}>
+                <div key={o.id} className={`kds-card st-${o.status}${slaClass}`}>
                   <div className="kds-card-head">
-                    <span>{t.kitchen.orderNo} #{o.order_no}</span>
-                    <span className="kds-timer">{age} د</span>
+                    <span>{t.kitchen.orderNo} #{o.order_prefix ?? ""}{o.order_no}</span>
+                    <span className="kds-timer" title="الزمن المنقضي منذ الإرسال">{formatElapsed(anchor, now)}</span>
                   </div>
+                  <div className="kds-received">ورد إلى المطبخ: {formatExact(anchor)}</div>
+                  {o.ready_at && o.status === "ready" && <div className="kds-received">جاهز منذ: {formatExact(o.ready_at)}</div>}
                   <div className="kds-meta"><span>{t.orders.types[o.order_type]}</span><span>{o.items.reduce((s, i) => s + i.qty, 0)} أصناف</span></div>
                   <ul>
                     {o.items.map((i) => (
                       <li key={i.id}>
                         <strong>{i.qty} × {i.name_ar}{i.variant_name_ar ? ` (${i.variant_name_ar})` : ""}</strong>
                         {i.modifiers.length > 0 && <div className="kds-mods">{i.modifiers.map((m) => m.name_ar).join("، ")}</div>}
+                        {(i.prep_station_ar || (i.prep_time_minutes ?? 0) > 0) && (
+                          <div className="kds-station">{i.prep_station_ar ?? ""}{(i.prep_time_minutes ?? 0) > 0 ? ` — ${i.prep_time_minutes} د` : ""}</div>
+                        )}
                         {i.notes && <div className="kds-note">{t.kitchen.notes}: {i.notes}</div>}
                       </li>
                     ))}

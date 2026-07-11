@@ -503,3 +503,30 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .rbac-perm.ro { opacity: 0.75; }
 .rbac-save { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 @media (max-width: 1100px) { .rbac-layout { grid-template-columns: 1fr; } }
+
+/* ================================================================
+   YKMS-02G — Visual QA: back-office polish + table overflow safety
+   ================================================================ */
+/* الجداول العريضة تتمرر أفقيًا بدل كسر التخطيط عند 1366×768 */
+.app2-main:not(.full) .panel { overflow-x: auto; }
+.menu-table, .crm-table { min-width: 640px; }
+/* شاشات الإدارة الفاتحة: توحيد ألوان الحقول الخام إلى نظام التصميم */
+.app2-main:not(.full) select,
+.app2-main:not(.full) input[type="text"],
+.app2-main:not(.full) input[type="number"],
+.app2-main:not(.full) input[type="email"],
+.app2-main:not(.full) input[type="password"],
+.app2-main:not(.full) input[type="date"],
+.app2-main:not(.full) input:not([type]),
+.app2-main:not(.full) textarea {
+  background: #fff; color: #23261f; border: 1px solid #d8dcd6; border-radius: 9px;
+  font-family: inherit;
+}
+.app2-main:not(.full) input:focus, .app2-main:not(.full) select:focus, .app2-main:not(.full) textarea:focus {
+  outline: none; border-color: var(--yk-yellow); box-shadow: 0 0 0 3px rgba(246,192,38,0.18);
+}
+/* أزرار الصفوف الصغيرة على الشاشات الفاتحة */
+.app2-main:not(.full) button.sm { background: #fff; color: #23261f; border-color: #d8dcd6; }
+.app2-main:not(.full) button.sm.primary { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
+/* منع فيض المودالات */
+.modal.wide { max-width: min(920px, 96vw); max-height: 92dvh; overflow-y: auto; }

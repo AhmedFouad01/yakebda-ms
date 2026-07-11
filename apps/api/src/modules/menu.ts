@@ -6,6 +6,8 @@ import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
 import { requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
+import { getStorage, validateImage } from "../lib/storage";
+import { buildWorkbook, buildTemplate, parseWorkbook, planImport, applyImport, type ExportRow } from "./menuExcel";
 
 /** YKMS-02D — Menu Core + Ya Kebda POS menu import. All queries are account-scoped. */
 
@@ -301,6 +303,149 @@ export function productRoutes(db: Knex): Router {
       next(e);
     }
   });
+
+  // YKMS-02G — تصدير المنيو إلى Excel
+  r.get("/export-excel", requirePermission("menu.manage"), async (req, res, next) => {
+    try {
+      const accountId = req.user!.accountId;
+      const products = await db("products as p")
+        .leftJoin("categories as c", "c.id", "p.category_id")
+        .where("p.account_id", accountId)
+        .select(
+          "p.id",
+          "p.name_ar",
+          "p.name_en",
+          "p.sku",
+          "p.base_price",
+          "p.is_active",
+          "p.pos_visible",
+          "p.discountable",
+          "p.prep_time_minutes",
+          "p.image_url",
+          "p.description_ar",
+          "p.ingredients_ar",
+          "p.portion_note_ar",
+          db.raw('c.name_ar as category')
+        )
+        .orderBy("c.sort_order", "asc");
+      const rows: ExportRow[] = products.map((p: Record<string, unknown>) => ({
+        id: p.id as string,
+        name_ar: p.name_ar as string,
+        name_en: (p.name_en as string) ?? null,
+        sku: (p.sku as string) ?? null,
+        category: (p.category as string) ?? "",
+        base_price: Number(p.base_price),
+        is_active: !!p.is_active,
+        pos_visible: p.pos_visible == null ? true : !!p.pos_visible,
+        discountable: p.discountable == null ? true : !!p.discountable,
+        prep_time_minutes: Number(p.prep_time_minutes ?? 0),
+        image_url: (p.image_url as string) ?? null,
+        description_ar: (p.description_ar as string) ?? null,
+        ingredients_ar: (p.ingredients_ar as string) ?? null,
+        portion_note_ar: (p.portion_note_ar as string) ?? null,
+      }));
+      const buffer = buildWorkbook(rows);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", 'attachment; filename="yakebda-menu.xlsx"');
+      res.send(buffer);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02G — قالب Excel فارغ للتنزيل
+  r.get("/import-template", requirePermission("menu.manage"), async (_req, res, next) => {
+    try {
+      const buffer = buildTemplate();
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", 'attachment; filename="yakebda-menu-template.xlsx"');
+      res.send(buffer);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02G — استيراد Excel: dry-run (معاينة) ثم apply (كتابة).
+  // لا كتابة صامتة: العميل يرسل mode=preview أولًا، ثم mode=apply بعد التأكيد.
+  r.post("/import-excel", requirePermission("menu.manage"), async (req, res, next) => {
+    try {
+      const body = z
+        .object({
+          mode: z.enum(["preview", "apply"]).default("preview"),
+          data_base64: z.string().min(1),
+        })
+        .safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+
+      const raw = body.data.data_base64.replace(/^data:[^;]+;base64,/, "");
+      const buffer = Buffer.from(raw, "base64");
+      const rows = parseWorkbook(buffer);
+      if (!rows.length) throw err.validation({ file: "الملف فارغ أو لا يحتوي صفوفًا" });
+
+      const accountId = req.user!.accountId;
+      const plan = await planImport(db, accountId, rows);
+
+      if (body.data.mode === "preview") {
+        res.json({ data: { mode: "preview", ...plan } });
+        return;
+      }
+
+      const result = await applyImport(db, accountId, rows, findOrCreateCategory, newId);
+      await writeAudit(db, {
+        accountId,
+        userId: req.user!.id,
+        action: "menu.import_excel",
+        entityType: "product",
+        entityId: null,
+        meta: result,
+        ip: req.ip,
+      });
+      res.status(201).json({ data: { mode: "apply", ...result }, message: ar.messages.created });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02G — رفع صورة الصنف عبر base64 (لا تخزين ثنائي في PostgreSQL).
+  // يتحقق من MIME والحجم، يولّد اسمًا آمنًا، يعيد رابطًا عامًا؛ يحدّث الصنف إن مُرِّر id.
+  r.post("/upload-image", requirePermission("menu.manage"), async (req, res, next) => {
+    try {
+      const body = z
+        .object({
+          product_id: z.string().uuid().optional(),
+          mime: z.string(),
+          data_base64: z.string().min(1),
+        })
+        .safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+
+      const raw = body.data.data_base64.replace(/^data:[^;]+;base64,/, "");
+      const buffer = Buffer.from(raw, "base64");
+      const validationError = validateImage(body.data.mime, buffer.length);
+      if (validationError) throw err.validation({ image: validationError });
+
+      const stored = await getStorage().save({ data: buffer, mime: body.data.mime, prefix: "products" });
+
+      if (body.data.product_id) {
+        const product = await db("products").where({ id: body.data.product_id, account_id: req.user!.accountId }).first();
+        if (product) {
+          await db("products").where({ id: product.id }).update({ image_url: stored.url, updated_at: db.fn.now() });
+          await writeAudit(db, {
+            accountId: req.user!.accountId,
+            userId: req.user!.id,
+            action: "product.image_upload",
+            entityType: "product",
+            entityId: product.id,
+          });
+        }
+      }
+
+      res.status(201).json({ data: { url: stored.url, size: stored.size }, message: ar.messages.created });
+    } catch (e) {
+      next(e);
+    }
+  });
+
 
   // YKMS-02F: منتج واحد كامل لمحرر الأصناف — بيانات + أحجام + روابط الإضافات
   r.get("/:id", async (req, res, next) => {

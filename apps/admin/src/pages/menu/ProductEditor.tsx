@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { Drawer, ConfirmDialog, toast } from "../../components/ui/overlays";
+import { ImageUpload } from "./ImageUpload";
 import {
   FormField,
   TextInput,
@@ -257,15 +258,11 @@ export function ProductEditor({ productId, onClose, onSaved }: { productId: stri
             {tab === "basic" && (
               <div>
                 <div className="pedit-image-row">
-                  <div className="pedit-image">
-                    {form.image_url ? (
-                      <img src={form.image_url} alt={form.name_ar} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-                    ) : (
-                      <span className="pedit-image-ph">{form.name_ar.trim().charAt(0) || "؟"}</span>
-                    )}
-                  </div>
                   <div style={{ flex: 1 }}>
-                    <FormField label="رابط الصورة (مربعة 1:1 — 800×800)" hint="JPG/WebP أقل من 400KB">
+                    <FormField label="صورة الصنف (مربعة 1:1 — تُعرض 800×800)" hint="ارفع صورة أو الصق رابطًا">
+                      <ImageUpload value={form.image_url || null} productId={productId} onChange={(url) => set("image_url", url ?? "")} />
+                    </FormField>
+                    <FormField label="أو رابط صورة خارجي" hint="https://…">
                       <TextInput dir="ltr" placeholder="https://…" value={form.image_url} onChange={(e) => set("image_url", e.target.value)} />
                     </FormField>
                   </div>

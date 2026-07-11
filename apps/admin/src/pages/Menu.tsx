@@ -1,7 +1,8 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { api } from "../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { api, downloadFile, fileToBase64 } from "../lib/api";
 import { t } from "../lib/t";
 import { useList } from "./hooks";
+import { ProductEditor } from "./menu/ProductEditor";
 
 interface Category { id: string; name_ar: string; sort_order: number; is_active: boolean }
 interface Variant { id: string; name_ar: string; price_delta: string | number }
@@ -75,19 +76,232 @@ function CategoriesTab() {
 
 function ProductsTab() {
   const cats = useList<Category>("/categories");
-  const groups = useList<Group>("/modifier-groups");
   const { data, error, reload } = useList<Product>("/products");
-  const [form, setForm] = useState({ name_ar: "", category_id: "", base_price: 0, sku: "", image_url: "", ingredients_ar: "", portion_note_ar: "" });
-  const [expanded, setExpanded] = useState("");
-  const [vName, setVName] = useState("لقمة");
-  const [vDelta, setVDelta] = useState(0);
+  const [editorId, setEditorId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [err, setErr] = useState("");
-  useEffect(() => { if (!form.category_id && cats.data.length) setForm((f) => ({ ...f, category_id: cats.data[0].id })); }, [cats.data]);
-  async function add() { try { const created = await api<{ data: Product }>("/products", { method: "POST", body: { ...form, sku: form.sku || null, image_url: form.image_url || null, ingredients_ar: form.ingredients_ar || null, portion_note_ar: form.portion_note_ar || null, base_price: Number(form.base_price), sort_order: data.length } }); if (cats.data.find((c) => c.id === form.category_id)?.name_ar === "ساندوتشات") { await api(`/products/${created.data.id}/variants`, { method: "POST", body: { name_ar: "لقمة", price_delta: 0 } }); await api(`/products/${created.data.id}/variants`, { method: "POST", body: { name_ar: "هامر", price_delta: 10 } }); } setForm({ ...form, name_ar: "", base_price: 0, sku: "", image_url: "", ingredients_ar: "", portion_note_ar: "" }); setErr(""); reload(); } catch (e: any) { setErr(e.message); } }
-  async function patch(id: string, body: Record<string, unknown>) { try { await api(`/products/${id}`, { method: "PATCH", body }); setErr(""); reload(); } catch (e: any) { setErr(e.message); } }
-  async function addVariant(p: Product) { try { await api(`/products/${p.id}/variants`, { method: "POST", body: { name_ar: vName, price_delta: vDelta } }); setVName(""); setVDelta(0); setErr(""); reload(); } catch (e: any) { setErr(e.message); } }
-  async function toggleGroup(p: Product, gid: string) { const next = p.modifier_group_ids.includes(gid) ? p.modifier_group_ids.filter((x) => x !== gid) : [...p.modifier_group_ids, gid]; try { await api(`/products/${p.id}/modifier-groups`, { method: "PUT", body: { modifier_group_ids: next } }); setErr(""); reload(); } catch (e: any) { setErr(e.message); } }
-  return <>{(error || err) && <div className="alert">{error || err}</div>}<div className="form-row menu-product-form"><input placeholder="اسم الصنف" value={form.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} /><select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>{cats.data.map((c) => <option key={c.id} value={c.id}>{c.name_ar}</option>)}</select><input type="number" min={0} placeholder="السعر" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: Number(e.target.value) })} /><input placeholder="SKU" dir="ltr" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /><input placeholder="رابط الصورة" dir="ltr" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} /><input placeholder="المكونات" value={form.ingredients_ar} onChange={(e) => setForm({ ...form, ingredients_ar: e.target.value })} /><input placeholder="الحجم/الوصف" value={form.portion_note_ar} onChange={(e) => setForm({ ...form, portion_note_ar: e.target.value })} /><button className="primary" onClick={add} disabled={!form.name_ar || !form.category_id}>إضافة صنف كامل</button></div><div className="panel"><table><thead><tr><th>الصنف</th><th>الفئة</th><th>السعر</th><th>التفاصيل</th><th>الأحجام</th><th></th></tr></thead><tbody>{data.map((p) => <Fragment key={p.id}><tr><td><b>{p.name_ar}</b><div className="muted">{p.sku || "بدون SKU"}</div></td><td>{cats.data.find((c) => c.id === p.category_id)?.name_ar}</td><td><input type="number" min={0} defaultValue={Number(p.base_price)} style={{ width: 90 }} onBlur={(e) => Number(e.target.value) !== Number(p.base_price) && patch(p.id, { base_price: Number(e.target.value) })} /></td><td><div>{p.ingredients_ar || "—"}</div><div className="muted">{p.portion_note_ar || "—"}</div></td><td>{p.variants.map((v) => v.name_ar).join("، ") || "—"}</td><td><button onClick={() => setExpanded(expanded === p.id ? "" : p.id)}>{expanded === p.id ? t.pos.close : t.orders.details}</button>{" "}<button onClick={() => patch(p.id, { is_active: !p.is_active })}>{p.is_active ? t.common.active : t.common.inactive}</button></td></tr>{expanded === p.id && <tr><td colSpan={6}><div className="form-row"><input placeholder="اسم الصنف" defaultValue={p.name_ar} onBlur={(e) => patch(p.id, { name_ar: e.target.value })} /><input placeholder="المكونات" defaultValue={p.ingredients_ar ?? ""} onBlur={(e) => patch(p.id, { ingredients_ar: e.target.value || null })} /><input placeholder="الحجم/وصف الحصة" defaultValue={p.portion_note_ar ?? ""} onBlur={(e) => patch(p.id, { portion_note_ar: e.target.value || null })} /><input placeholder="رابط الصورة" dir="ltr" defaultValue={p.image_url ?? ""} onBlur={(e) => patch(p.id, { image_url: e.target.value || null })} /></div><div className="form-row"><input placeholder="اسم الحجم" value={vName} onChange={(e) => setVName(e.target.value)} /><input type="number" placeholder={t.menu.priceDelta} value={vDelta} onChange={(e) => setVDelta(Number(e.target.value))} /><button onClick={() => addVariant(p)} disabled={!vName}>{t.menu.addVariant}</button></div><div className="mod-group-name">الإضافات المرتبطة بالصنف</div><div className="seg wrap">{groups.data.map((g) => <button key={g.id} className={p.modifier_group_ids.includes(g.id) ? "active" : ""} onClick={() => toggleGroup(p, g.id)}>{g.name_ar}</button>)}</div></td></tr>}</Fragment>)}</tbody></table></div></>;
+  const [msg, setMsg] = useState("");
+
+  // فلاتر
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"" | "active" | "inactive">("");
+  const [flagFilter, setFlagFilter] = useState<"" | "no_image" | "no_sku">("");
+
+  const catName = (id: string) => cats.data.find((c) => c.id === id)?.name_ar ?? "—";
+
+  const filtered = useMemo(() => {
+    return data.filter((p) => {
+      if (search && !p.name_ar.includes(search) && !(p.sku ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+      if (catFilter && p.category_id !== catFilter) return false;
+      if (activeFilter === "active" && !p.is_active) return false;
+      if (activeFilter === "inactive" && p.is_active) return false;
+      if (flagFilter === "no_image" && p.image_url) return false;
+      if (flagFilter === "no_sku" && p.sku) return false;
+      return true;
+    });
+  }, [data, search, catFilter, activeFilter, flagFilter]);
+
+  async function patch(id: string, body: Record<string, unknown>) {
+    try { await api(`/products/${id}`, { method: "PATCH", body }); setErr(""); reload(); }
+    catch (e: any) { setErr(e.message); }
+  }
+  async function duplicate(p: Product) {
+    try {
+      await api("/products", { method: "POST", body: { category_id: p.category_id, name_ar: `${p.name_ar} (نسخة)`, base_price: Number(p.base_price), sku: null, ingredients_ar: p.ingredients_ar ?? null, portion_note_ar: p.portion_note_ar ?? null, sort_order: data.length } });
+      setMsg("تم إنشاء نسخة"); setErr(""); reload();
+    } catch (e: any) { setErr(e.message); }
+  }
+
+  const missingImages = data.filter((p) => !p.image_url).length;
+  const missingSkus = data.filter((p) => !p.sku).length;
+
+  return (
+    <>
+      {(error || err) && <div className="alert">{error || err}</div>}
+      {msg && <div className="ok">{msg}</div>}
+
+      {/* شريط الأدوات: بحث + فلاتر + إجراءات */}
+      <div className="menu-toolbar">
+        <input className="menu-search" placeholder="ابحث بالاسم أو SKU…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
+          <option value="">كل الفئات</option>
+          {cats.data.map((c) => <option key={c.id} value={c.id}>{c.name_ar}</option>)}
+        </select>
+        <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}>
+          <option value="">الحالة: الكل</option>
+          <option value="active">نشط فقط</option>
+          <option value="inactive">غير نشط فقط</option>
+        </select>
+        <select value={flagFilter} onChange={(e) => setFlagFilter(e.target.value as typeof flagFilter)}>
+          <option value="">بلا فلتر إضافي</option>
+          <option value="no_image">بدون صورة{missingImages ? ` (${missingImages})` : ""}</option>
+          <option value="no_sku">بدون SKU{missingSkus ? ` (${missingSkus})` : ""}</option>
+        </select>
+        <div className="menu-toolbar-actions">
+          <button className="primary" onClick={() => setAddOpen(true)}>+ صنف جديد</button>
+          <ExcelToolbar onDone={() => { setMsg("تم"); reload(); }} onError={setErr} />
+        </div>
+      </div>
+
+      <div className="menu-count muted">عرض {filtered.length} من {data.length} صنف</div>
+
+      <div className="panel">
+        <table className="menu-table">
+          <thead>
+            <tr><th>الصورة</th><th>الصنف</th><th>الفئة</th><th>السعر</th><th>الأحجام</th><th>الحالة</th><th>إجراءات</th></tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => (
+              <tr key={p.id}>
+                <td>{p.image_url ? <img className="menu-thumb" src={p.image_url} alt="" /> : <span className="menu-thumb ph">{p.name_ar.trim().charAt(0)}</span>}</td>
+                <td><b>{p.name_ar}</b><div className="muted mono">{p.sku || "بدون SKU"}</div></td>
+                <td>{catName(p.category_id)}</td>
+                <td className="mono">
+                  <input type="number" min={0} defaultValue={Number(p.base_price)} className="menu-price-input" onBlur={(e) => Number(e.target.value) !== Number(p.base_price) && patch(p.id, { base_price: Number(e.target.value) })} />
+                </td>
+                <td className="muted">{p.variants.map((v) => v.name_ar).join("، ") || "—"}</td>
+                <td>
+                  <button className={`menu-status ${p.is_active ? "on" : "off"}`} onClick={() => patch(p.id, { is_active: !p.is_active })}>
+                    {p.is_active ? "نشط" : "متوقف"}
+                  </button>
+                </td>
+                <td>
+                  <div className="menu-row-actions">
+                    <button className="primary sm" onClick={() => setEditorId(p.id)}>تعديل</button>
+                    <button className="sm" onClick={() => duplicate(p)}>نسخ</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!filtered.length && <tr><td colSpan={7} className="muted" style={{ textAlign: "center", padding: 24 }}>لا أصناف مطابقة للفلاتر</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {editorId && <ProductEditor productId={editorId} onClose={() => setEditorId(null)} onSaved={() => { setEditorId(null); reload(); }} />}
+      {addOpen && <QuickAddProduct cats={cats.data} onClose={() => setAddOpen(false)} onCreated={(id) => { setAddOpen(false); reload(); setEditorId(id); }} />}
+    </>
+  );
+}
+
+/** رفع/تصدير Excel: قالب، تصدير، استيراد بمعاينة قبل الكتابة. */
+function ExcelToolbar({ onDone, onError }: { onDone: () => void; onError: (m: string) => void }) {
+  const [preview, setPreview] = useState<null | { rows: Array<{ row: number; name_ar: string; sku: string | null; action: string; matched_by: string | null; errors: string[] }>; summary: { created: number; updated: number; failed: number; total: number }; b64: string }>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function download(path: string, filename: string) {
+    try {
+      await downloadFile(path, filename);
+    } catch (e: any) { onError(e.message); }
+  }
+
+  type PreviewRow = { row: number; name_ar: string; sku: string | null; action: string; matched_by: string | null; errors: string[] };
+  type PreviewSummary = { created: number; updated: number; failed: number; total: number };
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try {
+      const b64 = await fileToBase64(file);
+      const res = await api<{ data: { rows: PreviewRow[]; summary: PreviewSummary } }>("/products/import-excel", { method: "POST", body: { mode: "preview", data_base64: b64 } });
+      setPreview({ rows: res.data.rows, summary: res.data.summary, b64 });
+    } catch (e: any) { onError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function apply() {
+    if (!preview) return;
+    setBusy(true);
+    try {
+      await api("/products/import-excel", { method: "POST", body: { mode: "apply", data_base64: preview.b64 } });
+      setPreview(null); onDone();
+    } catch (e: any) { onError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <>
+      <button onClick={() => download("/products/export-excel", "yakebda-menu.xlsx")}>تصدير Excel</button>
+      <button onClick={() => download("/products/import-template", "yakebda-menu-template.xlsx")}>قالب</button>
+      <label className="menu-import-btn">
+        استيراد Excel
+        <input type="file" accept=".xlsx" hidden onChange={onFile} />
+      </label>
+
+      {preview && (
+        <div className="modal-back" onClick={() => setPreview(null)}>
+          <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+            <h3>معاينة الاستيراد (قبل الكتابة)</h3>
+            <div className="import-summary">
+              <span className="pill create">جديد: {preview.summary.created}</span>
+              <span className="pill update">تحديث: {preview.summary.updated}</span>
+              <span className="pill fail">أخطاء: {preview.summary.failed}</span>
+              <span className="pill">الإجمالي: {preview.summary.total}</span>
+            </div>
+            <div className="panel import-preview">
+              <table>
+                <thead><tr><th>الصف</th><th>الصنف</th><th>SKU</th><th>الإجراء</th><th>المطابقة</th><th>ملاحظات</th></tr></thead>
+                <tbody>
+                  {preview.rows.map((r) => (
+                    <tr key={r.row} className={r.action === "error" ? "row-error" : ""}>
+                      <td>{r.row}</td><td>{r.name_ar || "—"}</td><td className="mono">{r.sku || "—"}</td>
+                      <td><span className={`pill ${r.action === "create" ? "create" : r.action === "update" ? "update" : "fail"}`}>{r.action === "create" ? "جديد" : r.action === "update" ? "تحديث" : "خطأ"}</span></td>
+                      <td>{r.matched_by === "sku" ? "SKU" : r.matched_by === "id" ? "معرف" : "—"}</td>
+                      <td className="row-error-msg">{r.errors.join("، ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="form-row">
+              <button className="primary" onClick={apply} disabled={busy || preview.summary.created + preview.summary.updated === 0}>
+                تأكيد الاستيراد ({preview.summary.created + preview.summary.updated} صنف)
+              </button>
+              <button onClick={() => setPreview(null)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** إضافة سريعة لصنف ثم فتح المحرر الكامل. */
+function QuickAddProduct({ cats, onClose, onCreated }: { cats: Category[]; onClose: () => void; onCreated: (id: string) => void }) {
+  const [name, setName] = useState("");
+  const [categoryId, setCategoryId] = useState(cats[0]?.id ?? "");
+  const [price, setPrice] = useState(0);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function create() {
+    setBusy(true);
+    try {
+      const res = await api<{ data: Product }>("/products", { method: "POST", body: { name_ar: name, category_id: categoryId, base_price: Number(price), sort_order: 0 } });
+      onCreated(res.data.id);
+    } catch (e: any) { setErr(e.message); setBusy(false); }
+  }
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>صنف جديد</h3>
+        {err && <div className="alert">{err}</div>}
+        <div className="stack">
+          <input placeholder="اسم الصنف" value={name} onChange={(e) => setName(e.target.value)} />
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name_ar}</option>)}
+          </select>
+          <input type="number" min={0} placeholder="السعر" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+        </div>
+        <div className="form-row">
+          <button className="primary" onClick={create} disabled={busy || !name || !categoryId}>إنشاء ومتابعة التعديل</button>
+          <button onClick={onClose}>إلغاء</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ImportTab() { const [text, setText] = useState(JSON.stringify({ items: YAKEBDA_TEMPLATE }, null, 2)); const [msg, setMsg] = useState(""); const [err, setErr] = useState(""); const stats = useMemo(() => { try { const p = JSON.parse(text); return Array.isArray(p) ? p.length : p.items?.length ?? 0; } catch { return 0; } }, [text]); async function runImport() { try { const parsed = JSON.parse(text); const items = Array.isArray(parsed) ? parsed : parsed.items; const res = await api<{ data: { created: number; updated: number; total: number } }>("/products/import", { method: "POST", body: { items } }); setMsg(`تم الاستيراد: ${res.data.total} صنف — جديد ${res.data.created} / تحديث ${res.data.updated}`); setErr(""); } catch (e: any) { setErr(e.message); } } return <div className="import-grid"><div className="panel import-panel"><h3>استيراد منيو يا كبدة بالكامل</h3><p className="muted">القالب مبني على صورة قائمة الطعام: ساندوتشات، أطباق، وجبات، حواوشي، بطاطس، فواتح، إضافات، مشروبات.</p>{err && <div className="alert">{err}</div>}{msg && <div className="ok">{msg}</div>}<div className="form-row"><button className="primary" onClick={() => setText(JSON.stringify({ items: YAKEBDA_TEMPLATE }, null, 2))}>تحميل قالب يا كبدة</button><button onClick={runImport} disabled={!stats}>استيراد {stats} صنف</button></div><textarea className="json-import" dir="ltr" value={text} onChange={(e) => setText(e.target.value)} /></div></div>; }

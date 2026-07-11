@@ -143,7 +143,7 @@ function safeCalc(expression: string): string {
 export function Pos() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { can } = useMe();
+  const { can, me } = useMe();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState(params.get("branch") ?? "");
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -304,11 +304,6 @@ export function Pos() {
     });
   }
 
-  function quickAdd(product: MenuProduct) {
-    if (!product.is_available) return;
-    addProduct(product, product.variants[0] ?? null, []);
-  }
-
   function quickRemove(product: MenuProduct) {
     setCart((rows) => {
       const index = rows.findIndex((line) => line.product.id === product.id);
@@ -322,12 +317,6 @@ export function Pos() {
 
   function productQty(product: MenuProduct) {
     return cart.filter((line) => line.product.id === product.id).reduce((sum, line) => sum + line.qty, 0);
-  }
-
-  function pick(product: MenuProduct) {
-    if (!product.is_available) return;
-    if (product.variants.length || product.modifier_groups.length) setPicking(product);
-    else addProduct(product);
   }
 
   async function openShift() {
@@ -495,24 +484,22 @@ export function Pos() {
 
   return (
     <div className="posx" dir="rtl">
-      <header className="posx-head">
-        <div className="posx-brand">
-          <div className="posx-brand-mark">يا كبدة</div>
-          <div>
-            <strong>نظام الكاشير</strong>
-            <span>Fast Food POS</span>
-          </div>
+      <header className="posx-head posx-head-ops">
+        {/* YKMS-02G: هيدر تشغيلي فقط — الهوية والتنقل في AppShell العلوي */}
+        <div className="posx-ops-group">
+          <span className="posx-ops-label">الفرع</span>
+          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>{branch.name}</option>
+            ))}
+          </select>
         </div>
-        <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
-          {branches.map((branch) => (
-            <option key={branch.id} value={branch.id}>{branch.name}</option>
-          ))}
-        </select>
         <div className={shift ? "posx-shift on" : "posx-shift off"}>
-          {shift ? t.shift.openTitle : t.shift.noShift}
+          <span className="posx-ops-label">{me?.name ?? "الكاشير"}</span>
+          <span className="posx-shift-state">{shift ? t.shift.openTitle : t.shift.noShift}</span>
           {can("shifts.manage") && <button onClick={shift ? closeShift : openShift}>{shift ? t.shift.close : t.shift.open}</button>}
         </div>
-        {/* YKMS-02F: أدوات الإدارة كلها تحت قائمة واحدة — لا أزرار كبيرة دائمة */}
+        <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <details className="posx-adminmenu">
           <summary>الإدارة ▾</summary>
           <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
@@ -522,7 +509,6 @@ export function Pos() {
             {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
           </div>
         </details>
-        <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </header>
 
       <div className="posx-body">
@@ -536,28 +522,20 @@ export function Pos() {
             ))}
           </div>
           <div className="posx-grid">
-            {visibleProducts.map((product) => {
-              const qty = productQty(product);
-              return (
-                <div key={product.id} className={product.is_available ? "posx-card" : "posx-card off"} onClick={() => pick(product)}>
-                  {settings?.show_product_images !== false && (
-                    product.image_url ? <img className="posx-card-img" src={product.image_url} alt={product.name_ar} /> : <span className="posx-card-img ph">{product.name_ar.trim().charAt(0)}</span>
-                  )}
-                  <span className="posx-card-name">{product.name_ar}</span>
-                  {product.portion_note_ar && <span className="posx-card-size">{product.portion_note_ar}</span>}
-                  <span className="posx-card-price">{money(product.effective_price)}</span>
-                  {product.ingredients_ar && <span className="posx-card-ing">{product.ingredients_ar}</span>}
-                  {!product.is_available && <span className="posx-card-off">{product.availability_note_ar ?? t.menu.unavailable}</span>}
-                  <div className="posx-card-actions" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => quickRemove(product)} disabled={!qty}>−</button>
-                    <span>{qty}</span>
-                    <button onClick={() => quickAdd(product)} disabled={!product.is_available}>+</button>
-                    {(product.variants.length > 0 || product.modifier_groups.length > 0) && <button className="details" onClick={() => pick(product)}>تفاصيل</button>}
-                    {can("menu.manage") && <button className="details edit" onClick={() => setEditorProductId(product.id)}>تعديل</button>}
-                  </div>
-                </div>
-              );
-            })}
+            {visibleProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                qty={productQty(product)}
+                showImage={settings?.show_product_images !== false}
+                money={money}
+                canEdit={can("menu.manage")}
+                onAdd={(variant, mods) => addProduct(product, variant, mods)}
+                onQuickRemove={() => quickRemove(product)}
+                onEdit={() => setEditorProductId(product.id)}
+                onOpenDetail={() => setPicking(product)}
+              />
+            ))}
           </div>
         </section>
 
@@ -815,8 +793,115 @@ function OffersPanel() {
   );
 }
 
-function OptionPicker({ product, onAdd, onCancel }: { product: MenuProduct; onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void; onCancel: () => void }) {
+/**
+ * YKMS-02G — بطاقة صنف تفاعلية.
+ * - النقر على البطاقة يضيف الافتراضي مباشرةً (لو بلا خيارات إلزامية).
+ * - لو فيه أحجام (لقمة/هامر) أو مجموعة عيش إلزامية (فينو/سياحي) تظهر رقائق مدمجة داخل البطاقة.
+ * - الإضافات متعددة الاختيار (طحينة/باربيكيو/شيدر/بطاطس) تُفتح من زر التفاصيل الخفيف.
+ * - التعديل داخل قائمة ثلاث نقاط — لا زر دائم على كل بطاقة.
+ */
+function ProductCard({
+  product,
+  qty,
+  showImage,
+  money,
+  canEdit,
+  onAdd,
+  onQuickRemove,
+  onEdit,
+  onOpenDetail,
+}: {
+  product: MenuProduct;
+  qty: number;
+  showImage: boolean;
+  money: (v: number) => string;
+  canEdit: boolean;
+  onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void;
+  onQuickRemove: () => void;
+  onEdit: () => void;
+  onOpenDetail: () => void;
+}) {
+  // مجموعات إلزامية أحادية الاختيار (مثل العيش) تُعرض كرقائق؛ الباقي تفصيلي.
+  const inlineGroups = product.modifier_groups.filter((g) => g.is_required && g.max_select === 1);
+  const detailGroups = product.modifier_groups.filter((g) => !(g.is_required && g.max_select === 1));
+  const hasSizes = product.variants.length > 0;
+  const needsChoices = hasSizes || inlineGroups.length > 0;
+  const hasDetail = detailGroups.length > 0;
+
+  const [menuOpen, setMenuOpen] = useState(false);
   const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
+  const [breadSel, setBreadSel] = useState<Record<string, MenuModifier>>(() => {
+    const init: Record<string, MenuModifier> = {};
+    for (const g of inlineGroups) if (g.modifiers[0]) init[g.id] = g.modifiers[0];
+    return init;
+  });
+
+  const priceNow =
+    product.effective_price +
+    Number(variant?.price_delta ?? 0) +
+    Object.values(breadSel).reduce((s, m) => s + Number(m.price_delta ?? 0), 0);
+
+  function add() {
+    if (!product.is_available) return;
+    onAdd(variant, Object.values(breadSel));
+  }
+
+  return (
+    <div className={product.is_available ? "posx-card2" : "posx-card2 off"}>
+      <div className="posx-card2-top" onClick={() => (needsChoices ? undefined : add())} role="button">
+        {showImage && (product.image_url ? <img className="posx-card2-img" src={product.image_url} alt={product.name_ar} /> : <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>)}
+        <div className="posx-card2-info">
+          <span className="posx-card2-name">{product.name_ar}</span>
+          <span className="posx-card2-price">{money(priceNow)}</span>
+        </div>
+        <button className="posx-card2-more" title="خيارات" onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}>⋮</button>
+        {menuOpen && (
+          <div className="posx-card2-menu" onClick={(e) => e.stopPropagation()}>
+            {(hasDetail || needsChoices) && <button onClick={() => { setMenuOpen(false); onOpenDetail(); }}>التفاصيل والإضافات</button>}
+            {canEdit && <button onClick={() => { setMenuOpen(false); onEdit(); }}>تعديل الصنف</button>}
+          </div>
+        )}
+      </div>
+
+      {!product.is_available && <div className="posx-card2-off">{product.availability_note_ar ?? t.menu.unavailable}</div>}
+
+      {product.is_available && hasSizes && (
+        <div className="posx-card2-opt">
+          <span className="posx-card2-opt-label">الحجم</span>
+          <div className="posx-chips">
+            {product.variants.map((v) => (
+              <button key={v.id} className={variant?.id === v.id ? "active" : ""} onClick={() => setVariant(v)}>{v.name_ar}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {product.is_available && inlineGroups.map((g) => (
+        <div key={g.id} className="posx-card2-opt">
+          <span className="posx-card2-opt-label">{g.name_ar}</span>
+          <div className="posx-chips">
+            {g.modifiers.map((m) => (
+              <button key={m.id} className={breadSel[g.id]?.id === m.id ? "active" : ""} onClick={() => setBreadSel((cur) => ({ ...cur, [g.id]: m }))}>{m.name_ar}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {product.is_available && (
+        <div className="posx-card2-foot">
+          <div className="posx-card2-stepper">
+            <button onClick={onQuickRemove} disabled={!qty}>−</button>
+            <span>{qty}</span>
+            <button onClick={add}>+</button>
+          </div>
+          {hasDetail && <button className="posx-card2-detail" onClick={onOpenDetail}>+ إضافات</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OptionPicker({ product, onAdd, onCancel }: { product: MenuProduct; onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void; onCancel: () => void }) {  const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
   const [mods, setMods] = useState<MenuModifier[]>([]);
 
   function toggleMod(group: MenuGroup, modifier: MenuModifier) {

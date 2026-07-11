@@ -113,6 +113,37 @@ export interface SeedResult {
 }
 
 /** Seed a demo account with an owner, roles and one branch. Idempotent-ish for dev. */
+/**
+ * YKMS-02G — تهيئة مجموعات نوع العيش المنظمة لحساب معيّن (idempotent).
+ * تُستدعى من الهجرة 009 (للحسابات القائمة) ومن seedMvp (لحسابات جديدة).
+ */
+export async function seedBreadGroups(db: Knex, accountId: string): Promise<void> {
+  const { randomUUID } = await import("crypto");
+  const exists = await db("modifier_groups").where({ account_id: accountId, name_ar: "نوع العيش" }).first();
+  if (exists) return;
+
+  const gBread = randomUUID();
+  await db("modifier_groups").insert({ id: gBread, account_id: accountId, name_ar: "نوع العيش", min_select: 1, max_select: 1, is_required: true, sort_order: -10 });
+  for (const name of ["فينو", "سياحي"]) {
+    await db("modifiers").insert({ id: randomUUID(), modifier_group_id: gBread, name_ar: name, price_delta: 0 });
+  }
+
+  const gHawawshi = randomUUID();
+  await db("modifier_groups").insert({ id: gHawawshi, account_id: accountId, name_ar: "نوع العيش (حواوشي)", min_select: 1, max_select: 1, is_required: true, sort_order: -9 });
+  for (const name of ["كبسولة", "رغيف"]) {
+    await db("modifiers").insert({ id: randomUUID(), modifier_group_id: gHawawshi, name_ar: name, price_delta: 0 });
+  }
+
+  const sandwichCat = await db("categories").where({ account_id: accountId, name_ar: "ساندوتشات" }).first();
+  if (sandwichCat) {
+    const products = await db("products").where({ account_id: accountId, category_id: sandwichCat.id }).pluck("id");
+    for (const pid of products) {
+      const linked = await db("product_modifier_groups").where({ product_id: pid, modifier_group_id: gBread }).first();
+      if (!linked) await db("product_modifier_groups").insert({ product_id: pid, modifier_group_id: gBread, sort_order: -10 });
+    }
+  }
+}
+
 export async function seedFoundation(db: Knex): Promise<SeedResult> {
   const existing = await db("accounts").first();
   const ownerEmail = "owner@ykms.local";
@@ -210,6 +241,7 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
   await db("user_roles").insert({ user_id: kitchenId, role_id: roleIds["kitchen"] });
 
   await seedMvp(db, { accountId, branchId, branch2Id, cashierId });
+  await seedBreadGroups(db, accountId);
 
   return { accountId, branchId, branch2Id, ownerEmail, ownerPassword };
 }

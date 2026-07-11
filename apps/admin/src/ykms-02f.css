@@ -61,16 +61,18 @@
 
 /* ——— Overlays ——— */
 .uif-no-scroll { overflow: hidden; }
-.uif-overlay { position: fixed; inset: 0; background: rgba(4, 6, 8, 0.62); z-index: 100; display: flex; }
+.uif-overlay { position: fixed; inset: 0; background: rgba(4, 6, 8, 0.62); z-index: 100; display: flex; justify-content: flex-start; }
 .uif-overlay.center { align-items: center; justify-content: center; padding: var(--sp-4); }
 .uif-drawer {
-  margin-inline-start: auto; height: 100%;
+  height: 100%;
   width: min(440px, 96vw);
   background: var(--yk-panel); color: var(--yk-text);
   display: flex; flex-direction: column;
-  border-inline-start: 1px solid var(--yk-line);
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
+  border-inline-end: 1px solid var(--yk-line);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.5);
+  animation: uif-drawer-in 0.2s ease-out;
 }
+@keyframes uif-drawer-in { from { transform: translateX(-24px); opacity: 0.4; } to { transform: translateX(0); opacity: 1; } }
 .uif-drawer.wide { width: min(720px, 96vw); }
 .uif-drawer-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--yk-line); }
 .uif-drawer-title { font-size: 15.5px; font-weight: 800; }
@@ -304,3 +306,45 @@ html, body { overflow-x: hidden; }
 .kds-card.kds-warn { border-color: #e9a13b !important; box-shadow: 0 0 0 1px #e9a13b; }
 .kds-card.kds-late { border-color: #d64541 !important; box-shadow: 0 0 0 2px #d64541; }
 .kds-card.kds-late .kds-timer { color: #ff6b60; }
+
+/* ================================================================
+   YKMS-02G — POS operational header + interactive product card
+   ================================================================ */
+
+/* هيدر تشغيلي فقط (بلا هوية مكررة) */
+.posx-head-ops { display: flex !important; align-items: center; gap: var(--sp-3); flex-wrap: nowrap; }
+.posx-ops-group { display: flex; align-items: center; gap: 6px; }
+.posx-ops-label { font-size: 11px; font-weight: 800; color: var(--yk-muted); }
+.posx-shift-state { font-size: 12px; font-weight: 700; }
+.posx-head-ops .posx-search { flex: 1; min-width: 140px; }
+
+/* البطاقة التفاعلية */
+.posx-card2 { display: flex; flex-direction: column; background: var(--yk-panel); border: 1px solid var(--yk-line); border-radius: 12px; overflow: visible; transition: border-color 0.12s, transform 0.06s; }
+.posx-card2:hover { border-color: var(--yk-yellow); }
+.posx-card2.off { opacity: 0.5; }
+.posx-card2-top { display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; position: relative; border-radius: 12px 12px 0 0; }
+.posx-card2-top:hover { background: rgba(246,192,38,0.05); }
+.posx-card2-img { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 9px; object-fit: cover; aspect-ratio: 1; }
+.posx-card2-img.ph { display: grid; place-items: center; font-weight: 900; color: #111; background: linear-gradient(135deg, var(--yk-yellow), var(--yk-yellow-2)); }
+.posx-card2-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.posx-card2-name { font-size: 13px; font-weight: 800; line-height: 1.25; }
+.posx-card2-price { font-size: 12.5px; font-weight: 900; color: var(--yk-yellow); }
+.posx-card2-more { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--yk-muted); cursor: pointer; font-size: 16px; line-height: 1; }
+.posx-card2-more:hover { border-color: var(--yk-line); color: var(--yk-yellow); }
+.posx-card2-menu { position: absolute; top: 36px; inset-inline-start: 8px; z-index: 40; min-width: 160px; display: flex; flex-direction: column; background: var(--yk-panel-2); border: 1px solid var(--yk-line); border-radius: 10px; overflow: hidden; box-shadow: 0 10px 26px rgba(0,0,0,0.5); }
+.posx-card2-menu button { background: transparent; border: 0; color: var(--yk-text); padding: 9px 14px; text-align: start; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.posx-card2-menu button:hover { background: #1f252b; color: var(--yk-yellow); }
+.posx-card2-off { padding: 4px 8px; font-size: 11px; color: #ff9c8a; }
+.posx-card2-opt { padding: 0 8px 6px; }
+.posx-card2-opt-label { font-size: 10.5px; font-weight: 800; color: var(--yk-muted); display: block; margin-bottom: 3px; }
+.posx-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.posx-chips button { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--yk-line); background: var(--yk-black-2); color: var(--yk-text); font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.posx-chips button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+.posx-card2-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px 8px; margin-top: auto; }
+.posx-card2-stepper { display: flex; align-items: center; gap: 8px; }
+.posx-card2-stepper button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--yk-line); background: var(--yk-black-2); color: var(--yk-text); font-size: 16px; font-weight: 800; cursor: pointer; }
+.posx-card2-stepper button:hover:not(:disabled) { border-color: var(--yk-yellow); color: var(--yk-yellow); }
+.posx-card2-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+.posx-card2-stepper span { min-width: 20px; text-align: center; font-weight: 900; }
+.posx-card2-detail { background: transparent; border: 1px dashed #5d4b14; color: var(--yk-yellow); border-radius: 8px; padding: 5px 10px; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.posx-card2-detail:hover { background: rgba(246,192,38,0.08); }

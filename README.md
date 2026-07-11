@@ -1,67 +1,74 @@
-<div dir="rtl" align="right">
-
-# YAKEBDA MS — نظام إدارة المطاعم
+# YAKEBDA MS
 
 ![CI](https://github.com/AhmedFouad01/yakebda-ms/actions/workflows/ci.yml/badge.svg)
 
-**YAKEBDA MS** هو نظام إدارة مطاعم عربي أولًا وRTL أولًا لمطعم **يا كبدة**.  
-المشروع مستقل تمامًا عن AKYRO، ويستخدم مراحل باسم `YKMS-XX` فقط.
+YAKEBDA MS is a cloud-first restaurant operations platform with Arabic-first and RTL-first user experiences.
 
-> الوضع الحالي: كود foundation + YKMS-02 MVP موجود، واتجاه المنتج اتعدل إلى Operational POS/RMS حقيقي. النسخة الحالية للتشغيل والاختبار المحلي، وليست production-ready بعد.
+## Product Scope
 
----
+- Point of sale
+- Order management
+- Kitchen display
+- Menu and pricing management
+- Customer CRM
+- Users, roles, and permissions
+- Shift and cash operations
+- Reporting and audit trails
+- Device and print-job integration
 
-## الهدف التشغيلي
+## Architecture
 
-النظام المقبول لازم يخدم flow مطعم حقيقي:
-
-```text
-Open Shift → POS Order → Kitchen/KDS → Payment → Receipt/Print Job → Reports → Close Shift
-```
-
-أي شاشة أو زرار لا يخدم flow حقيقي يعتبر prototype وليس feature مكتملة.
-
----
-
-## Stack
-
-| Layer | Tech |
+| Layer | Technology |
 |---|---|
-| Backend | Node.js, TypeScript, Express |
+| Admin and POS | React, Vite, TypeScript |
+| API | Node.js, TypeScript, Express |
 | Database | PostgreSQL, Knex migrations |
-| Frontend | React, Vite, TypeScript |
 | Testing | Vitest, Supertest |
-| Hardware foundation | Local Device Bridge contract + Print Jobs |
-| Language | Arabic-first / RTL-first |
+| Device integration | Local bridge contract and print jobs |
 
----
+The platform is designed for cloud deployment while preserving a path for Windows-based operational clients and resilient device integrations.
 
-## الهيكل
+## Repository Structure
 
 ```text
-yakebda-ms/
-├── apps/
-│   ├── api/                # Backend API
-│   └── admin/              # Admin / POS UI
-├── packages/
-│   └── bridge-contract/    # Local Device Bridge contract
-├── docs/                   # SRS, ADRs, QA, operations, memory
-├── scripts/                # local setup scripts
-└── .github/                # CI, templates, PR checklist
+apps/
+  api/                 Backend API
+  admin/               Admin, POS, and operations UI
+packages/
+  bridge-contract/     Device integration contracts
+docs/
+  architecture/        Architecture documentation
+  engineering/         Current implementation and workflow
+  deployment/          Deployment guidance
+scripts/                Development and setup utilities
 ```
 
----
+## Local Development
 
-## التشغيل المحلي السريع
+### Requirements
 
-### 1. PostgreSQL عبر Docker
+- Node.js 20+
+- npm
+- PostgreSQL 16+
+- Docker is optional but recommended for local database setup
+
+### Database
 
 ```powershell
-docker run -d --name ykms-postgres -e POSTGRES_USER=ykms -e POSTGRES_PASSWORD=ykms -e POSTGRES_DB=ykms -p 5432:5432 postgres:16
+docker run -d --name ykms-postgres `
+  -e POSTGRES_USER=ykms `
+  -e POSTGRES_PASSWORD=ykms `
+  -e POSTGRES_DB=ykms `
+  -p 5432:5432 postgres:16
+```
+
+Create the test database if required:
+
+```powershell
 docker exec -it ykms-postgres psql -U ykms -d postgres -c "CREATE DATABASE ykms_test OWNER ykms;"
 ```
 
-### 2. تثبيت وتشغيل
+### Install and validate
 
 ```bash
 npm ci
@@ -71,6 +78,8 @@ npm run api:seed
 npm run api:test
 npm run admin:build
 ```
+
+### Run
 
 Terminal 1:
 
@@ -84,103 +93,31 @@ Terminal 2:
 npm run admin:dev
 ```
 
-افتح:
+Open `http://localhost:5173`.
 
-```text
-http://localhost:5173
-```
+## Engineering Workflow
 
----
+Before changing the codebase, read:
 
-## بيانات الدخول التجريبية
+- `AGENTS.md`
+- `docs/engineering/CURRENT_IMPLEMENTATION.md`
+- `CONTRIBUTING.md`
 
-```text
-owner@ykms.local   / Owner@12345
-manager@ykms.local / Manager@12345
-kitchen@ykms.local / Kitchen@12345
-Cashier PIN: 1234
-```
+All changes must preserve tenant and branch scoping, permissions, auditability, migrations, RTL behavior, and the established test/build gates.
 
-كلها local/dev فقط.
-
----
-
-## الموديولات الحالية
-
-- Auth + RBAC
-- Accounts / Branches / Users
-- Devices + Hardware endpoints
-- Print Jobs + Bridge contract
-- Menu Core
-- POS page
-- Kitchen/KDS
-- Orders
-- Tables
-- Customers
-- Reports
-- Receipt preview
-- Shift/Cash operational attempt
-
----
-
-## حالة المنتج
-
-| Area | Status |
-|---|---|
-| Foundation | Done |
-| Windows/Hardware foundation | Done |
-| Cleanup/rebrand | Done / needs small polish |
-| YKMS-02 MVP | Exists, accepted as artifact only |
-| Operational POS quality | In progress |
-| Local QA | Required |
-| Production readiness | No |
-
----
-
-## أوامر مهمة
+## Quality Gates
 
 ```bash
 npm run api:test
 npm run admin:build
-npm run api:migrate
-npm run api:seed
 ```
 
----
+Database changes must include a migration and must remain reversible where practical.
 
-## QA
+## Security
 
-اتبع:
+Do not commit secrets, credentials, environment files, database dumps, uploaded runtime files, or production configuration. Report security concerns through the process documented in `SECURITY.md`.
 
-```text
-docs/QA/YKMS-02_MVP_TEST_SCRIPT_AR.md
-```
+## Status
 
-ثم سجّل أي gaps كـ GitHub Issues باستخدام قالب **Operational gap**.
-
----
-
-## قواعد ثابتة
-
-- Active name: `YAKEBDA MS`
-- Active key: `YAKEBDA_MS`
-- Milestones: `YKMS-XX`
-- No active `RMS-XX`
-- Arabic-first / RTL-first
-- Foodics = functional benchmark only, no copying
-- No secrets or `.env` commits
-
----
-
-## المرحلة القادمة
-
-`YKMS-03 — Shifts & Cash`:
-
-- فتح/إغلاق شيفت
-- Cash in/out
-- تقرير نهاية شيفت
-- خصومات بموافقة مدير
-- إعادة طباعة بإذن وتسجيل audit
-- فتح درج الكاش من شاشة الدفع
-
-</div>
+The repository is under active development. Production deployment requires environment-specific security, storage, backup, monitoring, and operational validation.

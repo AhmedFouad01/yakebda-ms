@@ -4,6 +4,59 @@
 
 ---
 
+## Milestone Log — YKMS-02F (إتمام واجهة التشغيل UI/UX)
+
+**التاريخ:** 2026-07-11
+**الحالة:** ✅ Completed — إطار واجهة حقيقي + تنقّل نظامي + محرر أصناف كامل + مؤقت مطبخ جارٍ + إصلاح صلاحيات الإعدادات
+**الفرع:** `ykms-02f-ui-ux-operational-completion` (من `ykms-02e-settings-implementation`)
+
+### تصحيح RBAC (بلا تجاوز بأسماء الأدوار)
+
+| البند | التفاصيل |
+|---|---|
+| المبدأ | لا override بأسماء owner/admin — الصلاحيات تتدفق حصريًا عبر `role_permissions` → `/auth/me` → `can()` |
+| الجذر | قواعد قديمة زُرعت قبل `settings.manage` كانت تُظهر «الإعدادات مقفولة» للمالك |
+| الحل | الهجرة 008 `syncPermissionCatalog`: idempotent تُدخل الصلاحيات الناقصة وتمنح owner/admin كل الصلاحيات فعليًا بالبيانات |
+| البرهان | اختبارات تثبت أن owner/admin يملكان settings.manage عبر الجدول، وموظف المطبخ يُرفض 403 |
+
+### إطار الواجهة (components/ui/)
+
+| البند | التفاصيل |
+|---|---|
+| primitives | PageHeader/BackButton/SectionCard/Tabs/FormField/TextInput/NumberInput/TextArea/Select/ToggleSwitch/RadioGroup/StickyActionBar/Save+Cancel/Loading+Error+Empty/PermissionBadge/ViewOnlyNotice/useUnsavedWarning |
+| overlays | Drawer (RTL ينزلق من اليمين)، Modal، ConfirmDialog، Toast/Toaster على مستوى الموديول |
+| AppShell | شريط علوي ثابت (قائمة/رئيسية/رجوع/مستخدم/خروج) + NavDrawer وSidebar مُرشَّحان بالصلاحيات؛ POS بكامل العرض مع بقاء التنقل ظاهرًا |
+| tokens | ارتفاع حقل 38px، مسافات موحّدة، Cairo، أسود/أصفر، تكييف فاتح للشاشات الإدارية |
+
+### POS — استقرار التخطيط
+
+السلة تحوّلت إلى flex (إصلاح قصّ صفوف grid) فأزرار الدفع لا تخرج من الشاشة أبدًا؛ محقّق حسابيًا عند 1366×768 و1440×900 و1920×1080 (posH=720px، مساحة الأسطر 280px، الأزرار ظاهرة). دمج أدوات الإدارة في قائمة «الإدارة» واحدة. أسباب تعطيل واضحة لكل زر دفع. شبكة الأصناف auto-fill (6 أعمدة على 1366). لا سكرول مزدوج ولا overflow أفقي.
+
+### محرر الأصناف (pages/menu/ProductEditor.tsx)
+
+Drawer عريض بـ6 تبويبات (أساسي/التسعير والأحجام/الإتاحة/المطبخ/الإضافات/الفروع). أحجام يا كبدة الحقيقية فقط وإضافاتها المعتمدة — بلا اختراع. تحقّق + dirty tracking + تحذير مغادرة + شريط حفظ ثابت + تأكيد إغلاق. يفتح فوق POS دون تدمير السلة/الفئة/التمرير ويعيد الحالة عند العودة. Endpoints: GET `/products/:id` كامل، PATCH/DELETE `/products/variants/:id`.
+
+### الإعدادات — إعادة بناء (pages/settings/)
+
+SettingsLayout بـ12 قسمًا، ToggleSwitch بدل checkboxes، «وضع العرض فقط» بلا settings.manage، عبارات المطوّر استُبدلت بـ«سيتم توفيره في مرحلة لاحقة». Hook `useSettingsDoc` بـdirty/save وشريط ثابت. أقسام CRUD منقولة للنظام الجديد.
+
+### المطبخ — مؤقت جارٍ + طوابع دقيقة (الهجرة 008)
+
+أعمدة `in_kitchen_at`/`ready_at`/`cancelled_at` تُختم في setStatus. مؤقت كل ثانية (MM:SS، وHH:MM:SS بعد ساعة) يُنظَّف عند الإلغاء. طابع «ورد إلى المطبخ» دقيق (ar-EG). عتبات SLA من الإعدادات. الزمن مشتق من timestamp الخادم — لا يُخزَّن كدقائق.
+
+### الاختبارات والبناء
+
+- **API:** 54/54 (46 سابقة + 8 جديدة 02F)
+- **admin:build:** ✅ نظيف
+- 1366×768/1440×900/1920×1080: محقّق حسابيًا — أزرار الدفع ظاهرة، لا overflow
+
+### placeholders (لاحقًا)
+
+محرك العروض، الاسترداد، حذف صنف بعد المطبخ، الطلبات الأونلاين، إجبار إغلاق الشيفت، paid in/out، رفع الملفات، تحرير الأدوار من الواجهة، أعلام الأجهزة.
+
+---
+
+
 ## Milestone Log — YKMS-02E (بنية الإعدادات + التهيئة التشغيلية)
 
 **التاريخ:** 2026-07-10

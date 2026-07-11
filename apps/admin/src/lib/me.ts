@@ -12,6 +12,7 @@ export interface Me {
   accountId: string;
   branchId?: string | null;
   permissions: string[];
+  roles: string[];
 }
 
 let cached: Me | null = null;
@@ -43,6 +44,8 @@ export async function loadMe(): Promise<Me | null> {
 }
 
 export function can(me: Me | null, permission: string): boolean {
+  // لا تجاوز بأسماء الأدوار: الصلاحيات وحدها مصدر الحقيقة —
+  // owner/admin يحصلان على كل الصلاحيات فعليًا عبر مزامنة الهجرة 008.
   return !!me?.permissions?.includes(permission);
 }
 

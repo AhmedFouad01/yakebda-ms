@@ -24,6 +24,15 @@ export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }>
   { key: "customers.manage", name_ar: "إدارة العملاء", group: "العملاء" },
   { key: "reports.view", name_ar: "عرض التقارير", group: "التقارير" },
   { key: "settings.manage", name_ar: "إدارة الإعدادات", group: "الإعدادات" },
+  { key: "orders.cancel", name_ar: "إلغاء الطلبات", group: "الطلبات" },
+  { key: "orders.discount_above_limit", name_ar: "اعتماد خصم فوق حد الكاشير", group: "الطلبات" },
+  { key: "orders.refund", name_ar: "استرداد المدفوعات (لاحقًا)", group: "الطلبات" },
+  { key: "orders.delete_item_after_submit", name_ar: "حذف صنف بعد إرسال المطبخ (لاحقًا)", group: "الطلبات" },
+  { key: "products.edit", name_ar: "تعديل الأصناف والأسعار", group: "المنيو" },
+  { key: "products.disable", name_ar: "إيقاف الأصناف", group: "المنيو" },
+  { key: "drivers.manage", name_ar: "إدارة السائقين", group: "التوصيل" },
+  { key: "delivery.assign", name_ar: "تعيين سائق للطلبات", group: "التوصيل" },
+  { key: "permissions.manage", name_ar: "إدارة خريطة الصلاحيات", group: "المستخدمون" },
 ];
 
 export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all" }> = [
@@ -51,6 +60,14 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
       "customers.manage",
       "reports.view",
       "settings.manage",
+      "orders.cancel",
+      "orders.discount_above_limit",
+      "orders.refund",
+      "orders.delete_item_after_submit",
+      "products.edit",
+      "products.disable",
+      "drivers.manage",
+      "delivery.assign",
     ],
   },
   {
@@ -62,8 +79,30 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
   { key: "kitchen", name_ar: "موظف المطبخ", perms: ["kitchen.view", "kitchen.update"] },
   { key: "inventory_clerk", name_ar: "مسؤول المخزون", perms: [] },
   { key: "accountant", name_ar: "المحاسب", perms: ["audit.view", "reports.view"] },
+  { key: "driver", name_ar: "سائق", perms: [] },
+  { key: "admin", name_ar: "أدمن النظام", perms: "all" },
   { key: "integrations_admin", name_ar: "مسؤول التكاملات", perms: ["api_clients.manage", "audit.view"] },
 ];
+
+/**
+ * YKMS-02F — مزامنة علاجية idempotent:
+ * تُدخل أي صلاحيات ناقصة من الكتالوج وتمنح أدوار owner/admin كل الصلاحيات
+ * في كل الحسابات. آمنة على البيانات وتعمل على قواعد قديمة وجديدة.
+ */
+export async function syncPermissionCatalog(db: Knex): Promise<void> {
+  for (const p of PERMISSIONS) {
+    await db("permissions").insert(p).onConflict("key").ignore();
+  }
+  const fullRoles = await db("roles").whereIn("key", ["owner", "admin"]);
+  for (const role of fullRoles) {
+    for (const p of PERMISSIONS) {
+      await db("role_permissions")
+        .insert({ role_id: role.id, permission_key: p.key })
+        .onConflict(["role_id", "permission_key"])
+        .ignore();
+    }
+  }
+}
 
 export interface SeedResult {
   accountId: string;
@@ -74,6 +113,37 @@ export interface SeedResult {
 }
 
 /** Seed a demo account with an owner, roles and one branch. Idempotent-ish for dev. */
+/**
+ * YKMS-02G — تهيئة مجموعات نوع العيش المنظمة لحساب معيّن (idempotent).
+ * تُستدعى من الهجرة 009 (للحسابات القائمة) ومن seedMvp (لحسابات جديدة).
+ */
+export async function seedBreadGroups(db: Knex, accountId: string): Promise<void> {
+  const { randomUUID } = await import("crypto");
+  const exists = await db("modifier_groups").where({ account_id: accountId, name_ar: "نوع العيش" }).first();
+  if (exists) return;
+
+  const gBread = randomUUID();
+  await db("modifier_groups").insert({ id: gBread, account_id: accountId, name_ar: "نوع العيش", min_select: 1, max_select: 1, is_required: true, sort_order: -10 });
+  for (const name of ["فينو", "سياحي"]) {
+    await db("modifiers").insert({ id: randomUUID(), modifier_group_id: gBread, name_ar: name, price_delta: 0 });
+  }
+
+  const gHawawshi = randomUUID();
+  await db("modifier_groups").insert({ id: gHawawshi, account_id: accountId, name_ar: "نوع العيش (حواوشي)", min_select: 1, max_select: 1, is_required: true, sort_order: -9 });
+  for (const name of ["كبسولة", "رغيف"]) {
+    await db("modifiers").insert({ id: randomUUID(), modifier_group_id: gHawawshi, name_ar: name, price_delta: 0 });
+  }
+
+  const sandwichCat = await db("categories").where({ account_id: accountId, name_ar: "ساندوتشات" }).first();
+  if (sandwichCat) {
+    const products = await db("products").where({ account_id: accountId, category_id: sandwichCat.id }).pluck("id");
+    for (const pid of products) {
+      const linked = await db("product_modifier_groups").where({ product_id: pid, modifier_group_id: gBread }).first();
+      if (!linked) await db("product_modifier_groups").insert({ product_id: pid, modifier_group_id: gBread, sort_order: -10 });
+    }
+  }
+}
+
 export async function seedFoundation(db: Knex): Promise<SeedResult> {
   const existing = await db("accounts").first();
   const ownerEmail = "owner@ykms.local";
@@ -171,6 +241,7 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
   await db("user_roles").insert({ user_id: kitchenId, role_id: roleIds["kitchen"] });
 
   await seedMvp(db, { accountId, branchId, branch2Id, cashierId });
+  await seedBreadGroups(db, accountId);
 
   return { accountId, branchId, branch2Id, ownerEmail, ownerPassword };
 }
@@ -300,6 +371,31 @@ export async function seedMvp(
     phone: "01000000002",
     address: "القاهرة — مدينة نصر",
   });
+
+  // --- YKMS-02E: محطات التحضير الافتراضية ---
+  const stationIds: Record<string, string> = {};
+  const stations = ["جريل", "قلاية", "تجهيز", "مشروبات"];
+  for (let i = 0; i < stations.length; i++) {
+    const sid = newId();
+    stationIds[stations[i]] = sid;
+    await db("prep_stations").insert({ id: sid, account_id: accountId, name_ar: stations[i], sort_order: i });
+  }
+  // ربط افتراضي: البطاطس/فواتح الشهية → قلاية، مشروبات → مشروبات، الحواوشي/ساندوتشات/أطباق/وجبات → جريل، إضافات → تجهيز
+  const catStation: Record<string, string> = {
+    "ساندوتشات": "جريل",
+    "أطباق": "جريل",
+    "وجبات": "جريل",
+    "الحواوشي": "جريل",
+    "البطاطس": "قلاية",
+    "فواتح الشهية": "قلاية",
+    "إضافات": "تجهيز",
+    "مشروبات": "مشروبات",
+  };
+  for (const [catName, stName] of Object.entries(catStation)) {
+    await db("categories")
+      .where({ account_id: accountId, name_ar: catName })
+      .update({ default_prep_station_id: stationIds[stName] });
+  }
 
   // --- Default settings (account-level rows; باقي القيم الافتراضية تعيش في الكود) ---
   for (const [key, value] of Object.entries({

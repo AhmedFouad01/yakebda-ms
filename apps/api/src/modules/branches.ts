@@ -10,8 +10,12 @@ import { ar } from "../i18n/ar";
 const branchSchema = z.object({
   name: z.string().min(1),
   address: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
   timezone: z.string().default("Africa/Cairo"),
   is_active: z.boolean().default(true),
+  accepts_takeaway: z.boolean().optional(),
+  accepts_delivery: z.boolean().optional(),
+  // dine_in_enabled يظل مقفولًا من الواجهة عمدًا — قرار YAKEBDA الحالي
 });
 
 export function branchRoutes(db: Knex): Router {

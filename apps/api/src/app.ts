@@ -15,12 +15,14 @@ import { categoryRoutes, productRoutes, modifierGroupRoutes, branchMenuRoutes } 
 import { orderRoutes, kitchenRoutes } from "./modules/orders";
 import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant";
 import { shiftRoutes } from "./modules/shifts";
-import { settingsRoutes } from "./modules/settings";
+import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } from "./modules/settings";
 
 export function createApp(db: Knex) {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({ limit: "8mb" })); // YKMS-02G: يستوعب صور base64
+  // YKMS-02G: خدمة ملفات الرفع محليًا (التطوير) — متوافق مستقبلًا مع CDN/S3
+  app.use("/uploads", express.static(process.env.UPLOAD_DIR || `${process.cwd()}/uploads`));
 
   // API v1 foundation — FR-160: everything under /api/v1
   const v1 = express.Router();
@@ -49,6 +51,9 @@ export function createApp(db: Knex) {
   v1.use("/customers", customerRoutes(db));
   v1.use("/shifts", shiftRoutes(db));
   v1.use("/settings", settingsRoutes(db));
+  v1.use("/prep-stations", prepStationRoutes(db));
+  v1.use("/delivery-zones", deliveryZoneRoutes(db));
+  v1.use("/drivers", driverRoutes(db));
   v1.use("/reports", reportRoutes(db));
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));

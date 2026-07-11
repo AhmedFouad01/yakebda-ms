@@ -27,3 +27,6 @@ Thumbs.db
 # Runtime temp
 .tmp/
 tmp/
+
+# YKMS-02G: runtime upload storage (local dev)
+apps/api/uploads/

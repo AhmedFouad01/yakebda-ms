@@ -6,9 +6,8 @@ import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
 import { requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
-import { renderReceiptPayload } from "../lib/receipt";
-import { getSettings } from "./settings";
-
+import { renderReceiptPayload, renderKitchenTicketPayload } from "../lib/receipt";
+import { getSettings, Settings } from "./settings";
 /**
  * YKMS-02/03-lite — Orders & POS flow.
  * Prices are ALWAYS computed server-side from the branch menu (never trusted from the client).
@@ -33,6 +32,7 @@ const createOrderSchema = z.object({
   delivery_address: z.string().optional().nullable(),
   delivery_fee: z.number().nonnegative().default(0),
   discount: z.number().nonnegative().default(0),
+  discount_reason: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   submit: z.boolean().default(true), // POS submits immediately by default
   items: z
@@ -59,12 +59,18 @@ export async function loadFullOrder(db: Knex, accountId: string, orderId: string
   const branch = await db("branches").where({ id: order.branch_id }).first();
   const table = order.table_id ? await db("dining_tables").where({ id: order.table_id }).first() : null;
   const customer = order.customer_id ? await db("customers").where({ id: order.customer_id }).first() : null;
+  const driver = order.driver_id ? await db("drivers").where({ id: order.driver_id }).first() : null;
+  // YKMS-02G: اسم الكاشير/منشئ الطلب لمراجعة التشغيل
+  const cashier = order.created_by ? await db("users").where({ id: order.created_by }).first() : null;
   return {
     ...order,
     branch_name: branch?.name ?? "",
     table_name_ar: table?.name_ar ?? null,
     customer_name: customer?.name ?? null,
     customer_phone: customer?.phone ?? null,
+    customer_address: customer?.address ?? null,
+    driver_name: driver?.name ?? null,
+    cashier_name: cashier?.name ?? null,
     items: items.map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),
     payments,
   };
@@ -80,8 +86,13 @@ async function setStatus(
   if (!TRANSITIONS[order.status]?.includes(to)) throw err.validation({ status: ar.errors.bad_status_transition });
   const patch: Record<string, unknown> = { status: to, updated_at: db.fn.now() };
   if (to === "submitted") patch.submitted_at = db.fn.now();
+  if (to === "in_kitchen") patch.in_kitchen_at = db.fn.now(); // YKMS-02F: مصدر مؤقت المطبخ
+  if (to === "ready") patch.ready_at = db.fn.now();
   if (to === "completed") patch.completed_at = db.fn.now();
-  if (to === "cancelled" && cancelReason) patch.cancel_reason = cancelReason;
+  if (to === "cancelled") {
+    patch.cancelled_at = db.fn.now();
+    if (cancelReason) patch.cancel_reason = cancelReason;
+  }
   await db("orders").where({ id: order.id }).update(patch);
   await db("order_status_history").insert({
     id: newId(),
@@ -99,6 +110,47 @@ async function setStatus(
       await db("dining_tables").where({ id: order.table_id }).update({ status: "cleaning", updated_at: db.fn.now() });
     }
   }
+}
+
+/** YKMS-02E: ضرائب/رسوم خدمة/تقريب من الإعدادات — تُحفظ snapshot على الطلب. */
+export function computeTotals(settings: Settings, subtotal: number, discount: number, deliveryFee: number) {
+  const afterDiscount = Math.max(0, subtotal - discount);
+  let serviceFee = 0;
+  if (settings.service_fee_enabled && settings.service_fee_value > 0) {
+    serviceFee =
+      settings.service_fee_type === "percent"
+        ? (afterDiscount * settings.service_fee_value) / 100
+        : settings.service_fee_value;
+    serviceFee = Math.round(serviceFee * 100) / 100;
+  }
+  let vatAmount = 0;
+  let total = afterDiscount + serviceFee + deliveryFee;
+  if (settings.vat_enabled && settings.vat_percentage > 0) {
+    const rate = settings.vat_percentage / 100;
+    if (settings.prices_include_vat) {
+      vatAmount = Math.round((total - total / (1 + rate)) * 100) / 100; // معلوماتية — السعر شامل
+    } else {
+      vatAmount = Math.round((afterDiscount + serviceFee) * rate * 100) / 100;
+      total += vatAmount;
+    }
+  }
+  let rounding = 0;
+  if (settings.rounding_rule !== "none") {
+    const step = settings.rounding_rule === "nearest_050" ? 0.5 : 1;
+    const rounded = Math.round(total / step) * step;
+    rounding = Math.round((rounded - total) * 100) / 100;
+    total = rounded;
+  }
+  return { serviceFee, vatAmount, rounding, total: Math.round(total * 100) / 100 };
+}
+
+/** بادئة رقم الطلب: بادئة عامة + حرف نوع الطلب (T/D/O) عند التفعيل. */
+function orderPrefix(settings: Settings, orderType: string): string | null {
+  let prefix = settings.order_number_prefix ?? "";
+  if (settings.order_type_letter_prefix) {
+    prefix += orderType === "takeaway" ? "T" : orderType === "delivery" ? "D" : orderType === "online" ? "O" : "";
+  }
+  return prefix || null;
 }
 
 export function orderRoutes(db: Knex): Router {
@@ -148,6 +200,28 @@ export function orderRoutes(db: Knex): Router {
 
       const branch = await db("branches").where({ id: d.branch_id, account_id: accountId }).first();
       if (!branch) throw err.notFound();
+
+      // YKMS-02E: الإعدادات مصدر الحقيقة التشغيلي
+      const settings = await getSettings(db, accountId, branch.id);
+      const typeEnabled: Record<string, boolean> = {
+        takeaway: settings.order_type_takeaway_enabled && branch.accepts_takeaway !== false,
+        delivery: settings.order_type_delivery_enabled && branch.accepts_delivery !== false,
+        dine_in: settings.order_type_dine_in_enabled && branch.dine_in_enabled === true,
+      };
+      if (!typeEnabled[d.order_type]) {
+        throw err.validation({ order_type: ar.errors.order_type_disabled });
+      }
+      if (d.order_type === "delivery") {
+        if (settings.require_customer_for_delivery && !d.customer_id) {
+          throw err.validation({ customer: ar.errors.delivery_customer_required });
+        }
+        if (settings.require_address_for_delivery && !d.delivery_address) {
+          throw err.validation({ address: ar.errors.delivery_address_required });
+        }
+        if (settings.min_delivery_order > 0) {
+          // يُتحقق بعد حساب subtotal أدناه
+        }
+      }
       if (d.table_id) {
         const table = await db("dining_tables").where({ id: d.table_id, branch_id: branch.id }).first();
         if (!table) throw err.notFound();
@@ -207,17 +281,48 @@ export function orderRoutes(db: Knex): Router {
         return { input: i, product: p, variant, mods, unit, lineTotal };
       });
 
-      const discount = Math.min(d.discount, subtotal);
-      const total = subtotal - discount + d.delivery_fee;
+      // YKMS-02E: قواعد الخصم من الإعدادات
+      let discount = settings.allow_discounts ? Math.min(d.discount, subtotal) : 0;
+      if (discount > 0) {
+        const overAmount = discount > settings.max_discount_without_manager;
+        const overPercent = subtotal > 0 && (discount / subtotal) * 100 > settings.max_cashier_discount_percent;
+        if (settings.approval_discount_above_limit && (overAmount || overPercent)) {
+          if (!req.user!.permissions.includes("orders.discount_above_limit")) {
+            throw err.validation({ discount: ar.errors.discount_above_limit });
+          }
+        }
+        if (settings.discount_reason_required && !d.discount_reason) {
+          throw err.validation({ discount_reason: ar.errors.discount_reason_required });
+        }
+      }
+      if (d.order_type === "delivery" && settings.min_delivery_order > 0 && subtotal < settings.min_delivery_order) {
+        throw err.validation({ min_order: ar.errors.delivery_min_order });
+      }
+      const { serviceFee, vatAmount, rounding, total } = computeTotals(settings, subtotal, discount, d.delivery_fee);
 
       const orderId = newId();
       await db.transaction(async (trx) => {
-        const [{ max }] = await trx("orders").where({ branch_id: branch.id }).max("order_no as max");
+        // YKMS-02E: ترقيم من الإعدادات — يومي أو مستمر، لكل فرع أو للحساب
+        const numberScope = settings.branch_specific_numbering
+          ? trx("orders").where({ branch_id: branch.id })
+          : trx("orders").where({ account_id: accountId });
+        if (settings.order_daily_reset) {
+          const dayStart = new Date();
+          dayStart.setHours(0, 0, 0, 0);
+          numberScope.where("created_at", ">=", dayStart);
+        }
+        const [{ max }] = await numberScope.max("order_no as max");
+        const nextNo = max == null ? settings.order_starting_number : Number(max) + 1;
         await trx("orders").insert({
           id: orderId,
           account_id: accountId,
           branch_id: branch.id,
-          order_no: Number(max ?? 0) + 1,
+          order_no: nextNo,
+          order_prefix: orderPrefix(settings, d.order_type),
+          vat_amount: vatAmount,
+          service_fee: serviceFee,
+          rounding_adjustment: rounding,
+          discount_reason: d.discount_reason ?? null,
           order_type: d.order_type,
           status: "draft",
           table_id: d.table_id ?? null,
@@ -266,7 +371,32 @@ export function orderRoutes(db: Knex): Router {
       });
 
       const created = (await db("orders").where({ id: orderId }).first())!;
-      if (d.submit) await setStatus(db, created, "submitted", req.user!.id);
+      if (d.submit) {
+        await setStatus(db, created, "submitted", req.user!.id);
+        // YKMS-02E: تذكرة مطبخ تلقائية عند الإرسال (لو مفعلة وفيه طابعة مطبخ)
+        if (settings.auto_print_on_kitchen_send && settings.kitchen_printer_enabled) {
+          try {
+            const kEndpoint = await db("hardware_endpoints")
+              .where({ branch_id: branch.id, kind: "kitchen_printer", is_active: true })
+              .first();
+            if (kEndpoint) {
+              const full = await loadFullOrder(db, accountId, orderId);
+              await db("print_jobs").insert({
+                id: newId(),
+                branch_id: branch.id,
+                endpoint_id: kEndpoint.id,
+                device_id: kEndpoint.device_id ?? null,
+                type: "kitchen_ticket",
+                payload: JSON.stringify(renderKitchenTicketPayload(full!, settings.paper_width_mm)),
+                status: "pending",
+                created_by: req.user!.id,
+              });
+            }
+          } catch {
+            // فشل الطباعة لا يوقف الطلب — NFR-002
+          }
+        }
+      }
 
       await writeAudit(db, {
         accountId,
@@ -293,6 +423,14 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!order) throw err.notFound();
+      // YKMS-02E: إلغاء الطلب قد يتطلب صلاحية مدير حسب الإعدادات
+      if (body.data.status === "cancelled") {
+        const settings = await getSettings(db, req.user!.accountId, order.branch_id);
+        if (!settings.allow_order_cancel) throw err.validation({ status: ar.errors.order_cancel_disabled });
+        if (settings.approval_cancel_order && !req.user!.permissions.includes("orders.cancel")) {
+          throw err.forbidden();
+        }
+      }
       await setStatus(db, order, body.data.status, req.user!.id, body.data.cancel_reason);
       await writeAudit(db, {
         accountId: req.user!.accountId,
@@ -346,6 +484,36 @@ export function orderRoutes(db: Knex): Router {
         received_by: req.user!.id,
         shift_id: shiftId,
       });
+      // YKMS-02E: طباعة تلقائية عند الدفع (لو مفعلة) — الفشل لا يوقف الدفع
+      if (settings.auto_print_on_payment && settings.receipt_printing_enabled && body.data.method !== "unpaid") {
+        try {
+          const endpoint = await db("hardware_endpoints")
+            .where({ branch_id: order.branch_id, kind: "receipt_printer", is_active: true })
+            .first();
+          if (endpoint) {
+            const full = await loadFullOrder(db, req.user!.accountId, order.id);
+            await db("print_jobs").insert({
+              id: newId(),
+              branch_id: order.branch_id,
+              endpoint_id: endpoint.id,
+              device_id: endpoint.device_id ?? null,
+              type: "receipt",
+              payload: JSON.stringify(
+                renderReceiptPayload(full!, {
+                  footer: settings.receipt_footer,
+                  paperWidthMm: settings.paper_width_mm,
+                  copies: settings.receipt_copies,
+                  taxDisplay: settings.receipt_tax_display,
+                })
+              ),
+              status: "pending",
+              created_by: req.user!.id,
+            });
+          }
+        } catch {
+          /* NFR-002 */
+        }
+      }
       await writeAudit(db, {
         accountId: req.user!.accountId,
         branchId: order.branch_id,
@@ -391,7 +559,14 @@ export function orderRoutes(db: Knex): Router {
         endpoint_id: endpoint.id,
         device_id: endpoint.device_id ?? null,
         type: "receipt",
-        payload: JSON.stringify(renderReceiptPayload(order)),
+        payload: JSON.stringify(
+          renderReceiptPayload(order, {
+            footer: settings.receipt_footer,
+            paperWidthMm: settings.paper_width_mm,
+            copies: settings.receipt_copies,
+            taxDisplay: settings.receipt_tax_display,
+          })
+        ),
         status: "pending",
         created_by: req.user!.id,
       });
@@ -406,6 +581,38 @@ export function orderRoutes(db: Knex): Router {
         ip: req.ip,
       });
       res.status(201).json({ data: await db("print_jobs").where({ id }).first(), message: ar.messages.print_job_queued });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02E: تعيين سائق لطلب دليفري — صلاحية delivery.assign
+  r.post("/:id/assign-driver", requirePermission("delivery.assign"), async (req, res, next) => {
+    try {
+      const body = z.object({ driver_id: z.string().uuid().nullable() }).safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
+      if (!order) throw err.notFound();
+      if (order.order_type !== "delivery") throw err.validation({ order_type: ar.errors.order_type_disabled });
+      if (body.data.driver_id) {
+        const driver = await db("drivers")
+          .where({ id: body.data.driver_id, account_id: req.user!.accountId })
+          .first();
+        if (!driver) throw err.notFound();
+        if (!driver.is_active) throw err.validation({ driver: ar.errors.driver_inactive });
+      }
+      await db("orders").where({ id: order.id }).update({ driver_id: body.data.driver_id, updated_at: db.fn.now() });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        branchId: order.branch_id,
+        userId: req.user!.id,
+        action: "order.assign_driver",
+        entityType: "order",
+        entityId: order.id,
+        meta: { driver_id: body.data.driver_id },
+        ip: req.ip,
+      });
+      res.json({ data: await loadFullOrder(db, req.user!.accountId, order.id), message: ar.messages.updated });
     } catch (e) {
       next(e);
     }
@@ -431,7 +638,21 @@ export function kitchenRoutes(db: Knex): Router {
         })
         .orderBy("submitted_at", "asc");
       const ids = orders.map((o: { id: string }) => o.id);
-      const items = ids.length ? await db("order_items").whereIn("order_id", ids) : [];
+      const items = ids.length
+        ? await db("order_items as i")
+            .leftJoin("products as p", "p.id", "i.product_id")
+            .leftJoin("prep_stations as ps", "ps.id", "p.prep_station_id")
+            .leftJoin("categories as c", "c.id", "p.category_id")
+            .leftJoin("prep_stations as cps", "cps.id", "c.default_prep_station_id")
+            .whereIn("i.order_id", ids)
+            .select(
+              "i.*",
+              db.raw("coalesce(ps.name_ar, cps.name_ar) as prep_station_ar"),
+              db.raw(
+                "case when p.prep_time_minutes > 0 then p.prep_time_minutes else c.default_prep_time_minutes end as prep_time_minutes"
+              )
+            )
+        : [];
       const mods = items.length
         ? await db("order_item_modifiers").whereIn("order_item_id", items.map((i) => i.id))
         : [];
@@ -442,6 +663,64 @@ export function kitchenRoutes(db: Knex): Router {
             .filter((i) => i.order_id === o.id)
             .map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),
         })),
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02G — مؤشرات المطبخ الحقيقية: زمن التحضير من الطوابع (submitted→ready)
+  // لطلبات اليوم المكتملة، وليس مدة جلوس الطلبات المفتوحة (تصحيح متوسط 1189د).
+  r.get("/metrics", requirePermission("kitchen.view"), async (req, res, next) => {
+    try {
+      const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!q.success) throw err.validation(q.error.flatten());
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+
+      const completed = await db("orders")
+        .where({ account_id: req.user!.accountId })
+        .whereNotNull("submitted_at")
+        .whereNotNull("ready_at")
+        .where("ready_at", ">=", dayStart)
+        .modify((qb) => {
+          if (q.data.branch_id) qb.where("branch_id", q.data.branch_id);
+        })
+        .select("submitted_at", "ready_at");
+
+      // دقائق التحضير الفعلية لكل طلب (submitted→ready)، مع تجاهل السالب/الشاذ.
+      const durations = completed
+        .map((o: { ready_at: unknown; submitted_at: unknown }) => (new Date(o.ready_at as string).getTime() - new Date(o.submitted_at as string).getTime()) / 60000)
+        .filter((m: number) => m >= 0 && m < 24 * 60) // استبعاد >24س كبيانات شاذة
+        .sort((a: number, b: number) => a - b);
+
+      const open = await db("orders")
+        .where({ account_id: req.user!.accountId })
+        .whereIn("status", ["submitted", "in_kitchen", "ready"])
+        .modify((qb) => {
+          if (q.data.branch_id) qb.where("branch_id", q.data.branch_id);
+        })
+        .select("status");
+
+      const settings = await getSettings(db, req.user!.accountId, q.data.branch_id ?? null);
+      const lateMin = settings.kds_late_minutes;
+
+      const avg = durations.length ? durations.reduce((s: number, m: number) => s + m, 0) / durations.length : null;
+      const median = durations.length ? durations[Math.floor(durations.length / 2)] : null;
+      const withinSla = durations.filter((m: number) => m <= lateMin).length;
+
+      res.json({
+        data: {
+          completed_today: durations.length,
+          avg_prep_minutes: avg == null ? null : Math.round(avg * 10) / 10,
+          median_prep_minutes: median == null ? null : Math.round(median * 10) / 10,
+          within_sla: withinSla,
+          late_completed: durations.length - withinSla,
+          currently_preparing: open.filter((o: { status: string }) => o.status === "in_kitchen").length,
+          ready_waiting: open.filter((o: { status: string }) => o.status === "ready").length,
+          submitted_waiting: open.filter((o: { status: string }) => o.status === "submitted").length,
+          sla_late_minutes: lateMin,
+        },
       });
     } catch (e) {
       next(e);

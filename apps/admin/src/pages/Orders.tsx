@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
+import { OrderDetail } from "../components/OrderDetail";
+import { useMe } from "../lib/me";
 
 interface OrderRow {
   id: string;
   order_no: number;
+  order_prefix?: string | null;
   order_type: string;
   status: string;
   total: string | number;
@@ -13,12 +16,22 @@ interface OrderRow {
   branch_id: string;
 }
 
+interface Driver {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
 export function Orders() {
+  const { can } = useMe();
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [status, setStatus] = useState("");
   const [current, setCurrent] = useState<FullOrder | null>(null);
+  const [detailView, setDetailView] = useState<"detail" | "receipt">("detail");
   const [cancelReason, setCancelReason] = useState("");
   const [payMethod, setPayMethod] = useState<"cash" | "card" | "wallet">("cash");
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [allowCancel, setAllowCancel] = useState(true);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -30,11 +43,18 @@ export function Orders() {
     load().catch((e) => setError(e.message));
   }, [status]);
 
+  useEffect(() => {
+    // YKMS-02E: قائمة السائقين لتعيين طلبات الدليفري + قاعدة السماح بالإلغاء
+    if (can("delivery.assign")) api<{ data: Driver[] }>("/drivers").then((r) => setDrivers(r.data)).catch(() => {});
+    api<{ data: { allow_order_cancel: boolean } }>("/settings").then((r) => setAllowCancel(r.data.allow_order_cancel !== false)).catch(() => {});
+  }, [can]);
+
   async function open(id: string) {
     setError("");
     setMsg("");
     const res = await api<{ data: FullOrder }>(`/orders/${id}`);
     setCurrent(res.data);
+    setDetailView("detail");
   }
 
   async function act(fn: () => Promise<unknown>) {
@@ -78,7 +98,7 @@ export function Orders() {
         <tbody>
           {rows.map((o) => (
             <tr key={o.id}>
-              <td>#{o.order_no}</td>
+              <td>#{o.order_prefix ?? ""}{o.order_no}</td>
               <td>{t.orders.types[o.order_type]}</td>
               <td><span className={`stub st-${o.status}`}>{t.orders.statuses[o.status]}</span></td>
               <td>{Number(o.total).toFixed(2)} {t.reports.egp}</td>
@@ -91,9 +111,17 @@ export function Orders() {
 
       {current && (
         <div className="modal-back" onClick={() => setCurrent(null)}>
-          <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+          <div className="modal wide od-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="od-modal-head">
+              <h3>{t.orders.details} — {current.order_prefix ?? ""}{current.order_no}</h3>
+              <div className="od-modal-tabs">
+                <button className={detailView === "detail" ? "active" : ""} onClick={() => setDetailView("detail")}>المراجعة</button>
+                <button className={detailView === "receipt" ? "active" : ""} onClick={() => setDetailView("receipt")}>الفاتورة</button>
+              </div>
+              <button className="od-modal-x" onClick={() => setCurrent(null)} aria-label="إغلاق">✕</button>
+            </div>
             <div className="order-detail">
-              <Receipt order={current} />
+              {detailView === "detail" ? <OrderDetail order={current} /> : <Receipt order={current} />}
               <div className="order-actions">
                 <div className="stub-row">
                   <span className={`stub st-${current.status}`}>{t.orders.statuses[current.status]}</span>
@@ -108,7 +136,29 @@ export function Orders() {
                     {t.orders.statuses.completed}
                   </button>
                 )}
-                {!["completed", "cancelled"].includes(current.status) && (
+                {/* YKMS-02E: تعيين سائق لطلب دليفري */}
+                {current.order_type === "delivery" && can("delivery.assign") && current.status !== "cancelled" && (
+                  <div className="cancel-box">
+                    <select
+                      value={current.driver_id ?? ""}
+                      onChange={(e) =>
+                        act(() =>
+                          api(`/orders/${current.id}/assign-driver`, {
+                            method: "POST",
+                            body: { driver_id: e.target.value || null },
+                          })
+                        )
+                      }
+                    >
+                      <option value="">{t.orders.assignDriver}…</option>
+                      {drivers.filter((d) => d.is_active || d.id === current.driver_id).map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {/* YKMS-02E: الإلغاء يُخفى إن كان معطلًا بالإعدادات أو ينقص المستخدم صلاحية الإلغاء */}
+                {!["completed", "cancelled"].includes(current.status) && allowCancel && can("orders.cancel") && (
                   <div className="cancel-box">
                     <input placeholder={t.orders.cancelReason} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
                     <button

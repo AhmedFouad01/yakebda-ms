@@ -52,7 +52,11 @@ const createOrderSchema = z.object({
 export async function loadFullOrder(db: Knex, accountId: string, orderId: string) {
   const order = await db("orders").where({ id: orderId, account_id: accountId }).first();
   if (!order) return null;
-  const items = await db("order_items").where({ order_id: order.id }).orderBy("created_at", "asc");
+  const items = await db("order_items as oi")
+    .leftJoin("products as p", "p.id", "oi.product_id")
+    .where("oi.order_id", order.id)
+    .orderBy("oi.created_at", "asc")
+    .select("oi.*", "p.image_url");
   const mods = items.length
     ? await db("order_item_modifiers").whereIn("order_item_id", items.map((i) => i.id))
     : [];
@@ -225,17 +229,55 @@ export function orderRoutes(db: Knex): Router {
           "o.order_prefix",
           "o.order_type",
           "o.status",
+          "o.subtotal",
+          "o.discount",
+          "o.service_fee",
+          "o.vat_amount",
+          "o.delivery_fee",
+          "o.rounding_adjustment",
           "o.total",
           "o.created_at",
           "o.submitted_at",
           "o.in_kitchen_at",
           "o.ready_at",
           "o.completed_at",
+          "o.cancelled_at",
           db.raw("(select coalesce(sum(p.amount), 0) from payments p where p.order_id = o.id) as paid_amount"),
-          db.raw("(select coalesce(sum(oi.qty), 0)::int from order_items oi where oi.order_id = o.id) as item_count")
+          db.raw("(select coalesce(sum(oi.qty), 0)::int from order_items oi where oi.order_id = o.id) as item_count"),
+          db.raw(`(
+            select coalesce(json_agg(json_build_object(
+              'id', preview.id,
+              'name_ar', preview.name_ar,
+              'variant_name_ar', preview.variant_name_ar,
+              'qty', preview.qty,
+              'image_url', preview.image_url
+            ) order by preview.created_at), '[]'::json)
+            from (
+              select oi.id, oi.name_ar, oi.variant_name_ar, oi.qty, oi.created_at, p.image_url
+              from order_items oi
+              left join products p on p.id = oi.product_id
+              where oi.order_id = o.id
+              order by oi.created_at
+              limit 6
+            ) preview
+          ) as preview_items`)
         );
 
-      res.json({ data: { shift, orders } });
+      const mapped = orders.map((order: Record<string, unknown>) => {
+        const total = Number(order.total ?? 0);
+        const paid = Number(order.paid_amount ?? 0);
+        const status = String(order.status ?? "draft");
+        const paymentStatus = paid <= 0 ? "unpaid" : paid + 0.001 < total ? "partial" : "paid";
+        const kitchenStatus =
+          status === "submitted" ? "waiting" :
+          status === "in_kitchen" ? "preparing" :
+          status === "ready" ? "ready" :
+          status === "completed" ? "completed" :
+          status === "cancelled" ? "cancelled" : "draft";
+        return { ...order, payment_status: paymentStatus, kitchen_status: kitchenStatus };
+      });
+
+      res.json({ data: { shift, orders: mapped } });
     } catch (e) {
       next(e);
     }

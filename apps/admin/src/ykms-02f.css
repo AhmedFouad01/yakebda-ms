@@ -533,21 +533,32 @@ button.sm:hover { border-color: var(--yk-yellow); }
 
 
 /* ================================================================
-   YKMS-02G-E — POS operational QA fixes
+   YKMS-02G-E — POS operational QA / approved card system
    ================================================================ */
 
-/* AppShell owns the only app header; POS has a single content row. */
-.posx { grid-template-rows: minmax(0, 1fr); }
-
+.posx { height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.posx-body { height: 100%; min-height: 0; }
+.posx-menu { padding: 0 14px 20px; }
+.posx-menu-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0 -14px 14px;
+  padding: 10px 14px 9px;
+  background: rgba(9, 11, 13, 0.98);
+  border-bottom: 1px solid var(--yk-line);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(8px);
+}
 .posx-menu-tools {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(145px, 180px) auto minmax(230px, 1fr) auto auto;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin: 0 0 9px;
 }
-.posx-menu-tools > select { min-width: 150px; }
-.posx-menu-tools .posx-search { flex: 1; min-width: 220px; }
+.posx-menu-tools .posx-search { min-width: 0; width: 100%; }
+.posx-menu-tools .posx-adminmenu { position: relative; }
 .posx-history-btn {
   min-height: 36px;
   padding: 0 14px;
@@ -558,68 +569,106 @@ button.sm:hover { border-color: var(--yk-yellow); }
   font-family: inherit;
   font-weight: 900;
   cursor: pointer;
+  white-space: nowrap;
 }
 .posx-history-btn:hover { background: rgba(246, 192, 38, 0.1); }
+.posx-menu-top .posx-cats {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.posx-menu-top .posx-cats::-webkit-scrollbar { display: none; }
+.posx-menu-top .posx-cats button { flex: 0 0 auto; padding: 8px 16px; }
 
-/* Maximum five cards per row. */
-.posx-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-@media (max-width: 1180px) {
-  .posx-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (max-width: 980px) {
-  .posx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (max-width: 760px) {
-  .posx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 520px) {
-  .posx-grid { grid-template-columns: minmax(0, 1fr); }
-}
-
-.posx-order-now {
-  width: 100%;
-  min-height: 52px;
-  border: 1px solid var(--yk-yellow);
-  border-radius: 11px;
-  background: var(--yk-yellow);
-  color: #111;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 900;
+.posx-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.posx-card2 {
+  min-width: 0;
+  min-height: 420px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--yk-panel);
+  border: 1px solid #725c12;
+  border-radius: 0;
+  color: var(--yk-text);
   cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.posx-card2:hover, .posx-card2:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--yk-yellow);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(246, 192, 38, 0.28);
+  outline: none;
+}
+.posx-card2.off { opacity: 0.48; cursor: not-allowed; }
+.posx-card2-media { position: relative; width: 100%; aspect-ratio: 1.25 / 1; background: #0d1114; overflow: hidden; border-bottom: 1px solid var(--yk-yellow); }
+.posx-card2-img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 0; }
+.posx-card2-img.ph { display: grid; place-items: center; background: linear-gradient(145deg, #13191e, #362d0c); color: var(--yk-yellow); font-size: 48px; font-weight: 900; }
+.posx-card2-qty-badge { position: absolute; top: 10px; inset-inline-start: 10px; min-width: 30px; height: 30px; display: grid; place-items: center; padding: 0 8px; border-radius: 999px; background: var(--yk-yellow); color: #111; font-weight: 900; box-shadow: 0 3px 12px rgba(0,0,0,.4); }
+.posx-card2-info { padding: 12px 14px 8px; text-align: center; }
+.posx-card2-name { margin: 0; min-height: 52px; display: grid; place-items: center; font-size: clamp(17px, 1.25vw, 23px); line-height: 1.35; font-weight: 900; }
+.posx-card2-price { display: block; color: var(--yk-yellow); font-size: 15px; font-weight: 900; margin-top: 3px; }
+.posx-card2-opt { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 14px; }
+.posx-card2-opt-label { color: var(--yk-muted); font-size: 12px; font-weight: 900; }
+.posx-chips { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.posx-chips button { min-width: 74px; min-height: 28px; padding: 3px 12px; border: 1px solid var(--yk-yellow); border-radius: 999px; background: transparent; color: var(--yk-text); font-family: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.posx-chips button.active { background: var(--yk-yellow); color: #111; }
+.posx-card2-off { margin: 8px 14px; padding: 8px; border: 1px solid #8a372f; color: #ffc7c0; text-align: center; }
+.posx-card2-foot { margin-top: auto; min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px 12px; border-top: 1px solid rgba(246, 192, 38, 0.18); }
+.posx-card2-stepper { display: inline-grid; grid-template-columns: 34px 32px 34px; gap: 4px; align-items: center; }
+.posx-card2-stepper button { width: 34px; height: 34px; border: 1px solid var(--yk-line); border-radius: 8px; background: #0d1114; color: var(--yk-text); font-size: 18px; font-weight: 900; cursor: pointer; }
+.posx-card2-stepper button:last-child { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+.posx-card2-stepper span { text-align: center; font-weight: 900; color: var(--yk-yellow); }
+.posx-card2-detail { min-height: 34px; padding: 0 12px; border: 1px dashed #725c12; border-radius: 8px; background: transparent; color: var(--yk-yellow); font-family: inherit; font-weight: 900; cursor: pointer; }
+.posx-card2-hint { color: var(--yk-muted); font-size: 11px; font-weight: 800; }
+
+.posx-order-now { width: 100%; min-height: 52px; border: 1px solid var(--yk-yellow); border-radius: 11px; background: var(--yk-yellow); color: #111; font-family: inherit; font-size: 16px; font-weight: 900; cursor: pointer; }
 .posx-order-now:hover:not(:disabled) { background: var(--yk-yellow-2); }
 .posx-order-now:disabled { opacity: 0.45; cursor: not-allowed; }
-.posx-fire-reason {
-  margin-top: 5px;
-  color: var(--yk-yellow);
-  font-size: 11.5px;
-  font-weight: 800;
-  text-align: center;
-}
+.posx-fire-reason { margin-top: 5px; color: var(--yk-yellow); font-size: 11.5px; font-weight: 800; text-align: center; }
 
-.posx-history-list { display: grid; gap: 8px; }
-.posx-history-row {
-  display: grid;
-  grid-template-columns: minmax(110px, 1.3fr) repeat(5, minmax(80px, 1fr));
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--yk-line);
-  border-radius: 10px;
-  background: var(--yk-black-2);
-  color: var(--yk-text);
-  font-family: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-.posx-history-row:hover { border-color: var(--yk-yellow); }
+.posx-history-list { display: grid; gap: 10px; }
+.posx-history-card { width: 100%; display: grid; gap: 10px; padding: 12px; border: 1px solid var(--yk-line); border-radius: 12px; background: var(--yk-black-2); color: var(--yk-text); font-family: inherit; text-align: start; cursor: pointer; }
+.posx-history-card:hover { border-color: var(--yk-yellow); }
+.posx-history-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .posx-history-main { display: flex; flex-direction: column; gap: 2px; }
-.posx-history-main strong { color: var(--yk-yellow); }
-.posx-history-main span, .posx-history-row > span { font-size: 12px; }
+.posx-history-main strong, .posx-history-total { color: var(--yk-yellow); }
+.posx-history-main span { color: var(--yk-muted); font-size: 12px; }
+.posx-history-items { display: grid; gap: 6px; }
+.posx-history-item { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 9px; align-items: center; padding: 6px; border-radius: 9px; background: #0d1114; }
+.posx-history-item img, .posx-history-item-ph { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; }
+.posx-history-item-ph { display: grid; place-items: center; background: #2d260d; color: var(--yk-yellow); font-weight: 900; }
+.posx-history-item-copy { display: grid; gap: 2px; }
+.posx-history-item-copy b { font-size: 12px; }
+.posx-history-item-copy small { color: var(--yk-muted); }
+.posx-history-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.posx-history-meta > span { padding: 4px 8px; border: 1px solid var(--yk-line); border-radius: 999px; font-size: 11px; font-weight: 800; }
+.posx-history-status.pay-paid, .posx-history-status.kitchen-completed { color: #78e08f; border-color: #1f6f46; }
+.posx-history-status.pay-partial, .posx-history-status.kitchen-waiting { color: var(--yk-yellow); border-color: #665214; }
+.posx-history-status.kitchen-preparing { color: #79c8ff; border-color: #275d80; }
+.posx-history-status.kitchen-ready { color: #b7ff8a; border-color: #4d7c2f; }
+.posx-history-status.kitchen-cancelled { color: #ff9c8a; border-color: #7a2a2a; }
 .posx-history-empty { padding: 24px; color: var(--yk-muted); text-align: center; }
 
+.od-item-main { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: center; }
+.od-item-image { width: 54px; height: 54px; object-fit: cover; border-radius: 9px; }
+.od-item-image.ph { display: grid; place-items: center; background: #2d260d; color: var(--yk-yellow); font-weight: 900; }
+
+@media (max-width: 1450px) {
+  .posx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1120px) {
+  .posx-menu-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .posx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 760px) {
-  .posx-history-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .posx-body { grid-template-columns: 1fr; }
+  .posx-cart { display: none; }
+  .posx-menu-tools { grid-template-columns: 1fr; }
+  .posx-grid { grid-template-columns: 1fr; }
 }

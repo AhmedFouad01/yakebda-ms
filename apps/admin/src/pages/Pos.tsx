@@ -60,20 +60,37 @@ interface Shift {
     orders_count: number;
   };
 }
+interface ShiftOrderPreviewItem {
+  id: string;
+  name_ar: string;
+  variant_name_ar?: string | null;
+  qty: number;
+  image_url?: string | null;
+}
 interface ShiftOrderSummary {
   id: string;
   order_no: number;
   order_prefix?: string | null;
   order_type: string;
   status: string;
+  kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
+  payment_status: "unpaid" | "partial" | "paid";
+  subtotal: string | number;
+  discount: string | number;
+  service_fee: string | number;
+  vat_amount: string | number;
+  delivery_fee: string | number;
+  rounding_adjustment: string | number;
   total: string | number;
   paid_amount: string | number;
   item_count: number;
+  preview_items: ShiftOrderPreviewItem[];
   created_at: string;
   submitted_at?: string | null;
   in_kitchen_at?: string | null;
   ready_at?: string | null;
   completed_at?: string | null;
+  cancelled_at?: string | null;
 }
 
 interface Settings {
@@ -536,8 +553,9 @@ export function Pos() {
 
       <div className="posx-body">
         <section className="posx-menu">
-          <div className="posx-menu-tools">
-            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
+          <div className="posx-menu-top">
+            <div className="posx-menu-tools">
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>{branch.name}</option>
               ))}
@@ -557,15 +575,16 @@ export function Pos() {
                 <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
                 {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
               </div>
-            </details>
-          </div>
-          <div className="posx-cats">
+              </details>
+            </div>
+            <div className="posx-cats">
             <button className={activeCat === "الكل" && !search ? "active" : ""} onClick={() => { setActiveCat("الكل"); setSearch(""); }}>الكل</button>
-            {categories.map((category) => (
-              <button key={category.id} className={category.name_ar === activeCat && !search ? "active" : ""} onClick={() => { setActiveCat(category.name_ar); setSearch(""); }}>
-                {category.name_ar}
-              </button>
-            ))}
+              {categories.map((category) => (
+                <button key={category.id} className={category.name_ar === activeCat && !search ? "active" : ""} onClick={() => { setActiveCat(category.name_ar); setSearch(""); }}>
+                  {category.name_ar}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="posx-grid">
             {visibleProducts.map((product) => (
@@ -575,10 +594,8 @@ export function Pos() {
                 qty={productQty(product)}
                 showImage={settings?.show_product_images !== false}
                 money={money}
-                canEdit={can("menu.manage")}
                 onAdd={(variant, mods) => addProduct(product, variant, mods)}
                 onQuickRemove={() => quickRemove(product)}
-                onEdit={() => setEditorProductId(product.id)}
                 onOpenDetail={() => setPicking(product)}
               />
             ))}
@@ -717,26 +734,43 @@ export function Pos() {
         )}
         <div className="posx-history-list">
           {history.map((order) => {
-            const paid = Number(order.paid_amount);
             const amount = Number(order.total);
-            const paymentState = paid <= 0 ? "غير مدفوع" : paid < amount ? "مدفوع جزئيًا" : "مدفوع";
+            const paymentState = order.payment_status === "paid" ? "مدفوع" : order.payment_status === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
             const kitchenState =
-              order.status === "submitted" ? "في انتظار المطبخ" :
-              order.status === "in_kitchen" ? "قيد التحضير" :
-              order.status === "ready" ? "جاهز" :
-              order.status === "completed" ? "مكتمل" :
-              order.status === "cancelled" ? "ملغي" : "مسودة";
+              order.kitchen_status === "waiting" ? "في انتظار المطبخ" :
+              order.kitchen_status === "preparing" ? "قيد التحضير" :
+              order.kitchen_status === "ready" ? "جاهز" :
+              order.kitchen_status === "completed" ? "مكتمل" :
+              order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
             return (
-              <button key={order.id} className="posx-history-row" onClick={() => openHistoryOrder(order.id)}>
-                <span className="posx-history-main">
-                  <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
-                  <span>{new Date(order.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span>
-                </span>
-                <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
-                <span>{order.item_count} صنف</span>
-                <span>{money(amount)}</span>
-                <span>{paymentState}</span>
-                <span>{kitchenState}</span>
+              <button key={order.id} className="posx-history-card" onClick={() => openHistoryOrder(order.id)}>
+                <div className="posx-history-card-head">
+                  <span className="posx-history-main">
+                    <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
+                    <span>{new Date(order.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </span>
+                  <strong className="posx-history-total">{money(amount)}</strong>
+                </div>
+                <div className="posx-history-items">
+                  {order.preview_items.map((item) => {
+                    const src = resolveAssetUrl(item.image_url);
+                    return (
+                      <span key={item.id} className="posx-history-item">
+                        {src ? <img src={src} alt="" /> : <span className="posx-history-item-ph">{item.name_ar.trim().charAt(0)}</span>}
+                        <span className="posx-history-item-copy">
+                          <b>{item.qty} × {item.name_ar}</b>
+                          {item.variant_name_ar && <small>{item.variant_name_ar}</small>}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="posx-history-meta">
+                  <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+                  <span>{order.item_count} قطعة</span>
+                  <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
+                  <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
+                </div>
               </button>
             );
           })}
@@ -885,82 +919,89 @@ function OffersPanel() {
 }
 
 /**
- * YKMS-02G — بطاقة صنف تفاعلية.
- * - النقر على البطاقة يضيف الافتراضي مباشرةً (لو بلا خيارات إلزامية).
- * - لو فيه أحجام (لقمة/هامر) أو مجموعة عيش إلزامية (فينو/سياحي) تظهر رقائق مدمجة داخل البطاقة.
- * - الإضافات متعددة الاختيار (طحينة/باربيكيو/شيدر/بطاطس) تُفتح من زر التفاصيل الخفيف.
- * - التعديل داخل قائمة ثلاث نقاط — لا زر دائم على كل بطاقة.
+ * YKMS-02G-E — بطاقة طلب فقط.
+ * Left click adds the selected configuration; right click decrements it.
+ * Product editing stays exclusively in the top administration flow.
  */
 function ProductCard({
   product,
   qty,
   showImage,
   money,
-  canEdit,
   onAdd,
   onQuickRemove,
-  onEdit,
   onOpenDetail,
 }: {
   product: MenuProduct;
   qty: number;
   showImage: boolean;
   money: (v: number) => string;
-  canEdit: boolean;
   onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void;
   onQuickRemove: () => void;
-  onEdit: () => void;
   onOpenDetail: () => void;
 }) {
-  // مجموعات إلزامية أحادية الاختيار (مثل العيش) تُعرض كرقائق؛ الباقي تفصيلي.
-  const inlineGroups = product.modifier_groups.filter((g) => g.is_required && g.max_select === 1);
-  const detailGroups = product.modifier_groups.filter((g) => !(g.is_required && g.max_select === 1));
+  const inlineGroups = product.modifier_groups.filter((group) => group.is_required && group.max_select === 1);
+  const detailGroups = product.modifier_groups.filter((group) => !(group.is_required && group.max_select === 1));
   const hasSizes = product.variants.length > 0;
-  const needsChoices = hasSizes || inlineGroups.length > 0;
   const hasDetail = detailGroups.length > 0;
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
   const [breadSel, setBreadSel] = useState<Record<string, MenuModifier>>(() => {
-    const init: Record<string, MenuModifier> = {};
-    for (const g of inlineGroups) if (g.modifiers[0]) init[g.id] = g.modifiers[0];
-    return init;
+    const initial: Record<string, MenuModifier> = {};
+    for (const group of inlineGroups) if (group.modifiers[0]) initial[group.id] = group.modifiers[0];
+    return initial;
   });
 
   const imageSrc = resolveAssetUrl(product.image_url);
   const [imageBroken, setImageBroken] = useState(false);
-  useEffect(() => {
-    setImageBroken(false);
-  }, [imageSrc]);
+  useEffect(() => setImageBroken(false), [imageSrc]);
 
   const priceNow =
     product.effective_price +
     Number(variant?.price_delta ?? 0) +
-    Object.values(breadSel).reduce((s, m) => s + Number(m.price_delta ?? 0), 0);
+    Object.values(breadSel).reduce((sum, modifier) => sum + Number(modifier.price_delta ?? 0), 0);
 
   function add() {
     if (!product.is_available) return;
     onAdd(variant, Object.values(breadSel));
   }
 
+  function isControl(target: EventTarget | null) {
+    return target instanceof HTMLElement && Boolean(target.closest("button, input, select, textarea, a"));
+  }
+
   return (
-    <div className={product.is_available ? "posx-card2" : "posx-card2 off"}>
-      <div className="posx-card2-top" onClick={() => (needsChoices ? undefined : add())} role="button">
-        {showImage && (imageSrc && !imageBroken
-          ? <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
-          : <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>
+    <article
+      className={product.is_available ? "posx-card2" : "posx-card2 off"}
+      role="button"
+      tabIndex={product.is_available ? 0 : -1}
+      aria-label={`${product.name_ar} — كليك شمال للإضافة، كليك يمين للتقليل`}
+      onClick={(event) => {
+        if (!isControl(event.target)) add();
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        if (!isControl(event.target) && qty > 0) onQuickRemove();
+      }}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && !isControl(event.target)) {
+          event.preventDefault();
+          add();
+        }
+      }}
+    >
+      <div className="posx-card2-media">
+        {showImage && imageSrc && !imageBroken ? (
+          <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
+        ) : (
+          <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>
         )}
-        <div className="posx-card2-info">
-          <span className="posx-card2-name">{product.name_ar}</span>
-          <span className="posx-card2-price">{money(priceNow)}</span>
-        </div>
-        <button className="posx-card2-more" title="خيارات" onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}>⋮</button>
-        {menuOpen && (
-          <div className="posx-card2-menu" onClick={(e) => e.stopPropagation()}>
-            {(hasDetail || needsChoices) && <button onClick={() => { setMenuOpen(false); onOpenDetail(); }}>التفاصيل والإضافات</button>}
-            {canEdit && <button onClick={() => { setMenuOpen(false); onEdit(); }}>تعديل الصنف</button>}
-          </div>
-        )}
+        {qty > 0 && <span className="posx-card2-qty-badge">{qty}</span>}
+      </div>
+
+      <div className="posx-card2-info">
+        <h3 className="posx-card2-name">{product.name_ar}</h3>
+        <span className="posx-card2-price">{money(priceNow)}</span>
       </div>
 
       {!product.is_available && <div className="posx-card2-off">{product.availability_note_ar ?? t.menu.unavailable}</div>}
@@ -969,35 +1010,60 @@ function ProductCard({
         <div className="posx-card2-opt">
           <span className="posx-card2-opt-label">الحجم</span>
           <div className="posx-chips">
-            {product.variants.map((v) => (
-              <button key={v.id} className={variant?.id === v.id ? "active" : ""} onClick={() => setVariant(v)}>{v.name_ar}</button>
+            {product.variants.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                className={variant?.id === item.id ? "active" : ""}
+                onClick={(event) => { event.stopPropagation(); setVariant(item); }}
+                onContextMenu={(event) => event.stopPropagation()}
+              >
+                {item.name_ar}
+              </button>
             ))}
           </div>
         </div>
       )}
 
-      {product.is_available && inlineGroups.map((g) => (
-        <div key={g.id} className="posx-card2-opt">
-          <span className="posx-card2-opt-label">{g.name_ar}</span>
+      {product.is_available && inlineGroups.map((group) => (
+        <div key={group.id} className="posx-card2-opt">
+          <span className="posx-card2-opt-label">{group.name_ar}</span>
           <div className="posx-chips">
-            {g.modifiers.map((m) => (
-              <button key={m.id} className={breadSel[g.id]?.id === m.id ? "active" : ""} onClick={() => setBreadSel((cur) => ({ ...cur, [g.id]: m }))}>{m.name_ar}</button>
+            {group.modifiers.map((modifier) => (
+              <button
+                type="button"
+                key={modifier.id}
+                className={breadSel[group.id]?.id === modifier.id ? "active" : ""}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setBreadSel((current) => ({ ...current, [group.id]: modifier }));
+                }}
+                onContextMenu={(event) => event.stopPropagation()}
+              >
+                {modifier.name_ar}
+              </button>
             ))}
           </div>
         </div>
       ))}
 
       {product.is_available && (
-        <div className="posx-card2-foot">
+        <footer className="posx-card2-foot">
+          {hasDetail ? (
+            <button type="button" className="posx-card2-detail" onClick={(event) => { event.stopPropagation(); onOpenDetail(); }}>
+              + إضافات
+            </button>
+          ) : (
+            <span className="posx-card2-hint">شمال + / يمين −</span>
+          )}
           <div className="posx-card2-stepper">
-            <button onClick={onQuickRemove} disabled={!qty}>−</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); onQuickRemove(); }} disabled={!qty}>−</button>
             <span>{qty}</span>
-            <button onClick={add}>+</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); add(); }}>+</button>
           </div>
-          {hasDetail && <button className="posx-card2-detail" onClick={onOpenDetail}>+ إضافات</button>}
-        </div>
+        </footer>
       )}
-    </div>
+    </article>
   );
 }
 

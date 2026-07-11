@@ -1,5 +1,6 @@
 import { FullOrder } from "./Receipt";
 import { t } from "../lib/t";
+import { resolveAssetUrl } from "../lib/api";
 
 /**
  * YKMS-02G — مراجعة تشغيلية كاملة للطلب.
@@ -110,9 +111,14 @@ export function OrderDetail({ order }: { order: FullOrder }) {
             {order.items.map((i) => (
               <tr key={i.id}>
                 <td>
-                  <strong>{i.name_ar}{i.variant_name_ar ? ` — ${i.variant_name_ar}` : ""}</strong>
-                  {i.modifiers.length > 0 && <div className="od-mods">{i.modifiers.map((m) => m.name_ar).join("، ")}</div>}
-                  {i.notes && <div className="od-inote">ملاحظة: {i.notes}</div>}
+                  <div className="od-item-main">
+                    {i.image_url ? <img className="od-item-image" src={resolveAssetUrl(i.image_url)} alt="" /> : <span className="od-item-image ph">{i.name_ar.trim().charAt(0)}</span>}
+                    <div>
+                      <strong>{i.name_ar}{i.variant_name_ar ? ` — ${i.variant_name_ar}` : ""}</strong>
+                      {i.modifiers.length > 0 && <div className="od-mods">{i.modifiers.map((m) => m.name_ar).join("، ")}</div>}
+                      {i.notes && <div className="od-inote">ملاحظة: {i.notes}</div>}
+                    </div>
+                  </div>
                 </td>
                 <td>{i.qty}</td>
                 <td className="mono">{Number(i.unit_price).toFixed(2)}</td>

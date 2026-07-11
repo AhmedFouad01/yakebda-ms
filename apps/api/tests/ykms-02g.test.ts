@@ -75,3 +75,43 @@ describe("YKMS-02G — مجموعة نوع العيش المنظمة", () => {
     expect(res.status).toBe(201);
   });
 });
+
+describe("YKMS-02G — مؤشرات المطبخ الحقيقية", () => {
+  it("/kitchen/metrics يحسب زمن التحضير من المكتمل لا من مدة الجلوس", async () => {
+    const pepsi = await db("products").where({ name_ar: "بيبسي" }).first();
+    // طلب يكتمل بالكامل خلال الاختبار → يدخل حساب المتوسط
+    const o = await asOwner(
+      request(app).post("/api/v1/orders").send({ branch_id: branchId, order_type: "takeaway", submit: true, items: [{ product_id: pepsi.id, qty: 1 }] })
+    );
+    const id = o.body.data.id;
+    await asOwner(request(app).patch(`/api/v1/orders/${id}/status`).send({ status: "in_kitchen" }));
+    await asOwner(request(app).patch(`/api/v1/orders/${id}/status`).send({ status: "ready" }));
+
+    const res = await asOwner(request(app).get("/api/v1/kitchen/metrics"));
+    expect(res.status).toBe(200);
+    expect(res.body.data.completed_today).toBeGreaterThanOrEqual(1);
+    // زمن التحضير الفوري صغير جدًا (< دقيقة) — يثبت أنه من submitted→ready لا مدة الجلوس
+    expect(res.body.data.avg_prep_minutes).toBeLessThan(60);
+    expect(res.body.data).toHaveProperty("median_prep_minutes");
+    expect(res.body.data).toHaveProperty("within_sla");
+    expect(res.body.data).toHaveProperty("currently_preparing");
+  });
+});
+
+describe("YKMS-02G — تفاصيل الطلب الكاملة", () => {
+  it("loadFullOrder يرجع الطاقم والطوابع الزمنية للمراجعة", async () => {
+    const pepsi = await db("products").where({ name_ar: "بيبسي" }).first();
+    const o = await asOwner(
+      request(app).post("/api/v1/orders").send({ branch_id: branchId, order_type: "takeaway", submit: true, items: [{ product_id: pepsi.id, qty: 1 }] })
+    );
+    const detail = await asOwner(request(app).get(`/api/v1/orders/${o.body.data.id}`));
+    expect(detail.status).toBe(200);
+    const d = detail.body.data;
+    expect(d).toHaveProperty("cashier_name");
+    expect(d).toHaveProperty("submitted_at");
+    expect(d).toHaveProperty("in_kitchen_at");
+    expect(d).toHaveProperty("branch_name");
+    expect(Array.isArray(d.items)).toBe(true);
+    expect(Array.isArray(d.payments)).toBe(true);
+  });
+});

@@ -11,6 +11,8 @@ export interface FullOrder {
   table_name_ar?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
+  customer_address?: string | null;
+  cashier_name?: string | null;
   driver_id?: string | null;
   driver_name?: string | null;
   delivery_address?: string | null;
@@ -24,6 +26,12 @@ export interface FullOrder {
   total: string | number;
   notes?: string | null;
   created_at: string;
+  submitted_at?: string | null;
+  in_kitchen_at?: string | null;
+  ready_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
   items: Array<{
     id: string;
     name_ar: string;

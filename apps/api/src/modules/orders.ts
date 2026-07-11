@@ -60,13 +60,17 @@ export async function loadFullOrder(db: Knex, accountId: string, orderId: string
   const table = order.table_id ? await db("dining_tables").where({ id: order.table_id }).first() : null;
   const customer = order.customer_id ? await db("customers").where({ id: order.customer_id }).first() : null;
   const driver = order.driver_id ? await db("drivers").where({ id: order.driver_id }).first() : null;
+  // YKMS-02G: اسم الكاشير/منشئ الطلب لمراجعة التشغيل
+  const cashier = order.created_by ? await db("users").where({ id: order.created_by }).first() : null;
   return {
     ...order,
     branch_name: branch?.name ?? "",
     table_name_ar: table?.name_ar ?? null,
     customer_name: customer?.name ?? null,
     customer_phone: customer?.phone ?? null,
+    customer_address: customer?.address ?? null,
     driver_name: driver?.name ?? null,
+    cashier_name: cashier?.name ?? null,
     items: items.map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),
     payments,
   };
@@ -659,6 +663,64 @@ export function kitchenRoutes(db: Knex): Router {
             .filter((i) => i.order_id === o.id)
             .map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),
         })),
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // YKMS-02G — مؤشرات المطبخ الحقيقية: زمن التحضير من الطوابع (submitted→ready)
+  // لطلبات اليوم المكتملة، وليس مدة جلوس الطلبات المفتوحة (تصحيح متوسط 1189د).
+  r.get("/metrics", requirePermission("kitchen.view"), async (req, res, next) => {
+    try {
+      const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!q.success) throw err.validation(q.error.flatten());
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+
+      const completed = await db("orders")
+        .where({ account_id: req.user!.accountId })
+        .whereNotNull("submitted_at")
+        .whereNotNull("ready_at")
+        .where("ready_at", ">=", dayStart)
+        .modify((qb) => {
+          if (q.data.branch_id) qb.where("branch_id", q.data.branch_id);
+        })
+        .select("submitted_at", "ready_at");
+
+      // دقائق التحضير الفعلية لكل طلب (submitted→ready)، مع تجاهل السالب/الشاذ.
+      const durations = completed
+        .map((o: { ready_at: unknown; submitted_at: unknown }) => (new Date(o.ready_at as string).getTime() - new Date(o.submitted_at as string).getTime()) / 60000)
+        .filter((m: number) => m >= 0 && m < 24 * 60) // استبعاد >24س كبيانات شاذة
+        .sort((a: number, b: number) => a - b);
+
+      const open = await db("orders")
+        .where({ account_id: req.user!.accountId })
+        .whereIn("status", ["submitted", "in_kitchen", "ready"])
+        .modify((qb) => {
+          if (q.data.branch_id) qb.where("branch_id", q.data.branch_id);
+        })
+        .select("status");
+
+      const settings = await getSettings(db, req.user!.accountId, q.data.branch_id ?? null);
+      const lateMin = settings.kds_late_minutes;
+
+      const avg = durations.length ? durations.reduce((s: number, m: number) => s + m, 0) / durations.length : null;
+      const median = durations.length ? durations[Math.floor(durations.length / 2)] : null;
+      const withinSla = durations.filter((m: number) => m <= lateMin).length;
+
+      res.json({
+        data: {
+          completed_today: durations.length,
+          avg_prep_minutes: avg == null ? null : Math.round(avg * 10) / 10,
+          median_prep_minutes: median == null ? null : Math.round(median * 10) / 10,
+          within_sla: withinSla,
+          late_completed: durations.length - withinSla,
+          currently_preparing: open.filter((o: { status: string }) => o.status === "in_kitchen").length,
+          ready_waiting: open.filter((o: { status: string }) => o.status === "ready").length,
+          submitted_waiting: open.filter((o: { status: string }) => o.status === "submitted").length,
+          sla_late_minutes: lateMin,
+        },
       });
     } catch (e) {
       next(e);

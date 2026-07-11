@@ -99,6 +99,8 @@ export function Kitchen() {
       if (alertOnNew && fresh.length && settingsRef.current?.kds_sound_alert) beep();
       setOrders(res.data);
       setError("");
+      // YKMS-02G: مؤشرات حقيقية من الخادم — لا تُحسب من مدة جلوس الطلبات المفتوحة
+      api<{ data: typeof metrics }>("/kitchen/metrics").then((m) => setMetrics(m.data)).catch(() => {});
     } catch (e: any) {
       setError(e.message);
     }
@@ -136,13 +138,23 @@ export function Kitchen() {
     ["in_kitchen", t.orders.statuses.in_kitchen],
     ["ready", t.orders.statuses.ready],
   ];
+  const [metrics, setMetrics] = useState<{
+    completed_today: number;
+    avg_prep_minutes: number | null;
+    median_prep_minutes: number | null;
+    within_sla: number;
+    late_completed: number;
+    currently_preparing: number;
+    ready_waiting: number;
+    submitted_waiting: number;
+  } | null>(null);
+
   const stats = useMemo(() => {
     const totalItems = orders.reduce((s, o) => s + o.items.reduce((x, i) => x + i.qty, 0), 0);
     const waiting = orders.filter((o) => o.status === "submitted").length;
     const cooking = orders.filter((o) => o.status === "in_kitchen").length;
     const ready = orders.filter((o) => o.status === "ready").length;
-    const avg = orders.length ? Math.round(orders.reduce((s, o) => s + minutesSince(o.submitted_at), 0) / orders.length) : 0;
-    return { totalItems, waiting, cooking, ready, avg };
+    return { totalItems, waiting, cooking, ready };
   }, [orders]);
 
   return (
@@ -155,7 +167,11 @@ export function Kitchen() {
         <div><b>{stats.waiting}</b><span>تم الإرسال</span></div>
         <div><b>{stats.cooking}</b><span>في المطبخ</span></div>
         <div><b>{stats.ready}</b><span>جاهز</span></div>
-        <div><b>{stats.avg} د</b><span>متوسط الانتظار</span></div>
+        {/* YKMS-02G: متوسط/وسيط زمن التحضير الفعلي من طلبات اليوم المكتملة (لا مدة جلوس المفتوحة) */}
+        <div title="متوسط زمن التحضير لطلبات اليوم المكتملة"><b>{metrics?.avg_prep_minutes != null ? `${metrics.avg_prep_minutes} د` : "—"}</b><span>متوسط التحضير</span></div>
+        <div title="الوسيط"><b>{metrics?.median_prep_minutes != null ? `${metrics.median_prep_minutes} د` : "—"}</b><span>وسيط التحضير</span></div>
+        <div><b>{metrics?.completed_today ?? 0}</b><span>اكتمل اليوم</span></div>
+        {metrics != null && metrics.late_completed > 0 && <div className="kds-stat-late"><b>{metrics.late_completed}</b><span>متأخر اليوم</span></div>}
       </div>
       {!orders.length && <div className="muted">{t.kitchen.empty}</div>}
       <div className="kds">

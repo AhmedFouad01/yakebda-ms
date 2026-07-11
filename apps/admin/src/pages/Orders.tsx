@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
+import { OrderDetail } from "../components/OrderDetail";
 import { useMe } from "../lib/me";
 
 interface OrderRow {
@@ -26,6 +27,7 @@ export function Orders() {
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [status, setStatus] = useState("");
   const [current, setCurrent] = useState<FullOrder | null>(null);
+  const [detailView, setDetailView] = useState<"detail" | "receipt">("detail");
   const [cancelReason, setCancelReason] = useState("");
   const [payMethod, setPayMethod] = useState<"cash" | "card" | "wallet">("cash");
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -52,6 +54,7 @@ export function Orders() {
     setMsg("");
     const res = await api<{ data: FullOrder }>(`/orders/${id}`);
     setCurrent(res.data);
+    setDetailView("detail");
   }
 
   async function act(fn: () => Promise<unknown>) {
@@ -108,9 +111,17 @@ export function Orders() {
 
       {current && (
         <div className="modal-back" onClick={() => setCurrent(null)}>
-          <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+          <div className="modal wide od-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="od-modal-head">
+              <h3>{t.orders.details} — {current.order_prefix ?? ""}{current.order_no}</h3>
+              <div className="od-modal-tabs">
+                <button className={detailView === "detail" ? "active" : ""} onClick={() => setDetailView("detail")}>المراجعة</button>
+                <button className={detailView === "receipt" ? "active" : ""} onClick={() => setDetailView("receipt")}>الفاتورة</button>
+              </div>
+              <button className="od-modal-x" onClick={() => setCurrent(null)} aria-label="إغلاق">✕</button>
+            </div>
             <div className="order-detail">
-              <Receipt order={current} />
+              {detailView === "detail" ? <OrderDetail order={current} /> : <Receipt order={current} />}
               <div className="order-actions">
                 <div className="stub-row">
                   <span className={`stub st-${current.status}`}>{t.orders.statuses[current.status]}</span>

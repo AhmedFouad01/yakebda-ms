@@ -1,40 +1,46 @@
-<div dir="rtl" align="right">
+# Project Status
 
-# PROJECT STATUS — YAKEBDA_MS
+## Current State
 
-**Last updated:** 2026-07-09  
-**Owner:** Ahmed Fouad  
-**Track:** Restaurant Management System / POS / Orders / Delivery / Online
+YAKEBDA MS is under active development as a cloud-first restaurant operations platform.
 
-## Current Summary
+Implemented areas include:
 
-```text
-Source Map v2.0: confirmed
-YKMS-01 Foundation: done
-YKMS-01H Hardware foundation: done
-YKMS-01-CLEANUP: done/reported
-YKMS-02 MVP: artifact exists but user rejected shallow quality
-YKMS-02B Operational attempt: prepared
-Local run: PostgreSQL Docker ready
-GitHub repo: being prepared
-```
+- Authentication and role-based access control
+- Accounts, branches, users, and devices
+- Menu, products, variants, and modifiers
+- POS order creation and payment handling
+- Kitchen and order-status workflows
+- Shift and cash foundations
+- Customer CRM and analytics
+- Reporting and audit trails
+- Product image upload
+- Spreadsheet import and export
 
-## Product Standard
+## Current Validation Baseline
 
-The project must become an operational restaurant system, not a demo shell.
+- API test suite is part of the required quality gate.
+- The administration application must pass a production build.
+- Database changes must be applied through migrations.
+- Operational UI changes require manual RTL and viewport validation.
 
-Accepted operational flow:
+## Active Work
 
-```text
-Open Shift → POS → Kitchen → Payment → Receipt → Reports → Close Shift
-```
+Current work focuses on POS operational quality, including:
 
-## Immediate Work
+- Stable top-level operating controls
+- Responsive product-card layout
+- Reliable product image presentation
+- Single-action order submission
+- Active-shift order history
+- Accurate payment and kitchen status display
 
-1. Confirm local run.
-2. Log functional bugs.
-3. Fix POS flow issue-by-issue.
-4. Push stable state to GitHub.
-5. Update Drive memory after each real milestone.
+## Platform Direction
 
-</div>
+The system remains cloud-first. Future platform work may add Windows operational clients, local device integration, resilient caching, and synchronization. These items remain architecture goals until implemented and validated.
+
+## Engineering References
+
+- `AGENTS.md`
+- `docs/engineering/CURRENT_IMPLEMENTATION.md`
+- `CONTRIBUTING.md`

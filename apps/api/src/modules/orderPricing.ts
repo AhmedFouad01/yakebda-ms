@@ -2,10 +2,14 @@ import { Router } from "express";
 import { Knex } from "knex";
 import { z } from "zod";
 import { err } from "../lib/errors";
+import { newId } from "../lib/ids";
+import { writeAudit } from "../lib/audit";
+import { renderKitchenTicketPayload } from "../lib/receipt";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { getSettings, Settings } from "./settings";
 import { validateOrderConfiguration } from "./orderIntegrity";
+import { loadFullOrder } from "./orders";
 
 export interface PricingItemInput {
   product_id: string;
@@ -155,7 +159,7 @@ export async function buildOrderQuote(
     return { input: item, product, variant, mods, unit, lineTotal };
   });
 
-  let discount = settings.allow_discounts ? Math.min(input.discount, subtotal) : 0;
+  const discount = settings.allow_discounts ? Math.min(input.discount, subtotal) : 0;
   if (discount > 0) {
     const overAmount = discount > settings.max_discount_without_manager;
     const overPercent = subtotal > 0 && (discount / subtotal) * 100 > settings.max_cashier_discount_percent;
@@ -185,24 +189,77 @@ export async function buildOrderQuote(
   };
 }
 
+const pricingItemSchema = z.object({
+  product_id: z.string().uuid(),
+  variant_id: z.string().uuid().optional().nullable(),
+  qty: z.number().int().min(1),
+  notes: z.string().optional().nullable(),
+  modifier_ids: z.array(z.string().uuid()).default([]),
+});
+
 const quoteSchema = z.object({
   branch_id: z.string().uuid(),
   order_type: z.enum(["dine_in", "takeaway", "delivery"]).default("takeaway"),
   delivery_fee: z.number().nonnegative().default(0),
   discount: z.number().nonnegative().default(0),
   discount_reason: z.string().optional().nullable(),
-  items: z
-    .array(
-      z.object({
-        product_id: z.string().uuid(),
-        variant_id: z.string().uuid().optional().nullable(),
-        qty: z.number().int().min(1),
-        notes: z.string().optional().nullable(),
-        modifier_ids: z.array(z.string().uuid()).default([]),
-      })
-    )
-    .min(1),
+  items: z.array(pricingItemSchema).min(1),
 });
+
+const createOrderSchema = quoteSchema.extend({
+  table_id: z.string().uuid().optional().nullable(),
+  customer_id: z.string().uuid().optional().nullable(),
+  delivery_address: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  submit: z.boolean().default(true),
+  payment_method: z.enum(["cash", "card", "wallet", "unpaid"]).optional().nullable(),
+});
+
+function assertOrderTypeEnabled(settings: Settings, branch: Record<string, any>, orderType: string) {
+  const typeEnabled: Record<string, boolean> = {
+    takeaway: settings.order_type_takeaway_enabled && branch.accepts_takeaway !== false,
+    delivery: settings.order_type_delivery_enabled && branch.accepts_delivery !== false,
+    dine_in: settings.order_type_dine_in_enabled && branch.dine_in_enabled === true,
+  };
+  if (!typeEnabled[orderType]) {
+    throw err.validation({ order_type: ar.errors.order_type_disabled });
+  }
+}
+
+function orderPrefix(settings: Settings, orderType: string): string | null {
+  let prefix = settings.order_number_prefix ?? "";
+  if (settings.order_type_letter_prefix) {
+    prefix += orderType === "takeaway" ? "T" : orderType === "delivery" ? "D" : "";
+  }
+  return prefix || null;
+}
+
+function publicQuote(quote: OrderQuote) {
+  return {
+    items: quote.lines.map((line) => ({
+      product_id: line.product.id,
+      name_ar: line.product.name_ar,
+      variant_id: line.variant?.id ?? null,
+      variant_name_ar: line.variant?.name_ar ?? null,
+      modifier_ids: line.mods.map((modifier) => modifier.id),
+      modifiers: line.mods.map((modifier) => ({
+        id: modifier.id,
+        name_ar: modifier.name_ar,
+        price_delta: Number(modifier.price_delta),
+      })),
+      qty: line.input.qty,
+      unit_price: line.unit,
+      line_total: line.lineTotal,
+    })),
+    subtotal: quote.subtotal,
+    discount: quote.discount,
+    delivery_fee: quote.deliveryFee,
+    service_fee: quote.serviceFee,
+    vat_amount: quote.vatAmount,
+    rounding_adjustment: quote.rounding,
+    total: quote.total,
+  };
+}
 
 export function orderPricingRoutes(db: Knex): Router {
   const router = Router();
@@ -223,15 +280,7 @@ export function orderPricingRoutes(db: Knex): Router {
         if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
 
         const settings = await getSettings(db, req.user!.accountId, branch.id);
-        const typeEnabled: Record<string, boolean> = {
-          takeaway: settings.order_type_takeaway_enabled && branch.accepts_takeaway !== false,
-          delivery: settings.order_type_delivery_enabled && branch.accepts_delivery !== false,
-          dine_in: settings.order_type_dine_in_enabled && branch.dine_in_enabled === true,
-        };
-        if (!typeEnabled[input.order_type]) {
-          throw err.validation({ order_type: ar.errors.order_type_disabled });
-        }
-
+        assertOrderTypeEnabled(settings, branch, input.order_type);
         const quote = await buildOrderQuote(
           db,
           req.user!.accountId,
@@ -241,31 +290,252 @@ export function orderPricingRoutes(db: Knex): Router {
           { canApproveDiscount: req.user!.permissions.includes("orders.discount_above_limit") }
         );
 
-        res.json({
-          data: {
-            items: quote.lines.map((line) => ({
+        res.json({ data: publicQuote(quote) });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.post(
+    "/",
+    requireUser(db),
+    requirePermission("orders.create"),
+    async (req, res, next) => {
+      try {
+        const parsed = createOrderSchema.safeParse(req.body);
+        if (!parsed.success) throw err.validation(parsed.error.flatten());
+        const input = parsed.data;
+        const accountId = req.user!.accountId;
+
+        if (
+          input.payment_method &&
+          input.payment_method !== "unpaid" &&
+          !req.user!.permissions.includes("payments.record")
+        ) {
+          throw err.forbidden();
+        }
+
+        const branch = await db("branches")
+          .where({ id: input.branch_id, account_id: accountId, is_active: true })
+          .first();
+        if (!branch) throw err.notFound();
+        if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
+
+        const settings = await getSettings(db, accountId, branch.id);
+        assertOrderTypeEnabled(settings, branch, input.order_type);
+
+        if (input.order_type === "delivery") {
+          if (settings.require_customer_for_delivery && !input.customer_id) {
+            throw err.validation({ customer: ar.errors.delivery_customer_required });
+          }
+          if (settings.require_address_for_delivery && !input.delivery_address) {
+            throw err.validation({ address: ar.errors.delivery_address_required });
+          }
+        }
+
+        if (input.table_id) {
+          const table = await db("dining_tables")
+            .where({ id: input.table_id, branch_id: branch.id })
+            .first();
+          if (!table) throw err.notFound();
+        }
+        if (input.customer_id) {
+          const customer = await db("customers")
+            .where({ id: input.customer_id, account_id: accountId })
+            .first();
+          if (!customer) throw err.notFound();
+        }
+
+        let paymentShiftId: string | null = null;
+        const paymentId =
+          input.payment_method && input.payment_method !== "unpaid" ? newId() : null;
+        if (paymentId) {
+          if (!settings.enabled_payment_methods.includes(input.payment_method!)) {
+            throw err.validation({ method: ar.errors.payment_method_disabled });
+          }
+          const activeShift = await db("shifts")
+            .where({
+              account_id: accountId,
+              branch_id: branch.id,
+              cashier_user_id: req.user!.id,
+              status: "open",
+            })
+            .first();
+          if (
+            input.payment_method === "cash" &&
+            settings.require_open_shift_for_cash &&
+            !activeShift
+          ) {
+            throw err.validation({ shift: ar.errors.shift_required_for_cash });
+          }
+          paymentShiftId = activeShift?.id ?? null;
+        }
+
+        const orderId = newId();
+        let quote!: OrderQuote;
+        await db.transaction(async (trx) => {
+          quote = await buildOrderQuote(
+            trx,
+            accountId,
+            branch.id,
+            settings,
+            input,
+            { canApproveDiscount: req.user!.permissions.includes("orders.discount_above_limit") }
+          );
+
+          await trx("orders").insert({
+            id: orderId,
+            account_id: accountId,
+            branch_id: branch.id,
+            order_prefix: orderPrefix(settings, input.order_type),
+            vat_amount: quote.vatAmount,
+            service_fee: quote.serviceFee,
+            rounding_adjustment: quote.rounding,
+            discount_reason: input.discount_reason ?? null,
+            order_type: input.order_type,
+            status: "draft",
+            table_id: input.table_id ?? null,
+            customer_id: input.customer_id ?? null,
+            delivery_address: input.delivery_address ?? null,
+            delivery_fee: quote.deliveryFee,
+            subtotal: quote.subtotal,
+            discount: quote.discount,
+            total: quote.total,
+            notes: input.notes ?? null,
+            created_by: req.user!.id,
+          });
+
+          for (const line of quote.lines) {
+            const itemId = newId();
+            await trx("order_items").insert({
+              id: itemId,
+              order_id: orderId,
               product_id: line.product.id,
-              name_ar: line.product.name_ar,
               variant_id: line.variant?.id ?? null,
+              name_ar: line.product.name_ar,
               variant_name_ar: line.variant?.name_ar ?? null,
-              modifier_ids: line.mods.map((modifier) => modifier.id),
-              modifiers: line.mods.map((modifier) => ({
-                id: modifier.id,
-                name_ar: modifier.name_ar,
-                price_delta: Number(modifier.price_delta),
-              })),
               qty: line.input.qty,
               unit_price: line.unit,
               line_total: line.lineTotal,
-            })),
-            subtotal: quote.subtotal,
-            discount: quote.discount,
-            delivery_fee: quote.deliveryFee,
-            service_fee: quote.serviceFee,
-            vat_amount: quote.vatAmount,
-            rounding_adjustment: quote.rounding,
+              notes: line.input.notes ?? null,
+            });
+            if (line.mods.length) {
+              await trx("order_item_modifiers").insert(
+                line.mods.map((modifier) => ({
+                  id: newId(),
+                  order_item_id: itemId,
+                  modifier_id: modifier.id,
+                  name_ar: modifier.name_ar,
+                  price_delta: modifier.price_delta,
+                }))
+              );
+            }
+          }
+
+          await trx("order_status_history").insert({
+            id: newId(),
+            order_id: orderId,
+            from_status: null,
+            to_status: "draft",
+            changed_by: req.user!.id,
+          });
+
+          if (paymentId) {
+            await trx("payments").insert({
+              id: paymentId,
+              order_id: orderId,
+              branch_id: branch.id,
+              method: input.payment_method,
+              amount: quote.total,
+              received_by: req.user!.id,
+              shift_id: paymentShiftId,
+            });
+          }
+        });
+
+        const created = (await db("orders").where({ id: orderId }).first())!;
+        if (input.submit) {
+          await db("orders").where({ id: orderId }).update({
+            status: "submitted",
+            submitted_at: db.fn.now(),
+            updated_at: db.fn.now(),
+          });
+          await db("order_status_history").insert({
+            id: newId(),
+            order_id: orderId,
+            from_status: "draft",
+            to_status: "submitted",
+            changed_by: req.user!.id,
+          });
+          if (input.table_id) {
+            await db("dining_tables").where({ id: input.table_id }).update({
+              status: "occupied",
+              updated_at: db.fn.now(),
+            });
+          }
+
+          if (settings.auto_print_on_kitchen_send && settings.kitchen_printer_enabled) {
+            try {
+              const endpoint = await db("hardware_endpoints")
+                .where({ branch_id: branch.id, kind: "kitchen_printer", is_active: true })
+                .first();
+              if (endpoint) {
+                const full = await loadFullOrder(db, accountId, orderId);
+                await db("print_jobs").insert({
+                  id: newId(),
+                  branch_id: branch.id,
+                  endpoint_id: endpoint.id,
+                  device_id: endpoint.device_id ?? null,
+                  type: "kitchen_ticket",
+                  payload: JSON.stringify(
+                    renderKitchenTicketPayload(full!, settings.paper_width_mm)
+                  ),
+                  status: "pending",
+                  created_by: req.user!.id,
+                });
+              }
+            } catch {
+              // Printing failure never blocks order creation.
+            }
+          }
+        }
+
+        await writeAudit(db, {
+          accountId,
+          branchId: branch.id,
+          userId: req.user!.id,
+          action: "order.create",
+          entityType: "order",
+          entityId: orderId,
+          meta: {
+            order_no: created.order_no,
+            order_type: input.order_type,
             total: quote.total,
           },
+          ip: req.ip,
+        });
+
+        if (paymentId) {
+          await writeAudit(db, {
+            accountId,
+            branchId: branch.id,
+            userId: req.user!.id,
+            action: "payment.record",
+            entityType: "payment",
+            entityId: paymentId,
+            meta: {
+              order_no: created.order_no,
+              method: input.payment_method,
+              amount: quote.total,
+            },
+            ip: req.ip,
+          });
+        }
+
+        res.status(201).json({
+          data: await loadFullOrder(db, accountId, orderId),
+          message: ar.messages.created,
         });
       } catch (error) {
         next(error);

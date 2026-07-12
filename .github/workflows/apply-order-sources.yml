@@ -1,18 +1,22 @@
-name: YAKEBDA MS CI
+name: Apply Order Sources Feature
 
 on:
   push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev, audit/system-wide-ui-consistency]
+    branches: [feature/order-sources-price-lists]
+    paths:
+      - tools/qa/apply-order-sources.mjs
+      - .github/workflows/apply-order-sources.yml
 
 permissions:
   contents: write
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+concurrency:
+  group: ykms-order-sources-patch
+  cancel-in-progress: true
 
+jobs:
+  apply-test-commit:
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16
@@ -27,7 +31,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       NODE_ENV: test
       DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
@@ -35,44 +38,17 @@ jobs:
       JWT_SECRET: ci-only-change-me
       API_PORT: 3001
       CORS_ORIGIN: http://localhost:5173
-
     steps:
-      - name: Checkout
+      - name: Checkout feature branch
         uses: actions/checkout@v4
         with:
+          ref: feature/order-sources-price-lists
           fetch-depth: 0
 
-      - name: Apply order sources feature
-        if: github.head_ref == 'feature/order-sources-price-lists'
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("tools/qa/apply-order-sources.mjs")
-          source = path.read_text()
-          source = source.replace(
-              "'             order_type: input.order_type,\\n             total: quote.total,'",
-              "'            order_type: input.order_type,\\n            total: quote.total,'",
-          )
-          source = source.replace(
-              "'             order_type: input.order_type,\\n             source_id: quote.source.id,\\n             source_name: quote.source.name_ar,\\n             total: quote.total,'",
-              "'            order_type: input.order_type,\\n            source_id: quote.source.id,\\n            source_name: quote.source.name_ar,\\n            total: quote.total,'",
-          )
-          path.write_text(source)
-          PY
-          if ! node tools/qa/apply-order-sources.mjs > patch-output.txt 2>&1; then
-            cat patch-output.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add patch-output.txt
-            git commit -m "chore(debug): capture order sources patch failure"
-            git push origin HEAD:feature/order-sources-price-lists
-            exit 1
-          fi
-          rm -f patch-output.txt
+      - name: Apply deterministic feature patch
+        run: node tools/qa/apply-order-sources.mjs
 
       - name: Guard accepted POS cards and KDS
-        if: github.head_ref == 'feature/order-sources-price-lists'
         shell: bash
         run: |
           if git diff -U0 -- apps/admin/src/pages/Pos.tsx | grep -E 'posx-card2|function ProductCard|<ProductCard' ; then
@@ -99,14 +75,11 @@ jobs:
       - name: Admin build
         run: npm run admin:build
 
-      - name: Persist tested feature and restore CI
-        if: github.head_ref == 'feature/order-sources-price-lists'
+      - name: Commit tested feature
         shell: bash
         run: |
-          rm -f patch-output.txt
           rm tools/qa/apply-order-sources.mjs
           rm .github/workflows/apply-order-sources.yml
-          git checkout 3054e165a36487eae7cb99aff4e3bdf6682878a8 -- .github/workflows/ci.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A

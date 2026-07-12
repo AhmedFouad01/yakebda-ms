@@ -26,28 +26,28 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --theme-page: #090b0d;
+  --theme-page: #182126;
   --theme-surface: #11181c;
-  --theme-surface-2: #182126;
-  --theme-raised: #202a2f;
+  --theme-surface-2: #202a2f;
+  --theme-raised: #263238;
   --theme-text: #f5f7f4;
   --theme-muted: #c5cfcb;
-  --theme-disabled: #98a39e;
-  --theme-border: #6c7a82;
-  --theme-border-soft: #3c484e;
+  --theme-disabled: #9aa6a1;
+  --theme-border: #738189;
+  --theme-border-soft: #425159;
   --theme-brand: #f6c026;
   --theme-brand-hover: #ffdc62;
   --theme-on-brand: #111411;
-  --theme-brand-soft: #362d0e;
+  --theme-brand-soft: #3b310f;
   --theme-success: #70d69b;
-  --theme-success-soft: #123625;
+  --theme-success-soft: #143b29;
   --theme-warning: #f2c14e;
-  --theme-warning-soft: #372b0c;
+  --theme-warning-soft: #3b2e0d;
   --theme-danger: #ff8a7a;
-  --theme-danger-soft: #401917;
+  --theme-danger-soft: #431b18;
   --theme-info: #72cbe6;
-  --theme-shadow: rgba(0, 0, 0, 0.42);
-  --theme-overlay: rgba(0, 0, 0, 0.72);
+  --theme-shadow: rgba(0, 0, 0, 0.38);
+  --theme-overlay: rgba(0, 0, 0, 0.68);
 }
 
 :root,
@@ -69,6 +69,8 @@
   --warning: var(--theme-warning);
   --danger: var(--theme-danger);
   --info: var(--theme-info);
+
+  /* Legacy aliases stay mapped to the active theme until the old files are retired. */
   --paper: var(--theme-page);
   --card: var(--theme-surface);
   --ink: var(--theme-text);
@@ -94,75 +96,480 @@
 }
 
 .app2-pos { color-scheme: inherit; }
-html, body, #root, .app2, .app2-main { background: var(--surface-page); color: var(--text-primary); }
-.card, .panel, .form-row, .login-card, .uif-card, .uif-modal, .uif-drawer {
+
+html,
+body,
+#root,
+.app2,
+.app2-main,
+.login-wrap {
+  background: var(--surface-page) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Neutral surfaces. Receipt paper remains intentionally white below. */
+.card,
+.panel,
+.form-row,
+.login-card,
+.modal,
+.option-modal,
+.receipt-modal,
+.posx-picker,
+.posx-admin-modal,
+.uif-card,
+.uif-modal,
+.uif-drawer,
+.set-card,
+.crm-kpi,
+.crm-recent-item {
   border-color: var(--border-subtle) !important;
   background: var(--surface-1) !important;
   color: var(--text-primary) !important;
 }
-.muted, .empty, .uif-sub, .uif-hint, .uif-label { color: var(--text-secondary) !important; }
-th { border-color: var(--border-subtle) !important; background: var(--surface-2) !important; color: var(--text-secondary) !important; }
-td, tr { border-color: var(--border-subtle) !important; color: var(--text-primary); }
-.alert, .error-note, .dark-alert { border-color: var(--danger) !important; background: var(--theme-danger-soft) !important; color: var(--danger) !important; }
-.ok, .ok-note, .dark-ok { border-color: var(--success) !important; background: var(--theme-success-soft) !important; color: var(--success) !important; }
-.uif-overlay, .posx-cart-backdrop { background: var(--theme-overlay) !important; }
 
-.app2-bar { background: var(--surface-1) !important; color: var(--text-primary) !important; border-bottom-color: var(--brand) !important; box-shadow: 0 2px 10px var(--theme-shadow); }
-.app2-menu, .app2-home, .app2-back, .app2-theme {
-  display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
-  border: 1px solid var(--border-strong) !important; border-radius: 9px;
-  background: var(--surface-2) !important; color: var(--text-primary) !important; text-decoration: none;
+.card .num {
+  color: var(--brand) !important;
 }
-.app2-menu:hover, .app2-home:hover, .app2-back:hover, .app2-theme:hover { border-color: var(--brand) !important; color: var(--brand) !important; }
+
+.card .lbl,
+.set-card p,
+.muted,
+.empty,
+.uif-sub,
+.uif-hint,
+.uif-label {
+  color: var(--text-secondary) !important;
+}
+
+.set-card h3,
+.page-head h1,
+.modal h3,
+.modal p {
+  color: var(--text-primary) !important;
+}
+
+th {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+}
+
+td,
+tr {
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+
+.stub {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-1) !important;
+}
+
+code.token {
+  border-color: var(--brand) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.alert,
+.error-note,
+.dark-alert {
+  border-color: var(--danger) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--danger) !important;
+}
+
+.ok,
+.ok-note,
+.dark-ok {
+  border-color: var(--success) !important;
+  background: var(--theme-success-soft) !important;
+  color: var(--success) !important;
+}
+
+.uif-overlay,
+.posx-cart-backdrop {
+  background: var(--theme-overlay) !important;
+}
+
+/* Native and legacy form controls need explicit colors in dark color-scheme. */
+.app2-main :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+),
+.uif-drawer :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+),
+.modal :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+) {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-main :is(input, textarea)::placeholder,
+.uif-drawer :is(input, textarea)::placeholder,
+.modal :is(input, textarea)::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 1;
+}
+
+/* Legacy segmented controls and plain action buttons. */
+.app2-main .seg button,
+.modal .seg button,
+.menu-import-btn,
+.menu-row-actions button,
+.menu-toolbar-actions button:not(.primary):not(.danger),
+.form-row button:not(.primary):not(.danger),
+.order-actions button:not(.primary):not(.danger),
+.panel td > button:not(.primary):not(.danger):not(.menu-status) {
+  border: 1px solid var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-main .seg button:hover,
+.modal .seg button:hover,
+.menu-import-btn:hover,
+.menu-row-actions button:hover,
+.form-row button:hover,
+.order-actions button:hover {
+  border-color: var(--brand) !important;
+}
+
+.app2-main .seg button.active,
+.modal .seg button.active,
+button.primary,
+.btn:not(.secondary, .ghost, .danger) {
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: var(--on-brand) !important;
+}
+
+button.danger,
+.btn.danger {
+  border-color: var(--danger) !important;
+  background: var(--danger) !important;
+  color: #ffffff !important;
+}
+
+button.sm:not(.primary):not(.danger) {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.menu-toolbar select,
+.menu-search,
+.menu-price-input,
+.menu-import-btn,
+.stack input,
+.stack select {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.menu-table th,
+.menu-table td {
+  border-color: var(--border-subtle) !important;
+}
+
+.menu-status.on {
+  border-color: var(--success) !important;
+  background: var(--theme-success-soft) !important;
+  color: var(--success) !important;
+}
+
+.menu-status.off {
+  border-color: var(--danger) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--danger) !important;
+}
+
+.pill {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.pill.create {
+  background: var(--theme-success-soft) !important;
+  color: var(--success) !important;
+}
+
+.pill.update {
+  background: var(--theme-warning-soft) !important;
+  color: var(--warning) !important;
+}
+
+.pill.fail,
+.row-error-msg {
+  background: var(--theme-danger-soft) !important;
+  color: var(--danger) !important;
+}
+
+/* App shell. */
+.app2-bar {
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--brand) !important;
+  box-shadow: 0 2px 10px var(--theme-shadow);
+}
+
+.app2-menu,
+.app2-home,
+.app2-back,
+.app2-theme {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 9px;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  text-decoration: none;
+}
+
+.app2-menu:hover,
+.app2-home:hover,
+.app2-back:hover,
+.app2-theme:hover {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+}
+
 .app2-brand { color: var(--brand) !important; }
-.app2-crumb, .app2-user, .app2-logout { color: var(--text-secondary) !important; }
+.app2-crumb,
+.app2-user,
+.app2-logout { color: var(--text-secondary) !important; }
 .app2-user-dot { background: var(--success) !important; }
-.app2-side, .app2-navdrawer { border-color: var(--border-subtle) !important; background: var(--surface-1) !important; color: var(--text-primary) !important; }
-.app2-side { border-inline-end: 1px solid var(--border-subtle); }
-.app2-side a, .app2-navdrawer-links a { color: var(--text-secondary) !important; }
-.app2-side a:hover, .app2-navdrawer-links a:hover { background: var(--surface-2) !important; color: var(--text-primary) !important; }
-.app2-side a.active, .app2-navdrawer-links a.active { background: var(--theme-brand-soft) !important; color: var(--text-primary) !important; box-shadow: inset 3px 0 0 var(--brand) !important; }
 
-.app2-pos .app2-body, .app2-pos .posx, .app2-pos .posx-body, .app2-pos .posx-menu,
-.app2-pos .posx-menu-top, .app2-pos .posx-menu-tools, .app2-pos .posx-cart,
-.app2-pos .posx-opts, .app2-pos .posx-totals, .app2-pos .posx-calc-box {
-  background: var(--surface-page) !important; color: var(--text-primary) !important;
+.app2-side,
+.app2-navdrawer {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
 }
-.app2-pos .posx-menu-tools select, .app2-pos .posx-search, .app2-pos .posx-opts select,
-.app2-pos .posx-opts input, .app2-pos .posx-line-note, .app2-pos .posx-calc-display {
-  border-color: var(--border-strong) !important; background: var(--surface-1) !important; color: var(--text-primary) !important;
+
+.app2-side { border-inline-end: 1px solid var(--border-subtle); }
+.app2-side a,
+.app2-navdrawer-links a { color: var(--text-secondary) !important; }
+.app2-side a:hover,
+.app2-navdrawer-links a:hover { background: var(--surface-2) !important; color: var(--text-primary) !important; }
+.app2-side a.active,
+.app2-navdrawer-links a.active {
+  background: var(--theme-brand-soft) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 3px 0 0 var(--brand) !important;
 }
-.app2-pos input::placeholder, .app2-pos textarea::placeholder { color: var(--text-secondary) !important; }
-.app2-pos .posx-cats button, .app2-pos .seg.dark button, .app2-pos .posx-history-btn,
-.app2-pos .posx-cart-toggle, .app2-pos .posx-cart-close, .app2-pos .posx-shift button,
-.app2-pos .posx-adminmenu summary, .app2-pos .posx-adminmenu-items button,
-.app2-pos .posx-calc button, .app2-pos .posx-line-actions button {
-  border-color: var(--border-strong) !important; background: var(--surface-2) !important; color: var(--text-primary) !important;
+
+/* Order details and receipt actions: themed shell, intentionally white receipt paper. */
+.od-modal.modal {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
 }
-.app2-pos .posx-cats button.active, .app2-pos .seg.dark button.active, .app2-pos .posx-chips button.active {
-  border-color: var(--brand) !important; background: var(--brand) !important; color: var(--on-brand) !important;
+
+.od-modal-head,
+.od-modal-body,
+.order-actions {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
 }
-.app2-pos .posx-shift.on { border-color: var(--success) !important; background: var(--theme-success-soft) !important; color: var(--success) !important; }
-.app2-pos .posx-shift.off { border-color: var(--warning) !important; background: var(--theme-warning-soft) !important; color: var(--warning) !important; }
-.app2-pos .posx-adminmenu-items { border-color: var(--border-strong) !important; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: 0 12px 30px var(--theme-shadow); }
-.app2-pos .posx-card2 { border-color: var(--border-subtle) !important; background: var(--surface-1) !important; color: var(--text-primary) !important; box-shadow: 0 8px 24px var(--theme-shadow) !important; }
+
+.od-modal-tabs button,
+.od-modal-x,
+.order-actions > button:not(.primary):not(.danger),
+.order-actions .cancel-box > button:not(.primary):not(.danger) {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.od-modal-tabs button.active {
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: var(--on-brand) !important;
+}
+
+.od-modal-x:hover {
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+}
+
+.receipt,
+.receipt * {
+  color: #111111 !important;
+}
+
+.receipt {
+  border-color: #111111 !important;
+  background: #ffffff !important;
+}
+
+/* POS inherits the selected application theme. */
+.app2-pos .app2-body,
+.app2-pos .posx,
+.app2-pos .posx-body,
+.app2-pos .posx-menu,
+.app2-pos .posx-menu-top,
+.app2-pos .posx-menu-tools,
+.app2-pos .posx-cart,
+.app2-pos .posx-opts,
+.app2-pos .posx-totals,
+.app2-pos .posx-calc-box {
+  background: var(--surface-page) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-menu-tools select,
+.app2-pos .posx-search,
+.app2-pos .posx-opts select,
+.app2-pos .posx-opts input,
+.app2-pos .posx-line-note,
+.app2-pos .posx-calc-display {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos input::placeholder,
+.app2-pos textarea::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+.app2-pos .posx-cats button,
+.app2-pos .seg.dark button,
+.app2-pos .posx-history-btn,
+.app2-pos .posx-cart-toggle,
+.app2-pos .posx-cart-close,
+.app2-pos .posx-shift button,
+.app2-pos .posx-adminmenu summary,
+.app2-pos .posx-adminmenu-items button,
+.app2-pos .posx-calc button,
+.app2-pos .posx-line-actions button {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-cats button.active,
+.app2-pos .seg.dark button.active,
+.app2-pos .posx-chips button.active {
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: var(--on-brand) !important;
+}
+
+.app2-pos .posx-shift.on {
+  border-color: var(--success) !important;
+  background: var(--theme-success-soft) !important;
+  color: var(--success) !important;
+}
+
+.app2-pos .posx-shift.off {
+  border-color: var(--warning) !important;
+  background: var(--theme-warning-soft) !important;
+  color: var(--warning) !important;
+}
+
+.app2-pos .posx-adminmenu-items {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 12px 30px var(--theme-shadow);
+}
+
+.app2-pos .posx-card2 {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 8px 24px var(--theme-shadow) !important;
+}
+
 .app2-pos .posx-card2:hover { border-color: var(--brand) !important; }
 .app2-pos .posx-card2-media { border-bottom-color: var(--border-subtle) !important; background: var(--surface-2) !important; }
 .app2-pos .posx-card2-img.ph { background: linear-gradient(145deg, var(--surface-2), var(--theme-brand-soft)) !important; }
-.app2-pos .posx-card2-info, .app2-pos .posx-card2-options { border-color: var(--border-subtle) !important; background: var(--surface-1) !important; color: var(--text-primary) !important; }
-.app2-pos .posx-card2-name, .app2-pos .posx-line-name, .app2-pos .posx-line-total,
-.app2-pos .receipt-row, .app2-pos .posx-total { color: var(--text-primary) !important; }
-.app2-pos .posx-card2-img.ph::after, .app2-pos .posx-card2-opt-label, .app2-pos .posx-card2-direct,
-.app2-pos .posx-empty, .app2-pos .posx-cart h3, .app2-pos .posx-line-selection { color: var(--text-secondary) !important; }
-.app2-pos .posx-chips button { border-color: var(--border-strong) !important; background: var(--surface-2) !important; color: var(--text-primary) !important; }
-.app2-pos .posx-line, .app2-pos .posx-line-thumb { border-color: var(--border-subtle) !important; background: var(--surface-1) !important; color: var(--text-primary) !important; }
-.app2-pos .posx-line-qty, .app2-pos .posx-card2-price, .app2-pos .posx-cart-toggle span { border-color: var(--brand) !important; background: var(--brand) !important; color: var(--on-brand) !important; }
-.app2-pos .posx-line-actions .rm { border-color: var(--danger) !important; background: var(--theme-danger-soft) !important; color: var(--danger) !important; }
-.app2-pos .posx-warn, .app2-pos .posx-fire-reason { color: var(--warning) !important; }
-.app2-pos .posx-order-now { min-height: 48px; border-color: var(--brand) !important; background: var(--brand) !important; color: var(--on-brand) !important; }
-.app2-pos :is(button, input, select, textarea):disabled { opacity: 0.72 !important; color: var(--text-disabled) !important; filter: none !important; }
+.app2-pos .posx-card2-info,
+.app2-pos .posx-card2-options {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-card2-name,
+.app2-pos .posx-line-name,
+.app2-pos .posx-line-total,
+.app2-pos .receipt-row,
+.app2-pos .posx-total { color: var(--text-primary) !important; }
+
+.app2-pos .posx-card2-img.ph::after,
+.app2-pos .posx-card2-opt-label,
+.app2-pos .posx-card2-direct,
+.app2-pos .posx-empty,
+.app2-pos .posx-cart h3,
+.app2-pos .posx-line-selection { color: var(--text-secondary) !important; }
+
+.app2-pos .posx-chips button {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-line,
+.app2-pos .posx-line-thumb {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-line-qty,
+.app2-pos .posx-card2-price,
+.app2-pos .posx-cart-toggle span {
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: var(--on-brand) !important;
+}
+
+.app2-pos .posx-line-actions .rm {
+  border-color: var(--danger) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--danger) !important;
+}
+
+.app2-pos .posx-warn,
+.app2-pos .posx-fire-reason { color: var(--warning) !important; }
+
+.app2-pos .posx-order-now {
+  min-height: 48px;
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: var(--on-brand) !important;
+}
+
+.app2-pos :is(button, input, select, textarea):disabled {
+  opacity: 0.7 !important;
+  filter: none !important;
+}
 
 @media (max-width: 900px) {
-  .app2-pos .posx-cart { border-inline-end-color: var(--border-strong) !important; background: var(--surface-raised) !important; box-shadow: 16px 0 44px var(--theme-shadow) !important; }
-  .app2-pos .posx-cart-head { border-bottom-color: var(--border-subtle) !important; }
+  .app2-pos .posx-cart {
+    border-inline-end-color: var(--border-strong) !important;
+    background: var(--surface-raised) !important;
+    box-shadow: 16px 0 44px var(--theme-shadow) !important;
+  }
+
+  .app2-pos .posx-cart-head {
+    border-bottom-color: var(--border-subtle) !important;
+  }
 }

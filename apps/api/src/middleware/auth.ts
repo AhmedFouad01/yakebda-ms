@@ -95,6 +95,11 @@ export function requirePermission(...keys: string[]) {
   };
 }
 
+/** Branch access for operational users. Global users and branch managers may cross branches. */
+export function canAccessBranch(user: AuthUser, branchId: string): boolean {
+  return user.branchId == null || user.branchId === branchId || user.permissions.includes("branches.manage");
+}
+
 /** API token auth (bridge, website, QR...). Scope check included. */
 export function requireApiToken(db: Knex, ...scopes: string[]) {
   return async (req: Request, _res: Response, next: NextFunction) => {

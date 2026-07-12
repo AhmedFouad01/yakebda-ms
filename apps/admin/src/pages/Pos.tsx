@@ -229,8 +229,8 @@ export function Pos() {
       setBranches(response.data);
       if (!branchId && response.data.length) setBranchId(response.data[0].id);
     });
-    if (can("customers.manage")) {
-      api<{ data: typeof customers }>("/customers")
+    if (can("customers.lookup") || can("customers.manage")) {
+      api<{ data: typeof customers }>("/customers/lookup")
         .then((response) => setCustomers(response.data))
         .catch(() => {});
     }

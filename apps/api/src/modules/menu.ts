@@ -4,7 +4,7 @@ import { Knex } from "knex";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
-import { requirePermission, requireUser } from "../middleware/auth";
+import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { getStorage, validateImage } from "../lib/storage";
 import { buildWorkbook, buildTemplate, parseWorkbook, planImport, applyImport, type ExportRow } from "./menuExcel";
@@ -620,6 +620,7 @@ export function branchMenuRoutes(db: Knex): Router {
     try {
       const branch = await ownBranch(db, req.user!.accountId, req.params.branchId);
       if (!branch) throw err.notFound();
+      if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
       const categories = await db("categories").where({ account_id: req.user!.accountId, is_active: true }).orderBy("sort_order", "asc");
       const products = await db("products").where({ account_id: req.user!.accountId, is_active: true }).orderBy("sort_order", "asc");
       const ids = products.map((p) => p.id);
@@ -662,6 +663,7 @@ export function branchMenuRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const branch = await ownBranch(db, req.user!.accountId, req.params.branchId);
       if (!branch) throw err.notFound();
+      if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
       const owned = await db("products").whereIn("id", body.data.items.map((i) => i.product_id)).where({ account_id: req.user!.accountId }).pluck("id");
       for (const item of body.data.items) {
         if (!owned.includes(item.product_id)) throw err.notFound();
@@ -679,6 +681,7 @@ export function branchMenuRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const branch = await ownBranch(db, req.user!.accountId, req.params.branchId);
       if (!branch) throw err.notFound();
+      if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
       const owned = await db("products").whereIn("id", body.data.items.map((i) => i.product_id)).where({ account_id: req.user!.accountId }).pluck("id");
       for (const item of body.data.items) {
         if (!owned.includes(item.product_id)) throw err.notFound();

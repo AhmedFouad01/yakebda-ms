@@ -24,6 +24,22 @@ type DatabaseError = Error & {
   detail?: string;
 };
 
+const ORDER_INTEGRITY_CONSTRAINTS = new Set([
+  "order_item_variant_product_check",
+  "order_item_modifier_duplicate_check",
+  "order_item_modifier_product_check",
+  "order_item_modifier_min_select_check",
+  "order_item_modifier_max_select_check",
+]);
+
+function isOrderIntegrityError(error: DatabaseError): boolean {
+  if (error.code === "23514") return true;
+  if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) return true;
+  return /Selected variant does not belong|same modifier cannot|Selected modifier does not belong|Required modifier selections are missing|Too many modifiers were selected/i.test(
+    error.message ?? ""
+  );
+}
+
 export function createApp(db: Knex) {
   const app = express();
   app.use(cors());
@@ -70,12 +86,12 @@ export function createApp(db: Knex) {
     }
 
     const dbError = e as DatabaseError;
-    if (dbError.code === "23514") {
+    if (isOrderIntegrityError(dbError)) {
       return res.status(422).json({
         code: "validation",
         message: ar.errors.validation,
         details: {
-          order_configuration: dbError.constraint ?? "check_violation",
+          order_configuration: dbError.constraint ?? "order_configuration",
           reason: dbError.message,
         },
       });

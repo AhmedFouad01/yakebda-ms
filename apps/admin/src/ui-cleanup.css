@@ -1,14 +1,340 @@
 /*
- * PR #14 — final UI cleanup layer.
- * Loaded last to improve contrast and provide a mobile cart drawer without
- * rewriting the established desktop POS layout.
+ * Semantic UI foundation and final POS cleanup layer.
+ * Loaded last so legacy screens and shared primitives resolve through one
+ * accessible set of color and control contracts.
  */
 
 :root {
-  --yk-focus-ring: 0 0 0 3px rgba(246, 192, 38, 0.42);
-  --yk-control-border-strong: #526169;
-  --yk-text-strong: #f8faf7;
-  --yk-text-secondary-strong: #c5cfcb;
+  color-scheme: light;
+
+  --surface-page: #f4f6f4;
+  --surface-1: #ffffff;
+  --surface-2: #e9eeeb;
+  --surface-raised: #ffffff;
+
+  --text-primary: #1d2622;
+  --text-secondary: #4f5d57;
+  --text-disabled: #6d7772;
+
+  --border-subtle: #c5cec9;
+  --border-strong: #66736d;
+  --focus-ring: #765800;
+
+  --brand: #d39b00;
+  --brand-hover: #b78300;
+  --on-brand: #161a18;
+
+  --success: #237a4b;
+  --warning: #946200;
+  --danger: #b3261e;
+  --info: #176b87;
+
+  /* Compatibility aliases while legacy pages migrate to semantic names. */
+  --paper: var(--surface-page);
+  --card: var(--surface-1);
+  --ink: var(--text-primary);
+  --ink-soft: var(--text-secondary);
+  --line: var(--border-subtle);
+  --teal: var(--brand);
+  --teal-dark: var(--brand-hover);
+  --saffron: var(--brand);
+  --ok: var(--success);
+
+  --yk-line: var(--border-strong);
+  --yk-yellow: var(--brand);
+  --yk-yellow-2: var(--brand-hover);
+  --yk-focus-ring: 0 0 0 3px var(--focus-ring);
+  --yk-control-border-strong: var(--border-strong);
+  --yk-text-strong: var(--text-primary);
+  --yk-text-secondary-strong: var(--text-secondary);
+}
+
+.app2-pos {
+  color-scheme: dark;
+
+  --surface-page: #090b0d;
+  --surface-1: #11181c;
+  --surface-2: #182126;
+  --surface-raised: #202a2f;
+
+  --text-primary: #f5f7f4;
+  --text-secondary: #c5cfcb;
+  --text-disabled: #9aa6a1;
+
+  --border-subtle: #526169;
+  --border-strong: #738189;
+  --focus-ring: #f6c026;
+
+  --brand: #f6c026;
+  --brand-hover: #ffdc62;
+  --on-brand: #111411;
+
+  --success: #70d69b;
+  --warning: #f2c14e;
+  --danger: #ff8a7a;
+  --info: #72cbe6;
+
+  --yk-black: var(--surface-page);
+  --yk-black-2: var(--surface-1);
+  --yk-panel: var(--surface-1);
+  --yk-panel-2: var(--surface-2);
+  --yk-line: var(--border-subtle);
+  --yk-yellow: var(--brand);
+  --yk-yellow-2: var(--brand-hover);
+  --yk-text: var(--text-primary);
+  --yk-muted: var(--text-secondary);
+}
+
+/* Shared controls: semantic variants coexist with legacy class names. */
+.uif-btn,
+.btn,
+button.primary,
+button.secondary,
+button.ghost,
+button.danger {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: 800 13.5px/1 var(--font);
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.uif-btn:hover:not(:disabled),
+button.secondary:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--text-secondary);
+}
+
+.uif-btn.primary,
+.btn:not(.secondary, .ghost, .danger),
+button.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+}
+
+.uif-btn.primary:hover:not(:disabled),
+.btn:not(.secondary, .ghost, .danger):hover:not(:disabled),
+button.primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+.uif-btn.secondary,
+.btn.secondary,
+button.secondary {
+  background: var(--surface-1);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.uif-btn.ghost,
+.btn.ghost,
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.uif-btn.ghost:hover:not(:disabled),
+.btn.ghost:hover:not(:disabled),
+button.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.uif-btn.danger,
+.btn.danger,
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+}
+
+.uif-btn.danger:hover:not(:disabled),
+.btn.danger:hover:not(:disabled),
+button.danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.uif-input,
+.app2-main:not(.full) .uif-input,
+.field input,
+.field select,
+.field textarea,
+input:not([type]),
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+select,
+textarea {
+  min-height: 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: var(--font);
+}
+
+textarea,
+.uif-textarea {
+  min-height: 76px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+.uif-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.uif-checkbox input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.uif-checkbox-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-1);
+  color: transparent;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.uif-checkbox input:checked + .uif-checkbox-box {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.uif-checkbox input:focus-visible + .uif-checkbox-box {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.uif-toggle-track {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.uif-toggle-thumb {
+  background: var(--text-secondary);
+}
+
+.uif-toggle input:checked + .uif-toggle-track {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.uif-toggle input:checked + .uif-toggle-track .uif-toggle-thumb {
+  background: var(--on-brand);
+}
+
+.uif-toggle input:focus-visible + .uif-toggle-track {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.app2-main:not(.full) .uif-btn,
+.app2-main:not(.full) .uif-input,
+.app2-main:not(.full) .uif-toggle-track,
+.app2-main:not(.full) .uif-radio button,
+.app2-main:not(.full) .uif-tabs button {
+  border-color: var(--border-strong);
+}
+
+.uif-badge,
+.uif-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.uif-status-icon {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font: 900 10px/1 var(--font);
+}
+
+.uif-badge.brand { color: var(--on-brand); background: var(--brand); border-color: var(--brand); }
+.uif-badge.success,
+.uif-status.success { color: var(--success); border-color: var(--success); background: color-mix(in srgb, var(--success) 11%, var(--surface-1)); }
+.uif-badge.warning,
+.uif-status.warning { color: var(--warning); border-color: var(--warning); background: color-mix(in srgb, var(--warning) 11%, var(--surface-1)); }
+.uif-badge.danger,
+.uif-status.danger { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface-1)); }
+.uif-badge.info,
+.uif-status.info { color: var(--info); border-color: var(--info); background: color-mix(in srgb, var(--info) 10%, var(--surface-1)); }
+
+/* Existing textual chips keep their labels and inherit semantic status colors. */
+.stub.printed,
+.stub.on,
+.stub.st-ready,
+.stub.st-completed { color: var(--success); border-color: var(--success); }
+.stub.printing,
+.stub.st-submitted,
+.stub.st-in_kitchen { color: var(--warning); border-color: var(--warning); }
+.stub.failed,
+.stub.st-cancelled,
+.crm-badge.blocked { color: var(--danger); border-color: var(--danger); }
+.stub.pending,
+.stub.off { color: var(--text-secondary); border-color: var(--border-strong); }
+
+:is(button, a, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+:is(button, input, select, textarea):disabled,
+.uif-checkbox.disabled,
+.uif-toggle.disabled {
+  opacity: 0.58;
+  color: var(--text-disabled);
+  cursor: not-allowed;
 }
 
 /* Contrast and focus normalization inside the POS workspace. */

@@ -70,6 +70,14 @@ export function Tabs({ tabs, active, onChange }: { tabs: Array<[string, string]>
   );
 }
 
+/* ——— Controls ——— */
+
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+
+export function Button({ variant = "secondary", className, type = "button", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+  return <button {...props} type={type} className={`uif-btn ${variant}${className ? ` ${className}` : ""}`} />;
+}
+
 /* ——— الحقول ——— */
 
 export function FormField({ label, children, error, hint, inline }: { label: string; children: ReactNode; error?: string; hint?: string; inline?: boolean }) {
@@ -97,6 +105,16 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`uif-input uif-select ${props.className ?? ""}`} />;
+}
+
+export function Checkbox({ label, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode }) {
+  return (
+    <label className={`uif-checkbox${props.disabled ? " disabled" : ""}${className ? ` ${className}` : ""}`}>
+      <input {...props} type="checkbox" />
+      <span className="uif-checkbox-box" aria-hidden>✓</span>
+      {label && <span className="uif-checkbox-label">{label}</span>}
+    </label>
+  );
 }
 
 /** مفتاح حديث بدل checkbox — native input تحتيًا للوصولية. */
@@ -137,17 +155,39 @@ export function StickyActionBar({ children, dirty }: { children: ReactNode; dirt
 
 export function SaveButton({ busy, disabled, onClick, children }: { busy?: boolean; disabled?: boolean; onClick: () => void; children?: ReactNode }) {
   return (
-    <button type="button" className="uif-btn primary" disabled={busy || disabled} onClick={onClick}>
+    <Button variant="primary" disabled={busy || disabled} onClick={onClick}>
       {busy ? "جارٍ الحفظ…" : children ?? "حفظ"}
-    </button>
+    </Button>
   );
 }
 
 export function CancelButton({ onClick, children }: { onClick: () => void; children?: ReactNode }) {
   return (
-    <button type="button" className="uif-btn ghost" onClick={onClick}>
+    <Button variant="ghost" onClick={onClick}>
       {children ?? "إلغاء"}
-    </button>
+    </Button>
+  );
+}
+
+export type SemanticTone = "neutral" | "brand" | "success" | "warning" | "danger" | "info";
+
+export function Badge({ tone = "neutral", children, className }: { tone?: SemanticTone; children: ReactNode; className?: string }) {
+  return <span className={`uif-badge ${tone}${className ? ` ${className}` : ""}`}>{children}</span>;
+}
+
+const STATUS_ICONS: Record<Exclude<SemanticTone, "neutral" | "brand">, string> = {
+  success: "✓",
+  warning: "!",
+  danger: "×",
+  info: "i",
+};
+
+export function StatusChip({ tone, children, className }: { tone: Exclude<SemanticTone, "neutral" | "brand">; children: ReactNode; className?: string }) {
+  return (
+    <span className={`uif-status ${tone}${className ? ` ${className}` : ""}`}>
+      <span className="uif-status-icon" aria-hidden>{STATUS_ICONS[tone]}</span>
+      <span>{children}</span>
+    </span>
   );
 }
 

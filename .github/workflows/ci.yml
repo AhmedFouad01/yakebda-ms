@@ -43,11 +43,37 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
-      - name: Apply security core patch
+      - name: Prepare security patch module
         if: github.head_ref == 'fix/security-scope-stabilization'
-        run: |
-          sed -i '/edit("apps\/api\/src\/modules\/restaurant.ts", patch_customers)/d' tools/patch_security_core.py
-          python3 tools/patch_security_core.py
+        run: sed -i '/^edit(/d' tools/patch_security_core.py
+
+      - name: Patch auth scope helper
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/api/src/middleware/auth.ts", m["patch_auth"])'
+
+      - name: Patch branch list scope
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/api/src/modules/branches.ts", m["patch_branches"])'
+
+      - name: Patch permission catalog
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/api/src/db/seedData.ts", m["patch_seed"])'
+
+      - name: Patch stable frontend permissions
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/admin/src/lib/me.ts", m["patch_me"])'
+
+      - name: Patch POS customer lookup
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/admin/src/pages/Pos.tsx", m["patch_pos"])'
+
+      - name: Patch menu branch scope
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/api/src/modules/menu.ts", m["patch_menu"])'
+
+      - name: Patch shift branch scope
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/api/src/modules/shifts.ts", m["patch_shifts"])'
 
       - name: Apply customer security patch
         if: github.head_ref == 'fix/security-scope-stabilization'

@@ -69,7 +69,7 @@ jobs:
 
       - name: Patch menu branch scope
         if: github.head_ref == 'fix/security-scope-stabilization'
-        run: python3 -c 'import runpy; m=runpy.run_path("tools/patch_security_core.py"); m["edit"]("apps/api/src/modules/menu.ts", m["patch_menu"])'
+        run: python3 tools/patch_menu_scope.py
 
       - name: Patch shift branch scope
         if: github.head_ref == 'fix/security-scope-stabilization'
@@ -112,6 +112,7 @@ jobs:
           git checkout origin/main -- .github/workflows/ci.yml
           rm -f tools/patch_security_core.py
           rm -f tools/patch_customer_security.py
+          rm -f tools/patch_menu_scope.py
           rm -f tools/patch_orders_security.py
           rm -f tools/add_security_scope_regression.py
           rm -f .github/workflows/apply-security-scope-stabilization.yml

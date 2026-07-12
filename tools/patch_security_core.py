@@ -102,6 +102,10 @@ def patch_me(text: str) -> str:
 
 
 def patch_customers(text: str) -> str:
+    start = text.index("export function customerRoutes")
+    before = text[:start]
+    section = text[start:]
+
     marker = '''  r.get("/", async (req, res, next) => {
 '''
     lookup = '''  // Minimal POS lookup. Full CRM fields remain protected by customers.manage.
@@ -132,20 +136,20 @@ def patch_customers(text: str) -> str:
 
   r.get("/", requirePermission("customers.manage"), async (req, res, next) => {
 '''
-    text = replace_once(text, marker, lookup, "customer lookup route")
-    text = replace_once(
-        text,
+    section = replace_once(section, marker, lookup, "customer lookup route")
+    section = replace_once(
+        section,
         '  r.get("/:id", async (req, res, next) => {',
         '  r.get("/:id", requirePermission("customers.manage"), async (req, res, next) => {',
         "customer detail permission",
     )
-    text = replace_once(
-        text,
+    section = replace_once(
+        section,
         '  r.get("/:id/orders", async (req, res, next) => {',
         '  r.get("/:id/orders", requirePermission("customers.manage"), async (req, res, next) => {',
         "customer order history permission",
     )
-    return text
+    return before + section
 
 
 def patch_pos(text: str) -> str:

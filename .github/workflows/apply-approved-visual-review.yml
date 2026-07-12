@@ -55,3 +55,5 @@ jobs:
             .github/workflows/apply-approved-visual-review.yml
           git commit -m "fix(ui): apply approved responsive review [approved-visual-review]"
           git push origin HEAD:audit/system-wide-ui-consistency
+
+# Explicit second push trigger after workflow registration.

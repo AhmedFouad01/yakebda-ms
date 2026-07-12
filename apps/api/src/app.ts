@@ -34,7 +34,6 @@ const ORDER_INTEGRITY_CONSTRAINTS = new Set([
 ]);
 
 function isOrderIntegrityError(error: DatabaseError): boolean {
-  if (error.code === "23514") return true;
   if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) return true;
   return /Selected variant does not belong|same modifier cannot|Selected modifier does not belong|Required modifier selections are missing|Too many modifiers were selected/i.test(
     error.message ?? ""

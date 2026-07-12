@@ -16,6 +16,10 @@
   overflow: hidden;
 }
 
+.app2-pos .app2-spacer {
+  flex: 0 0 0;
+}
+
 .app2-pos .posx-shell-order-controls {
   width: min(620px, 100%);
   min-width: 0;

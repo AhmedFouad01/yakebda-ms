@@ -1,0 +1,401 @@
+/*
+ * PR #14 final closure pass.
+ * Loaded after all legacy/theme/polish layers and owns the last-mile geometry,
+ * active states, overflow safety, and shared control consistency.
+ */
+
+/* ---------- Universal safety ---------- */
+[hidden] {
+  display: none !important;
+}
+
+.app2 :is(.menu-toolbar, .menu-toolbar-actions, .form-row, .seg, .posx-opts, .posx-cart, .posx-cart-head) > * {
+  min-width: 0;
+}
+
+/* Remove browser number arrows; intentional steppers use explicit +/- controls. */
+.app2 input[type="number"],
+.uif-drawer input[type="number"],
+.modal input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.app2 input[type="number"]::-webkit-inner-spin-button,
+.app2 input[type="number"]::-webkit-outer-spin-button,
+.uif-drawer input[type="number"]::-webkit-inner-spin-button,
+.uif-drawer input[type="number"]::-webkit-outer-spin-button,
+.modal input[type="number"]::-webkit-inner-spin-button,
+.modal input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* ---------- Selects: stable icon, no flip animation ---------- */
+@supports (appearance: base-select) {
+  .app2 select::picker-icon,
+  .uif-drawer select::picker-icon,
+  .modal select::picker-icon,
+  .app2 select:open::picker-icon,
+  .uif-drawer select:open::picker-icon,
+  .modal select:open::picker-icon {
+    rotate: 0deg !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- Settings navigation and field geometry ---------- */
+.settings-page .setx2-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+.settings-page .setx2-nav .uif-btn.ghost {
+  width: 100%;
+  min-height: 42px;
+  justify-content: flex-start;
+  padding-inline: 13px !important;
+  border: 1px solid transparent !important;
+  border-inline-start-width: 3px !important;
+  border-radius: 9px;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  text-align: right;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.settings-page .setx2-nav .uif-btn.ghost:hover:not(:disabled) {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+.settings-page .setx2-nav .uif-btn.ghost.active,
+.settings-page .setx2-nav .uif-btn.ghost[aria-current="page"] {
+  border-color: var(--brand) !important;
+  border-inline-start-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  color: var(--text-primary) !important;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+.settings-page .setx2-nav .uif-btn.ghost:focus-visible {
+  border-color: var(--brand) !important;
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+
+.settings-page .uif-field.inline > .uif-select {
+  width: 180px !important;
+  max-width: min(180px, 100%) !important;
+  flex: 0 0 180px;
+}
+
+/* Exact shared stepper geometry: no trailing blank cell or mismatched baseline. */
+.uif-number-stepper {
+  width: 176px !important;
+  max-width: 100%;
+  grid-template-columns: 38px 100px 38px !important;
+  grid-template-rows: 38px;
+  align-items: stretch !important;
+  justify-self: start;
+  min-height: 38px !important;
+  height: 38px !important;
+  box-sizing: border-box;
+}
+
+.settings-page .uif-number-stepper .uif-num,
+.settings-page .uif-stepper-btn {
+  min-height: 36px !important;
+  height: 36px !important;
+  box-sizing: border-box;
+}
+
+.settings-page .uif-number-stepper .uif-num {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  line-height: 36px !important;
+}
+
+.settings-page .uif-stepper-btn {
+  width: 38px !important;
+  min-width: 38px !important;
+}
+
+/* Use the same button language for every explicit stepper in the system. */
+:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) button:not(.rm) {
+  display: inline-grid !important;
+  place-items: center !important;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 8px;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  font-weight: 900;
+  line-height: 1;
+}
+
+:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) button:not(.rm):hover:not(:disabled) {
+  border-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  color: var(--brand) !important;
+}
+
+:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) button:not(.rm):focus-visible {
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 1px;
+}
+
+/* Keep the joined settings stepper visually continuous. */
+.uif-number-stepper .uif-stepper-btn {
+  border-block: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* ---------- Menu toolbar / Excel controls ---------- */
+.menu-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr) repeat(3, minmax(145px, 185px));
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.menu-toolbar > :is(input, select) {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.menu-toolbar-actions {
+  grid-column: 1 / -1;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  gap: 8px !important;
+  width: 100%;
+  margin: 0 !important;
+}
+
+.menu-toolbar-actions > :is(button, .menu-import-btn) {
+  flex: 0 0 auto;
+  min-width: 108px;
+  max-width: 100%;
+  min-height: var(--control-h) !important;
+  height: var(--control-h) !important;
+  padding-inline: 14px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.menu-import-btn {
+  position: relative;
+  isolation: isolate;
+}
+
+.menu-import-btn input[type="file"],
+.menu-import-btn input[type="file"][hidden] {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ---------- POS cart final layout ---------- */
+.posx-cart {
+  min-width: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+.posx-cart-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.posx-cart-head h3,
+.posx-cart-head strong {
+  min-width: 0;
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+}
+
+/* Desktop cart is permanent; its close icon had no functional meaning there. */
+@media (min-width: 901px) {
+  .posx-cart-close {
+    display: none !important;
+  }
+}
+
+.posx-cart-lines {
+  min-width: 0;
+  min-height: 120px;
+}
+
+.posx-line,
+.posx-line-content,
+.posx-line-head,
+.posx-line-selection,
+.posx-line-note {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.posx-line-head {
+  gap: 8px;
+}
+
+.posx-line-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.posx-line-total {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.posx-line-actions {
+  flex-wrap: wrap;
+}
+
+.posx-opts {
+  flex: 0 0 auto;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px !important;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-sizing: border-box;
+}
+
+.posx-opts > :is(input, select, .seg, .posx-warn) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.posx-opts .seg {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  align-items: stretch;
+  gap: 6px !important;
+}
+
+.posx-opts .seg button {
+  width: 100%;
+  min-width: 0 !important;
+  min-height: 38px;
+  padding: 7px 8px !important;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.posx-cart :is(input, select, textarea) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.posx-calc-box,
+.posx-totals,
+.posx-fire-wrap {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.posx-calc-box summary {
+  min-width: 0;
+  padding-inline: 10px;
+  overflow-wrap: anywhere;
+}
+
+.posx-cart .receipt-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.posx-cart .receipt-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.posx-cart .receipt-row > :last-child {
+  white-space: nowrap;
+  text-align: left;
+}
+
+.posx-order-now {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+.posx-fire-reason,
+.posx-warn {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Responsive closure ---------- */
+@media (max-width: 1100px) {
+  .menu-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .menu-toolbar .menu-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .menu-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .menu-toolbar .menu-search,
+  .menu-toolbar-actions {
+    grid-column: 1;
+  }
+
+  .menu-toolbar-actions > :is(button, .menu-import-btn) {
+    flex: 1 1 140px;
+  }
+
+  .settings-page .uif-field.inline > .uif-select,
+  .uif-number-stepper {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-basis: auto;
+  }
+
+  .uif-number-stepper {
+    grid-template-columns: 40px minmax(0, 1fr) 40px !important;
+  }
+}

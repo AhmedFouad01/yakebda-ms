@@ -252,7 +252,16 @@ body,
 }
 
 .app2-pos .posx-fast-line-note-button {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-2) !important;
   color: var(--text-secondary) !important;
+}
+
+.app2-pos .posx-fast-line-note-button:hover,
+.app2-pos .posx-fast-line-note-button:focus-visible {
+  border-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  color: var(--brand) !important;
 }
 
 .app2-pos .posx-fast-remove {

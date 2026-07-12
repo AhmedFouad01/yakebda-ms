@@ -140,6 +140,11 @@ body,
     color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
     var(--surface-1)
   ) !important;
+  box-shadow: 0 8px 22px var(--theme-shadow) !important;
+}
+
+.app2-pos .posx-source-field {
+  background: transparent !important;
 }
 
 .app2-pos .posx-cats button,
@@ -208,6 +213,17 @@ body,
 }
 
 /* Fast Rail cart lines */
+.app2-pos .posx-fast-line {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  box-shadow: 0 7px 20px var(--theme-shadow) !important;
+}
+
+.app2-pos .posx-fast-line:hover {
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--border-strong)) !important;
+  background: var(--surface-raised) !important;
+}
+
 .app2-pos .posx-fast-line-thumb {
   border-color: var(--border-subtle) !important;
   background:
@@ -216,10 +232,17 @@ body,
   color: var(--brand) !important;
 }
 
+.app2-pos .posx-fast-line-actions {
+  border-inline-start-color: var(--border-subtle) !important;
+}
+
 .app2-pos .posx-fast-line-head strong,
-.app2-pos .posx-fast-line-head b,
 .app2-pos .posx-total {
   color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-fast-line-head b {
+  color: var(--brand) !important;
 }
 
 .app2-pos .posx-fast-line-choices span {
@@ -243,6 +266,16 @@ body,
   border-color: var(--danger) !important;
   background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface)) !important;
   color: var(--danger) !important;
+}
+
+.app2-pos .posx-totals {
+  border-top-color: var(--border-strong) !important;
+  background: var(--surface-1) !important;
+  box-shadow: 0 -10px 24px var(--theme-shadow) !important;
+}
+
+.app2-pos .posx-fire-wrap {
+  background: var(--surface-1) !important;
 }
 
 .app2-pos .posx-total > span:last-child,

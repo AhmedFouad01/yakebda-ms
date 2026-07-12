@@ -94,12 +94,14 @@ describe("YKMS-02 — الطلبات والدفع والمطبخ", () => {
       id: string;
       name_ar: string;
       variants: Array<{ id: string; name_ar: string }>;
-      modifier_groups: Array<{ modifiers: Array<{ id: string; name_ar: string }> }>;
+      modifier_groups: Array<{ name_ar: string; modifiers: Array<{ id: string; name_ar: string }> }>;
     }>;
     const sandwich = all.find((p) => p.name_ar === "ساندوتش كبدة")!;
     const big = sandwich.variants.find((v) => v.name_ar === "كبير")!;
     const mods = sandwich.modifier_groups.flatMap((g) => g.modifiers);
     const cheese = mods.find((m) => m.name_ar === "جبنة")!;
+    const breadGroup = sandwich.modifier_groups.find((g) => g.name_ar === "نوع العيش")!;
+    const bread = breadGroup.modifiers.find((m) => m.name_ar === "فينو") ?? breadGroup.modifiers[0];
     const pepsi = all.find((p) => p.name_ar === "بيبسي")!;
 
     const res = await asOwner(
@@ -110,7 +112,7 @@ describe("YKMS-02 — الطلبات والدفع والمطبخ", () => {
           order_type: "takeaway",
           discount: 5,
           items: [
-            { product_id: sandwich.id, variant_id: big.id, qty: 2, modifier_ids: [cheese.id], notes: "بدون بصل" },
+            { product_id: sandwich.id, variant_id: big.id, qty: 2, modifier_ids: [cheese.id, bread.id], notes: "بدون بصل" },
             { product_id: pepsi.id, qty: 1 },
           ],
         })
@@ -118,12 +120,14 @@ describe("YKMS-02 — الطلبات والدفع والمطبخ", () => {
     expect(res.status).toBe(201);
     const order = res.body.data;
     orderId = order.id;
-    // 2 × (25 + 10 + 5) = 80 ، + بيبسي 10 = 90 ، خصم 5 → 85
+    // 2 × (25 + 10 + 5 + 0) = 80 ، + بيبسي 10 = 90 ، خصم 5 → 85
     expect(Number(order.subtotal)).toBe(90);
     expect(Number(order.total)).toBe(85);
     orderTotal = Number(order.total);
     expect(order.status).toBe("submitted");
-    expect(order.items[0].modifiers[0].name_ar).toBe("جبنة");
+    expect(order.items[0].modifiers.map((m: { name_ar: string }) => m.name_ar)).toEqual(
+      expect.arrayContaining(["جبنة", bread.name_ar])
+    );
   });
 
   it("يرفض طلب صنف غير متاح في الفرع", async () => {

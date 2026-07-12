@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response, Router } from "express";
+import { Router } from "express";
 import { Knex } from "knex";
 import { z } from "zod";
 import { err } from "../lib/errors";
@@ -68,7 +68,7 @@ export async function validateOrderConfiguration(
         .where("mg.account_id", accountId)
         .where("m.is_active", true)
         .where("mg.is_active", true)
-        .select("m.id", "m.modifier_group_id", "m.name_ar")
+        .select("m.id", "m.modifier_group_id")
     : [];
   const modifiersById = new Map(modifiers.map((modifier) => [modifier.id, modifier]));
 
@@ -116,28 +116,21 @@ export async function validateOrderConfiguration(
   }
 }
 
-async function configurationPreflight(req: Request, _res: Response, next: NextFunction) {
-  try {
-    const parsed = orderConfigurationSchema.safeParse(req.body);
-    // Leave malformed request reporting to the canonical create-order schema.
-    if (!parsed.success) return next();
-    await validateOrderConfiguration(req.app.locals.db as Knex, req.user!.accountId, parsed.data.items);
-    return next();
-  } catch (error) {
-    return next(error);
-  }
-}
-
 export function orderIntegrityRoutes(db: Knex): Router {
   const router = Router();
   router.use(requireUser(db));
 
-  // Expose the DB handle only within this router's request lifecycle helper.
-  router.use((req, _res, next) => {
-    req.app.locals.db = db;
-    next();
+  router.post("/", async (req, _res, next) => {
+    try {
+      const parsed = orderConfigurationSchema.safeParse(req.body);
+      // Leave malformed request reporting to the canonical create-order schema.
+      if (!parsed.success) return next();
+      await validateOrderConfiguration(db, req.user!.accountId, parsed.data.items);
+      return next();
+    } catch (error) {
+      return next(error);
+    }
   });
 
-  router.post("/", configurationPreflight);
   return router;
 }

@@ -1,0 +1,230 @@
+/*
+ * POS cart workflow pass.
+ * - One vertical scroll surface for cart lines + checkout fields.
+ * - Totals and submit action remain fixed and visible.
+ * - Order type and source live in AppShell on POS only.
+ * - Cash quick-change suggestions reduce cashier mental arithmetic.
+ */
+
+/* ---------- POS controls in AppShell ---------- */
+.app2-pos .app2-pos-controls-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app2-pos .posx-shell-order-controls {
+  width: min(620px, 100%);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(210px, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.app2-pos .posx-shell-order-types {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(88px, 1fr));
+  gap: 5px !important;
+  flex-wrap: nowrap !important;
+}
+
+.app2-pos .posx-shell-order-types button {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 13px !important;
+  border-radius: 8px !important;
+  white-space: nowrap;
+  font-size: 12px !important;
+}
+
+.app2-pos .posx-shell-source {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--yk-muted);
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+.app2-pos .posx-shell-source > span {
+  white-space: nowrap;
+}
+
+.app2-pos .posx-shell-source select {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding-block: 0 !important;
+  border: 1px solid var(--yk-line) !important;
+  border-radius: 8px !important;
+  background-color: var(--yk-black-2) !important;
+  color: var(--yk-text) !important;
+  font-size: 12px !important;
+  font-weight: 800;
+}
+
+/* ---------- One practical cart scroll ---------- */
+.app2-pos .posx-cart {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+.app2-pos .posx-cart-head,
+.app2-pos .posx-cart > .alert,
+.app2-pos .posx-cart > .ok,
+.app2-pos .posx-totals,
+.app2-pos .posx-fire-wrap {
+  flex: 0 0 auto;
+}
+
+.app2-pos .posx-cart-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-inline-end: 4px;
+}
+
+.app2-pos .posx-cart-scroll .posx-cart-lines {
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding-inline-end: 0 !important;
+}
+
+.app2-pos .posx-cart-scroll .posx-opts {
+  overflow: visible !important;
+  padding-bottom: 8px;
+}
+
+.app2-pos .posx-totals {
+  margin-top: 0;
+  padding-top: 8px;
+  background: var(--yk-black-2);
+}
+
+.app2-pos .posx-fire-wrap {
+  padding-top: 7px;
+  background: var(--yk-black-2);
+}
+
+/* ---------- Cash quick change ---------- */
+.app2-pos .posx-change-panel {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--yk-line);
+}
+
+.app2-pos .posx-change-title {
+  color: var(--yk-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.app2-pos .posx-change-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.app2-pos .posx-change-option {
+  min-width: 0;
+  min-height: 48px;
+  padding: 5px 6px !important;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  border: 1px solid var(--yk-line) !important;
+  border-radius: 9px !important;
+  background: #11171a !important;
+  color: var(--yk-text) !important;
+  cursor: pointer;
+}
+
+.app2-pos .posx-change-option b,
+.app2-pos .posx-change-option span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-change-option b {
+  color: var(--yk-yellow);
+  font-size: 11.5px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-change-option span {
+  color: var(--yk-muted);
+  font-size: 9.5px;
+  font-weight: 800;
+}
+
+.app2-pos .posx-change-option:hover,
+.app2-pos .posx-change-option.active {
+  border-color: var(--yk-yellow) !important;
+  background: rgba(246, 192, 38, 0.1) !important;
+}
+
+.app2-pos .posx-change-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(246, 192, 38, 0.1);
+  color: var(--yk-text);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.app2-pos .posx-change-result strong {
+  color: var(--yk-yellow);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1280px) {
+  .app2-pos .app2-crumb,
+  .app2-pos .posx-shell-source > span {
+    display: none;
+  }
+
+  .app2-pos .posx-shell-order-controls {
+    width: 100%;
+    grid-template-columns: auto minmax(150px, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .app2-pos .app2-pos-controls-slot {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .app2-pos .posx-shell-order-controls {
+    min-width: 390px;
+  }
+
+  .app2-pos .posx-change-options {
+    grid-template-columns: 1fr;
+  }
+}

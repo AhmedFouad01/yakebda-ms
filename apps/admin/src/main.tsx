@@ -17,7 +17,7 @@ import "./final-closure.css";
 import "./select-rendering-fix.css";
 import "./pos-1920-density.css";
 import "./pos-delivery-checkout.css";
-// Must stay last: owns AppShell order controls, one cart scroll, and cash-change actions.
+// Final POS geometry layer: AppShell controls, one cart scroll, fixed totals, cash change.
 import "./pos-cart-workflow.css";
 
 document.documentElement.dir = "rtl";

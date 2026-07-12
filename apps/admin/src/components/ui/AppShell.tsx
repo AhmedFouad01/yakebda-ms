@@ -5,6 +5,7 @@ import { t } from "../../lib/t";
 import { setToken } from "../../lib/api";
 import { useMe, clearMe } from "../../lib/me";
 import { applyTheme, getActiveTheme, type AppTheme } from "../../lib/theme";
+import { ToggleSwitch } from "./primitives";
 import { Toaster } from "./overlays";
 
 /**
@@ -89,8 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     nav("/login");
   }
 
-  function toggleTheme() {
-    const nextTheme: AppTheme = theme === "dark" ? "light" : "dark";
+  function setActiveTheme(nextTheme: AppTheme) {
     applyTheme(nextTheme);
     setTheme(nextTheme);
   }
@@ -120,16 +120,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
         {sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
         <span className="app2-spacer" />
-        <button
-          type="button"
-          className="app2-theme"
-          aria-label={themeLabel}
-          title={themeLabel}
-          aria-pressed={theme === "dark"}
-          onClick={toggleTheme}
-        >
-          <ShellIcon name={theme === "dark" ? "sun" : "moon"} />
-        </button>
+        <div className="app2-theme-control" title={themeLabel}>
+          <ToggleSwitch
+            checked={theme === "dark"}
+            ariaLabel={themeLabel}
+            onChange={(checked) => setActiveTheme(checked ? "dark" : "light")}
+          />
+        </div>
         {me && (
           <span className="app2-user" title={me.permissions.length + " صلاحية"}>
             <span className="app2-user-dot" aria-hidden />

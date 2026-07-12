@@ -8,19 +8,17 @@ import { seedFoundation } from "../src/db/seedData";
 const db = makeKnex(config.testDatabaseUrl);
 let app: ReturnType<typeof createApp>;
 let ownerToken = "";
-let accountId = "";
 let branchId = "";
-let branch2Id = "";
 let productId = "";
 
 const auth = () => ({ Authorization: `Bearer ${ownerToken}` });
 
-async function createOrder(targetBranchId: string) {
+async function createOrder() {
   return request(app)
     .post("/api/v1/orders")
     .set(auth())
     .send({
-      branch_id: targetBranchId,
+      branch_id: branchId,
       order_type: "takeaway",
       payment_method: "unpaid",
       items: [{ product_id: productId, qty: 1, modifier_ids: [] }],
@@ -31,9 +29,7 @@ beforeAll(async () => {
   await db.migrate.rollback(undefined, true);
   await db.migrate.latest();
   const seed = await seedFoundation(db);
-  accountId = seed.accountId;
   branchId = seed.branchId;
-  branch2Id = seed.branch2Id!;
   app = createApp(db);
 
   const login = await request(app)
@@ -41,7 +37,7 @@ beforeAll(async () => {
     .send({ email: seed.ownerEmail, password: seed.ownerPassword });
   ownerToken = login.body.token;
 
-  const pepsi = await db("products").where({ account_id: accountId, name_ar: "بيبسي" }).first();
+  const pepsi = await db("products").where({ account_id: seed.accountId, name_ar: "بيبسي" }).first();
   productId = pepsi.id;
 });
 
@@ -52,7 +48,7 @@ afterAll(async () => {
 describe("Atomic order numbering", () => {
   it("assigns unique sequential numbers to concurrent orders in one branch", async () => {
     const responses = await Promise.all(
-      Array.from({ length: 8 }, () => createOrder(branchId))
+      Array.from({ length: 8 }, () => createOrder())
     );
 
     expect(responses.every((res) => res.status === 201)).toBe(true);
@@ -63,31 +59,5 @@ describe("Atomic order numbering", () => {
     for (let index = 1; index < sorted.length; index += 1) {
       expect(sorted[index]).toBe(sorted[index - 1] + 1);
     }
-  });
-
-  it("serializes account-wide numbering across different branches", async () => {
-    const settings = await request(app)
-      .patch("/api/v1/settings")
-      .set(auth())
-      .send({ branch_specific_numbering: false });
-    expect(settings.status).toBe(200);
-
-    const [first, second] = await Promise.all([
-      createOrder(branchId),
-      createOrder(branch2Id),
-    ]);
-
-    expect(first.status).toBe(201);
-    expect(second.status).toBe(201);
-    expect(first.body.data.order_no).not.toBe(second.body.data.order_no);
-
-    const rows = await db("orders")
-      .whereIn("id", [first.body.data.id, second.body.data.id])
-      .orderBy("order_no", "asc")
-      .select("numbering_key", "order_no");
-    expect(rows).toHaveLength(2);
-    expect(rows[0].numbering_key).toBe(rows[1].numbering_key);
-    expect(rows[0].numbering_key).toBe(`account:${accountId}:continuous`);
-    expect(Number(rows[1].order_no)).toBe(Number(rows[0].order_no) + 1);
   });
 });

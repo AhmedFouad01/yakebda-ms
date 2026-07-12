@@ -1318,3 +1318,232 @@ button.danger:hover:not(:disabled),
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+
+/* ==================================================================
+   YKMS-02H — Order sources and field consistency
+   Deliberately scoped away from POS product cards and KDS.
+   ================================================================== */
+
+.sources-section {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.source-create,
+.source-settings-grid,
+.source-menu-toolbar {
+  display: grid;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.source-create {
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 1fr) auto;
+}
+
+.source-settings-grid {
+  grid-template-columns: minmax(220px, 1.5fr) minmax(100px, 0.55fr) repeat(3, minmax(145px, 0.8fr));
+  align-items: center;
+}
+
+.source-field,
+.source-price-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 800;
+}
+
+.source-field.compact {
+  max-width: 140px;
+}
+
+.source-field > :is(input, select),
+.source-price-field > input {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.source-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-page .source-picker-card {
+  min-height: 88px !important;
+  display: grid !important;
+  justify-items: start;
+  align-content: center;
+  gap: 3px;
+  padding: 11px 13px !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 11px !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  text-align: start !important;
+}
+
+.settings-page .source-picker-card.active {
+  border-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.source-picker-card > span,
+.source-picker-card > small {
+  color: var(--text-secondary);
+  font-size: var(--type-xs);
+}
+
+.source-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 12px;
+}
+
+.source-menu-toolbar {
+  grid-template-columns: minmax(240px, 1fr) auto auto;
+  margin-bottom: 10px;
+}
+
+.source-menu-toolbar > span {
+  color: var(--text-secondary);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.source-product-list {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.source-product-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.4fr) minmax(125px, 0.65fr) minmax(150px, 0.75fr) minmax(110px, auto);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.source-product-row.unavailable {
+  opacity: 0.68;
+}
+
+.source-product-copy,
+.source-base-price {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.source-product-copy strong,
+.source-product-copy span {
+  overflow-wrap: anywhere;
+}
+
+.source-product-copy span,
+.source-base-price span {
+  color: var(--text-secondary);
+  font-size: var(--type-xs);
+}
+
+.source-base-price strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-source-field {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 900;
+}
+
+.app2-pos .posx-source-field select {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  background-color: var(--surface-1) !important;
+}
+
+.print-jobs-page .form-row {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 520px) auto;
+  align-items: end !important;
+  justify-content: start;
+}
+
+.print-jobs-page .form-row .field {
+  width: 100%;
+  min-width: 0;
+}
+
+.print-jobs-page .form-row select {
+  width: 100%;
+  max-width: 520px;
+}
+
+.app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+.modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  box-sizing: border-box;
+  font-size: var(--type-body);
+  line-height: 1.4;
+}
+
+@media (max-width: 1050px) {
+  .source-create,
+  .source-settings-grid,
+  .source-product-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .source-menu-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .source-menu-toolbar > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 680px) {
+  .source-create,
+  .source-settings-grid,
+  .source-product-row,
+  .source-menu-toolbar,
+  .print-jobs-page .form-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .source-field.compact {
+    max-width: none;
+  }
+
+  .source-menu-toolbar > button {
+    grid-column: auto;
+    width: 100%;
+  }
+}

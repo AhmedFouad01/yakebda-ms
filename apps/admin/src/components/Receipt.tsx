@@ -8,6 +8,9 @@ export interface FullOrder {
   order_type: string;
   status: string;
   branch_name: string;
+  source_id?: string | null;
+  source_name?: string | null;
+  source_name_snapshot?: string | null;
   table_name_ar?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
@@ -70,6 +73,7 @@ export function Receipt({ order }: { order: FullOrder }) {
         </span>
         <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
       </div>
+      {order.source_name && <div className="receipt-line">المصدر: {order.source_name}</div>}
       {order.table_name_ar && <div className="receipt-line">{t.pos.table}: {order.table_name_ar}</div>}
       {order.customer_name && <div className="receipt-line">{t.pos.customer}: {order.customer_name}</div>}
       {order.customer_phone && <div className="receipt-line">{t.receipt.phone}: {order.customer_phone}</div>}

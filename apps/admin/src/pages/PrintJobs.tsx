@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { api } from "../lib/api";
 import { t, fmtTime } from "../lib/t";
 import { useList } from "./hooks";
+import { Button, Select } from "../components/ui/primitives";
 
 export function PrintJobs() {
   const { data, error, reload } = useList("/print-jobs");
@@ -28,18 +29,18 @@ export function PrintJobs() {
   }
 
   return (
-    <>
+    <div className="print-jobs-page">
       <div className="page-head"><h1>{t.printJobs.title}</h1></div>
       {(err || error) && <div className="error-note">{err || error}</div>}
       {ok && <div className="ok-note">{ok}</div>}
       <form className="form-row" onSubmit={testPrint}>
         <div className="field"><label>{t.printJobs.endpoint}</label>
-          <select value={endpoint} onChange={(e) => setEndpoint(e.target.value)} required>
+          <Select value={endpoint} onChange={(e) => setEndpoint(e.target.value)} required>
             <option value="">—</option>
             {endpoints.data.map((h: any) => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </select>
+          </Select>
         </div>
-        <button className="btn">{t.printJobs.test}</button>
+        <Button variant="secondary" type="submit">{t.printJobs.test}</Button>
       </form>
       <div className="panel">
         <table>
@@ -57,6 +58,6 @@ export function PrintJobs() {
         </table>
         {data.length === 0 && <div className="empty">{t.common.empty}</div>}
       </div>
-    </>
+    </div>
   );
 }

@@ -47,6 +47,13 @@ interface Branch {
   id: string;
   name: string;
 }
+interface OrderSource {
+  id: string;
+  code: string;
+  name_ar: string;
+  supports_takeaway: boolean;
+  supports_delivery: boolean;
+}
 interface Shift {
   id: string;
   opened_at: string;
@@ -71,6 +78,7 @@ interface ShiftOrderSummary {
   order_no: number;
   order_prefix?: string | null;
   order_type: string;
+  source_name?: string | null;
   status: string;
   kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
   payment_status: "unpaid" | "partial" | "paid";
@@ -173,6 +181,8 @@ export function Pos() {
   const { can, me } = useMe();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState(params.get("branch") ?? "");
+  const [sources, setSources] = useState<OrderSource[]>([]);
+  const [sourceId, setSourceId] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [shift, setShift] = useState<Shift | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -211,6 +221,7 @@ export function Pos() {
 
   const quotePayload = useMemo(() => ({
     branch_id: branchId,
+    source_id: sourceId || null,
     order_type: orderType,
     delivery_fee: orderType === "delivery" ? deliveryFee : 0,
     discount: settings?.allow_discounts ? discount : 0,
@@ -222,7 +233,7 @@ export function Pos() {
       notes: line.notes || null,
       modifier_ids: line.modifiers.map((modifier) => modifier.id),
     })),
-  }), [branchId, orderType, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
+  }), [branchId, sourceId, orderType, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
   const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
   const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
 
@@ -236,7 +247,7 @@ export function Pos() {
   }, [cartDrawerOpen]);
 
   useEffect(() => {
-    if (!branchId || !cart.length) {
+    if (!branchId || !sourceId || !cart.length) {
       setQuoteState(null);
       setQuoteBusy(false);
       setQuoteError("");
@@ -264,7 +275,7 @@ export function Pos() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [branchId, cart.length, quoteKey, quotePayload]);
+  }, [branchId, sourceId, cart.length, quoteKey, quotePayload]);
   useEffect(() => {
     let cancelled = false;
     api<{ data: Branch[] }>("/branches")
@@ -340,17 +351,21 @@ export function Pos() {
     }
   }
 
-  async function loadMenu(currentBranchId = branchId) {
+  async function loadMenu(currentBranchId = branchId, currentSourceId = sourceId) {
     if (!currentBranchId) return;
-    const response = await api<{ data: { categories: MenuCategory[] } }>(`/branches/${currentBranchId}/menu`);
+    const query = currentSourceId ? "?source_id=" + encodeURIComponent(currentSourceId) : "";
+    const response = await api<{ data: { categories: MenuCategory[] } }>("/branches/" + currentBranchId + "/menu" + query);
     const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
+    const refreshed = new Map(sorted.flatMap((category) => category.products).map((product) => [product.id, product]));
     setCategories(sorted);
+    setCart((rows) => rows.map((line) => ({ ...line, product: refreshed.get(line.product.id) ?? line.product })));
     setActiveCat("الكل");
   }
 
   useEffect(() => {
     if (!branchId) return;
-    loadMenu(branchId).catch((e: Error) => setError(e.message));
+    setSourceId("");
+    loadMenu(branchId, "").catch((e: Error) => setError(e.message));
     api<{ data: Settings }>(`/settings?branch_id=${branchId}`).then((response) => {
       setSettings(response.data);
       setPayment((current) =>
@@ -365,6 +380,27 @@ export function Pos() {
     });
     loadShift(branchId);
   }, [branchId]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    setSources([]);
+    setSourceId("");
+    api<{ data: OrderSource[] }>("/order-sources?active_only=true&order_type=" + orderType)
+      .then((response) => {
+        if (!cancelled) setSources(response.data);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => { cancelled = true; };
+  }, [branchId, orderType]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    loadMenu(branchId, sourceId).catch((e: Error) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId, sourceId]);
 
   useEffect(() => {
     if (!historyOpen || !branchId) return;
@@ -466,13 +502,14 @@ export function Pos() {
   async function fireOrder() {
     setError("");
     setMsg("");
-    if (!cart.length || busy || !currentQuote) return;
+    if (!sourceId || !cart.length || busy || !currentQuote) return;
     setBusy(true);
     try {
       const response = await api<{ data: FullOrder }>("/orders", {
         method: "POST",
         body: {
           branch_id: branchId,
+          source_id: sourceId,
           order_type: orderType,
           table_id: null,
           customer_id: orderType === "delivery" && customerId ? customerId : null,
@@ -625,6 +662,7 @@ export function Pos() {
                   className={orderType === type ? "active" : ""}
                   onClick={() => {
                     setOrderType(type);
+                    setSourceId("");
                     // YKMS-02E: رسوم التوصيل الافتراضية من الإعدادات عند التحويل للدليفري
                     if (type === "delivery" && !deliveryFee && settings?.default_delivery_fee) setDeliveryFee(settings.default_delivery_fee);
                   }}
@@ -633,6 +671,13 @@ export function Pos() {
                 </button>
               ))}
             </div>
+            <label className="posx-source-field">
+              <span>مصدر الطلب</span>
+              <select value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
+                <option value="">اختر مصدر الطلب…</option>
+                {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
+              </select>
+            </label>
             {orderType === "delivery" && (
               <>
                 <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); const customer = customers.find((item) => item.id === e.target.value); if (customer?.address) setDeliveryAddress(customer.address); }}>
@@ -689,6 +734,8 @@ export function Pos() {
                 (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()));
             const fireReason = !cart.length
               ? "السلة فارغة"
+              : !sourceId
+                ? "اختر مصدر الطلب"
               : quoteError
                 ? quoteError
                 : quoteBusy || !currentQuote
@@ -783,6 +830,7 @@ export function Pos() {
                     <span className="posx-history-meta">
                       <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
                       <span>{order.item_count} قطعة</span>
+                       <span>{order.source_name ?? "مصدر غير مسجل"}</span>
                       <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
                       <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
                     </span>

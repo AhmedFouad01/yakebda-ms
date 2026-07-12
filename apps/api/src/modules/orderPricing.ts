@@ -9,6 +9,7 @@ import { canAccessBranch, requirePermission, requireUser } from "../middleware/a
 import { ar } from "../i18n/ar";
 import { getSettings, Settings } from "./settings";
 import { validateOrderConfiguration } from "./orderIntegrity";
+import { OrderSourceRow, resolveOrderSource } from "./orderSources";
 import { loadFullOrder } from "./orders";
 
 export interface PricingItemInput {
@@ -20,6 +21,7 @@ export interface PricingItemInput {
 }
 
 export interface PricingInput {
+  source_id?: string | null;
   order_type: "dine_in" | "takeaway" | "delivery";
   delivery_fee: number;
   discount: number;
@@ -37,6 +39,7 @@ export interface PricedOrderLine {
 }
 
 export interface OrderQuote {
+  source: OrderSourceRow;
   lines: PricedOrderLine[];
   subtotal: number;
   discount: number;
@@ -100,6 +103,7 @@ export async function buildOrderQuote(
   options: { canApproveDiscount: boolean }
 ): Promise<OrderQuote> {
   await validateOrderConfiguration(db, accountId, input.items);
+  const source = await resolveOrderSource(db, accountId, input.source_id, input.order_type);
 
   const productIds = [...new Set(input.items.map((item) => item.product_id))];
   const products = await db("products")
@@ -112,6 +116,9 @@ export async function buildOrderQuote(
     .whereIn("product_id", productIds);
   const availability = await db("branch_product_availability")
     .where({ branch_id: branchId })
+    .whereIn("product_id", productIds);
+  const sourceRules = await db("source_product_rules")
+    .where({ source_id: source.id })
     .whereIn("product_id", productIds);
 
   const variantIds = [...new Set(input.items.map((item) => item.variant_id).filter(Boolean) as string[])];
@@ -135,7 +142,8 @@ export async function buildOrderQuote(
   const lines = input.items.map((item) => {
     const product = products.find((candidate) => candidate.id === item.product_id)!;
     const itemAvailability = availability.find((candidate) => candidate.product_id === item.product_id);
-    if (itemAvailability && !itemAvailability.is_available) {
+    const sourceRule = sourceRules.find((candidate) => candidate.product_id === item.product_id);
+    if ((itemAvailability && !itemAvailability.is_available) || sourceRule?.is_available === false) {
       throw err.validation({ product: `${ar.errors.product_unavailable}: ${product.name_ar}` });
     }
 
@@ -147,8 +155,13 @@ export async function buildOrderQuote(
       if (!variant) throw err.notFound();
     }
 
-    const override = overrides.find((candidate) => candidate.product_id === product.id)?.price_override;
-    const base = override != null ? Number(override) : Number(product.base_price);
+    const branchOverride = overrides.find((candidate) => candidate.product_id === product.id)?.price_override;
+    const sourceOverride = sourceRule?.price_override;
+    const base = sourceOverride != null
+      ? Number(sourceOverride)
+      : branchOverride != null
+        ? Number(branchOverride)
+        : Number(product.base_price);
     const mods = item.modifier_ids.map((modifierId) => modifiers.find((modifier) => modifier.id === modifierId)!);
     const unit =
       base +
@@ -181,6 +194,7 @@ export async function buildOrderQuote(
 
   const totals = computeOrderTotals(settings, subtotal, discount, input.delivery_fee);
   return {
+    source,
     lines,
     subtotal,
     discount,
@@ -199,6 +213,7 @@ const pricingItemSchema = z.object({
 
 const quoteSchema = z.object({
   branch_id: z.string().uuid(),
+  source_id: z.string().uuid().optional().nullable(),
   order_type: z.enum(["dine_in", "takeaway", "delivery"]).default("takeaway"),
   delivery_fee: z.number().nonnegative().default(0),
   discount: z.number().nonnegative().default(0),
@@ -236,6 +251,7 @@ function orderPrefix(settings: Settings, orderType: string): string | null {
 
 function publicQuote(quote: OrderQuote) {
   return {
+    source: { id: quote.source.id, code: quote.source.code, name_ar: quote.source.name_ar },
     items: quote.lines.map((line) => ({
       product_id: line.product.id,
       name_ar: line.product.name_ar,
@@ -388,6 +404,8 @@ export function orderPricingRoutes(db: Knex): Router {
             id: orderId,
             account_id: accountId,
             branch_id: branch.id,
+            source_id: quote.source.id,
+            source_name_snapshot: quote.source.name_ar,
             order_prefix: orderPrefix(settings, input.order_type),
             vat_amount: quote.vatAmount,
             service_fee: quote.serviceFee,
@@ -511,6 +529,8 @@ export function orderPricingRoutes(db: Knex): Router {
           meta: {
             order_no: created.order_no,
             order_type: input.order_type,
+            source_id: quote.source.id,
+            source_name: quote.source.name_ar,
             total: quote.total,
           },
           ip: req.ip,

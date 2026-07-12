@@ -65,6 +65,7 @@ export async function loadFullOrder(db: Knex, accountId: string, orderId: string
   const table = order.table_id ? await db("dining_tables").where({ id: order.table_id }).first() : null;
   const customer = order.customer_id ? await db("customers").where({ id: order.customer_id }).first() : null;
   const driver = order.driver_id ? await db("drivers").where({ id: order.driver_id }).first() : null;
+  const sourceRow = order.source_id ? await db("order_sources").where({ id: order.source_id }).first() : null;
   // YKMS-02G: اسم الكاشير/منشئ الطلب لمراجعة التشغيل
   const cashier = order.created_by ? await db("users").where({ id: order.created_by }).first() : null;
   return {
@@ -75,6 +76,7 @@ export async function loadFullOrder(db: Knex, accountId: string, orderId: string
     customer_phone: customer?.phone ?? null,
     customer_address: customer?.address ?? null,
     driver_name: driver?.name ?? null,
+    source_name: order.source_name_snapshot ?? sourceRow?.name_ar ?? "طلب سابق — المصدر غير مسجل",
     cashier_name: cashier?.name ?? null,
     items: items.map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),
     payments,
@@ -245,6 +247,7 @@ export function orderRoutes(db: Knex): Router {
           "o.order_no",
           "o.order_prefix",
           "o.order_type",
+          "o.source_name_snapshot",
           "o.status",
           "o.subtotal",
           "o.discount",
@@ -291,7 +294,12 @@ export function orderRoutes(db: Knex): Router {
           status === "ready" ? "ready" :
           status === "completed" ? "completed" :
           status === "cancelled" ? "cancelled" : "draft";
-        return { ...order, payment_status: paymentStatus, kitchen_status: kitchenStatus };
+        return {
+          ...order,
+          source_name: order.source_name_snapshot ?? "طلب سابق — المصدر غير مسجل",
+          payment_status: paymentStatus,
+          kitchen_status: kitchenStatus,
+        };
       });
 
       res.json({ data: { shift, orders: mapped } });

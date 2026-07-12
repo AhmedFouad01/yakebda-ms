@@ -4,10 +4,7 @@ on:
   push:
     branches: [main, dev]
   pull_request:
-    branches: [main, dev, audit/system-wide-ui-consistency]
-
-permissions:
-  contents: write
+    branches: [main, dev]
 
 jobs:
   build-and-test:
@@ -39,110 +36,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Apply order sources feature
-        if: github.head_ref == 'feature/order-sources-price-lists'
-        shell: bash
-        run: |
-          if [ ! -f docs/YAKEBDA_MS_Diagrams_Roadmap_v1_AR_RTL.md ]; then
-            cat > docs/YAKEBDA_MS_Diagrams_Roadmap_v1_AR_RTL.md <<'EOF'
-          <div dir="rtl" align="right">
-
-          # YAKEBDA MS — Flowcharts & Diagrams Roadmap
-
-          </div>
-          EOF
-          fi
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("tools/qa/apply-order-sources.mjs")
-          source = path.read_text()
-          source = source.replace(
-              "'             order_type: input.order_type,\\n             total: quote.total,'",
-              "'            order_type: input.order_type,\\n            total: quote.total,'",
-          )
-          source = source.replace(
-              "'             order_type: input.order_type,\\n             source_id: quote.source.id,\\n             source_name: quote.source.name_ar,\\n             total: quote.total,'",
-              "'            order_type: input.order_type,\\n            source_id: quote.source.id,\\n            source_name: quote.source.name_ar,\\n            total: quote.total,'",
-          )
-          source = source.replace(
-              "'                       <span>{order.item_count} قطعة</span>'",
-              "'<span>{order.item_count} قطعة</span>'",
-          )
-          source = source.replace(
-              "'                       <span>{order.item_count} قطعة</span>\\n                       <span>{order.source_name ?? \"مصدر غير مسجل\"}</span>'",
-              "'<span>{order.item_count} قطعة</span>\\n                       <span>{order.source_name ?? \"مصدر غير مسجل\"}</span>'",
-          )
-          path.write_text(source)
-          PY
-          if ! node tools/qa/apply-order-sources.mjs > patch-output.txt 2>&1; then
-            cat patch-output.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add patch-output.txt
-            git commit -m "chore(debug): capture order sources patch failure"
-            git push origin HEAD:feature/order-sources-price-lists
-            exit 1
-          fi
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("apps/api/src/modules/orderSources.ts")
-          source = path.read_text()
-          old = '''const sourceSchema = z
-            .object({
-              name_ar: z.string().trim().min(1).max(120),
-              is_active: z.boolean().default(true),
-              supports_takeaway: z.boolean().default(true),
-              supports_delivery: z.boolean().default(true),
-              sort_order: z.number().int().default(0),
-              copy_from_source_id: z.string().uuid().optional().nullable(),
-            })
-            .refine((value) => value.supports_takeaway || value.supports_delivery, {
-              message: "يجب تفعيل نوع طلب واحد على الأقل",
-              path: ["supports_takeaway"],
-            });
-
-          const sourcePatchSchema = sourceSchema
-            .omit({ copy_from_source_id: true })'''
-          new = '''const sourceObjectSchema = z.object({
-            name_ar: z.string().trim().min(1).max(120),
-            is_active: z.boolean().default(true),
-            supports_takeaway: z.boolean().default(true),
-            supports_delivery: z.boolean().default(true),
-            sort_order: z.number().int().default(0),
-            copy_from_source_id: z.string().uuid().optional().nullable(),
-          });
-
-          const sourceSchema = sourceObjectSchema.refine(
-            (value) => value.supports_takeaway || value.supports_delivery,
-            {
-              message: "يجب تفعيل نوع طلب واحد على الأقل",
-              path: ["supports_takeaway"],
-            }
-          );
-
-          const sourcePatchSchema = sourceObjectSchema
-            .omit({ copy_from_source_id: true })'''
-          if old not in source:
-              raise SystemExit("source schema correction target missing")
-          path.write_text(source.replace(old, new))
-          PY
-          rm -f patch-output.txt
-
-      - name: Guard accepted POS cards and KDS
-        if: github.head_ref == 'feature/order-sources-price-lists'
-        shell: bash
-        run: |
-          if git diff -U0 -- apps/admin/src/pages/Pos.tsx | grep -E 'posx-card2|function ProductCard|<ProductCard' ; then
-            echo "Accepted POS product-card area was touched."
-            exit 1
-          fi
-          git diff --exit-code --quiet -- apps/admin/src/pages/Kitchen.tsx apps/admin/src/kds-visual-system.css apps/admin/src/kds.css || {
-            echo "Accepted KDS files were touched."
-            exit 1
-          }
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -154,43 +47,7 @@ jobs:
         run: npm ci
 
       - name: API tests
-        shell: bash
-        run: |
-          if ! npm run api:test > test-output.txt 2>&1; then
-            tail -n 160 test-output.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add test-output.txt
-            git commit -m "chore(debug): capture order sources test failure"
-            git push origin HEAD:feature/order-sources-price-lists
-            exit 1
-          fi
-          rm -f test-output.txt
+        run: npm run api:test
 
       - name: Admin build
-        shell: bash
-        run: |
-          if ! npm run admin:build > build-output.txt 2>&1; then
-            tail -n 160 build-output.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add build-output.txt
-            git commit -m "chore(debug): capture order sources build failure"
-            git push origin HEAD:feature/order-sources-price-lists
-            exit 1
-          fi
-          rm -f build-output.txt
-
-      - name: Persist tested feature and restore CI
-        if: github.head_ref == 'feature/order-sources-price-lists'
-        shell: bash
-        run: |
-          rm -f patch-output.txt test-output.txt build-output.txt
-          rm tools/qa/apply-order-sources.mjs
-          rm .github/workflows/apply-order-sources.yml
-          git checkout 3054e165a36487eae7cb99aff4e3bdf6682878a8 -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "feat(order-sources): add source pricing and mandatory POS selection"
-          git push origin HEAD:feature/order-sources-price-lists
+        run: npm run admin:build

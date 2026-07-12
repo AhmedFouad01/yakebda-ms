@@ -21,6 +21,7 @@ interface ReceiptOrder {
   order_no: number;
   order_type: string;
   branch_name: string;
+  source_name?: string | null;
   table_name_ar?: string | null;
   customer_name?: string | null;
   delivery_address?: string | null;
@@ -57,6 +58,7 @@ export function renderReceiptPayload(order: ReceiptOrder, opts: ReceiptOptions =
   lines.push(order.branch_name);
   lines.push("--------------------------------");
   lines.push(`طلب رقم: ${order.order_no} — ${ORDER_TYPE_AR[order.order_type] ?? order.order_type}`);
+  if (order.source_name) lines.push(`المصدر: ${order.source_name}`);
   if (order.table_name_ar) lines.push(`الطاولة: ${order.table_name_ar}`);
   if (order.customer_name) lines.push(`العميل: ${order.customer_name}`);
   if (order.delivery_address) lines.push(`العنوان: ${order.delivery_address}`);
@@ -101,6 +103,7 @@ export function renderKitchenTicketPayload(order: ReceiptOrder, paperWidthMm: 58
   const lines: string[] = [];
   lines.push("تذكرة مطبخ — يا كبدة");
   lines.push(`طلب ${order.order_no}${order.order_type ? ` — ${ORDER_TYPE_AR[order.order_type] ?? order.order_type}` : ""}`);
+  if (order.source_name) lines.push(`المصدر: ${order.source_name}`);
   lines.push(`الوقت: ${new Date(order.created_at).toLocaleTimeString("ar-EG")}`);
   lines.push("--------------------------------");
   for (const item of order.items) {

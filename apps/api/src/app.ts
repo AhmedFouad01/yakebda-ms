@@ -24,14 +24,6 @@ type DatabaseError = Error & {
   detail?: string;
 };
 
-const ORDER_CONFIGURATION_CONSTRAINTS = new Set([
-  "order_item_variant_product_check",
-  "order_item_modifier_duplicate_check",
-  "order_item_modifier_product_check",
-  "order_item_modifier_min_select_check",
-  "order_item_modifier_max_select_check",
-]);
-
 export function createApp(db: Knex) {
   const app = express();
   app.use(cors());
@@ -78,12 +70,12 @@ export function createApp(db: Knex) {
     }
 
     const dbError = e as DatabaseError;
-    if (dbError.code === "23514" && dbError.constraint && ORDER_CONFIGURATION_CONSTRAINTS.has(dbError.constraint)) {
+    if (dbError.code === "23514") {
       return res.status(422).json({
         code: "validation",
         message: ar.errors.validation,
         details: {
-          order_configuration: dbError.constraint,
+          order_configuration: dbError.constraint ?? "check_violation",
           reason: dbError.message,
         },
       });

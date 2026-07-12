@@ -170,4 +170,45 @@ describe("Order pricing source", () => {
     expect(res.status).toBe(422);
     await db("branch_product_availability").where({ branch_id: branchId, product_id: productId }).del();
   });
+
+  it("queues a receipt when create-order captures payment and auto-print is enabled", async () => {
+    const settingsResponse = await request(app)
+      .patch(`/api/v1/settings?branch_id=${branchId}`)
+      .set(auth())
+      .send({ auto_print_on_payment: true, receipt_printing_enabled: true });
+    expect(settingsResponse.status).toBe(200);
+
+    await db("hardware_endpoints").insert({
+      id: newId(),
+      branch_id: branchId,
+      name: "طابعة إيصال اختبارية",
+      kind: "receipt_printer",
+      connection: "windows_driver",
+      protocol: "windows_driver",
+      address: "TEST-RECEIPT",
+      is_active: true,
+    });
+
+    const [{ count: before }] = await db("print_jobs").where({ type: "receipt" }).count("id as count");
+    const created = await request(app)
+      .post("/api/v1/orders")
+      .set(auth())
+      .send(payload({ discount: 0, payment_method: "card" }));
+    const [{ count: after }] = await db("print_jobs").where({ type: "receipt" }).count("id as count");
+
+    expect(created.status).toBe(201);
+    expect(Number(after)).toBe(Number(before) + 1);
+    const job = await db("print_jobs").where({ type: "receipt" }).orderBy("created_at", "desc").first();
+    expect(job.status).toBe("pending");
+const printPayload =
+  typeof job.payload === "string" ? JSON.parse(job.payload) : job.payload;
+
+expect(printPayload.template).toBe("receipt_v1");
+
+expect(printPayload.lines).toEqual(
+  expect.arrayContaining([
+    expect.stringContaining(`طلب رقم: ${created.body.data.order_no}`),
+  ])
+); });
+
 });

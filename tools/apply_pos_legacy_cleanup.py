@@ -95,21 +95,23 @@ def main() -> None:
 
     text = regex_once(
         text,
-        r"\n      \{picking && <OptionPicker.*?\n      \}\)\}\n      \{done && \(",
+        r"\n      \{picking && <OptionPicker.*?\n      \{done && \(",
         "\n      {done && (",
         "remove dead picker and product editor mounts",
     )
 
     text = regex_once(
         text,
-        r"      \{adminPanel && \(\n        <div className=\"modal-back\".*?\n      \}\)\}",
-        '''      {adminPanel === "shift" && (
+        r"\n      \{adminPanel && \(.*?\n      \)\}\n    </div>",
+        '''
+      {adminPanel === "shift" && (
         <div className="modal-back" onClick={() => setAdminPanel(null)}>
           <div className="modal posx-admin-modal" onClick={(e) => e.stopPropagation()}>
             <ShiftPanel shift={shift} money={money} openShift={openShift} closeShift={closeShift} />
           </div>
         </div>
-      )}''',
+      )}
+    </div>''',
         "simplify POS admin modal",
     )
 

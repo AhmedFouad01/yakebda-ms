@@ -11,6 +11,7 @@ import "./pos-card-layout-fix.css";
 import "./ui-cleanup.css";
 import "./theme.css";
 import "./theme-interactions.css";
+import "./ui-polish.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

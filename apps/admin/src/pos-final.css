@@ -1,0 +1,44 @@
+/* Final POS shell corrections. Loaded after all legacy POS styles. */
+
+/* Legacy styles.css positioned the POS as a fixed full-viewport layer.
+   Reset it so AppShell remains the only owner of the global header. */
+.app2-pos .posx {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Keep the complete operational bar inside the AppShell content area. */
+.app2-pos .posx-menu-top {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 94px !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+.app2-pos .posx-menu-tools {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 38px !important;
+}
+
+/* Product cards are ordering surfaces. Quantity changes remain available
+   through left-click add and right-click remove on the full card. */
+.app2-pos .posx-card2-foot {
+  display: none !important;
+}
+
+.app2-pos .posx-card2 {
+  min-height: 360px !important;
+}
+
+.app2-pos .posx-card2-opt:last-of-type {
+  padding-bottom: 14px;
+}

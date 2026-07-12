@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { api, resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
@@ -240,6 +241,8 @@ export function Pos() {
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
+  const [cashTender, setCashTender] = useState<number | null>(null);
+  const [shellControlsRoot, setShellControlsRoot] = useState<HTMLElement | null>(null);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
@@ -278,6 +281,10 @@ export function Pos() {
   }), [branchId, sourceId, orderType, deliveryZoneId, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
   const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
   const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
+
+  useEffect(() => {
+    setShellControlsRoot(document.getElementById("pos-appshell-controls"));
+  }, []);
 
   useEffect(() => {
     if (!cartDrawerOpen) return;
@@ -557,6 +564,16 @@ export function Pos() {
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
+  const tenderSuggestions = useMemo(() => {
+    if (total <= 0) return [] as number[];
+    const exact = Math.round(total * 100) / 100;
+    const roundUp = (step: number) => Math.ceil((exact + 0.0001) / step) * step;
+    const middleStep = exact < 200 ? 50 : 100;
+    const highStep = exact < 200 ? 100 : exact < 1000 ? 500 : 1000;
+    const values = [exact, roundUp(middleStep), roundUp(highStep)];
+    return values.filter((value, index) => values.findIndex((candidate) => Math.abs(candidate - value) < 0.01) === index).slice(0, 3);
+  }, [total]);
+  const selectedChange = cashTender == null ? 0 : Math.max(0, Math.round((cashTender - total) * 100) / 100);
 
   function addProduct(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
     const key = cartLineKey(product, variant, modifiers);
@@ -731,6 +748,7 @@ export function Pos() {
       setDeliveryPhone("");
       setDeliveryZoneId("");
       setDeliveryFee(0);
+      setCashTender(null);
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
@@ -750,6 +768,36 @@ export function Pos() {
 
   return (
     <div className="posx" dir="rtl">
+      {shellControlsRoot && createPortal(
+        <div className="posx-shell-order-controls">
+          <div className="seg dark posx-shell-order-types">
+            {enabledOrderTypes.map((type) => (
+              <button
+                type="button"
+                key={type}
+                className={orderType === type ? "active" : ""}
+                onClick={() => {
+                  setOrderType(type);
+                  setSourceId("");
+                  setDeliveryZoneId("");
+                  setDeliveryFee(0);
+                  setCashTender(null);
+                }}
+              >
+                {t.orders.types[type]}
+              </button>
+            ))}
+          </div>
+          <label className="posx-shell-source">
+            <span>مصدر الطلب</span>
+            <select value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
+              <option value="">اختر مصدر الطلب…</option>
+              {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
+            </select>
+          </label>
+        </div>,
+        shellControlsRoot
+      )}
 
       <div className="posx-body">
         <section className="posx-menu">
@@ -815,7 +863,8 @@ export function Pos() {
           {error && <div className="alert dark-alert">{error}</div>}
           {msg && <div className="ok dark-ok">{msg}</div>}
 
-          <div className="posx-cart-lines">
+          <div className="posx-cart-scroll">
+            <div className="posx-cart-lines">
             {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
             {cart.map((line, index) => (
               <div key={`${line.key}-${index}`} className="posx-line">
@@ -842,29 +891,6 @@ export function Pos() {
           </div>
 
           <div className="posx-opts">
-            <div className="seg dark">
-              {enabledOrderTypes.map((type) => (
-                <button
-                  key={type}
-                  className={orderType === type ? "active" : ""}
-                  onClick={() => {
-                    setOrderType(type);
-                    setSourceId("");
-                    setDeliveryZoneId("");
-                    setDeliveryFee(0);
-                  }}
-                >
-                  {t.orders.types[type]}
-                </button>
-              ))}
-            </div>
-            <label className="posx-source-field">
-              <span>مصدر الطلب</span>
-              <select value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
-                <option value="">اختر مصدر الطلب…</option>
-                {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
-              </select>
-            </label>
             {orderType === "delivery" && (
               <div className="posx-delivery-fields">
                 <label className="posx-delivery-field posx-delivery-field-full">
@@ -966,19 +992,47 @@ export function Pos() {
             <input placeholder={t.pos.orderNotes} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
             <div className="seg dark wrap">
               {enabledMethods.map((method) => (
-                <button key={method} className={payment === method ? "active" : ""} onClick={() => setPayment(method)}>{paymentLabels[method] ?? method}</button>
+                <button key={method} className={payment === method ? "active" : ""} onClick={() => { setPayment(method); setCashTender(null); }}>{paymentLabels[method] ?? method}</button>
               ))}
             </div>
             {cashBlocked && <div className="posx-warn">{t.shift.cashNeedsShift}</div>}
+            </div>
           </div>
 
           <div className="posx-totals">
-            <div className="receipt-row"><span>{t.pos.subtotal}</span><span>{money(subtotal)}</span></div>
             {(currentQuote?.discount ?? discount) > 0 && <div className="receipt-row"><span>{t.pos.discount}</span><span>{money(currentQuote?.discount ?? discount)}</span></div>}
             {serviceFeeEstimate > 0 && <div className="receipt-row"><span>{t.pos.serviceFee}</span><span>{money(serviceFeeEstimate)}</span></div>}
             {orderType === "delivery" && activeDeliveryFee > 0 && <div className="receipt-row"><span>{t.pos.deliveryFee}</span><span>{money(activeDeliveryFee)}</span></div>}
             {vatEstimate > 0 && <div className="receipt-row"><span>{t.pos.vat} ({settings?.vat_percentage}%)</span><span>{money(vatEstimate)}</span></div>}
             <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{quoteBusy && !currentQuote ? "…" : money(total)}</span></div>
+            {payment === "cash" && total > 0 && (
+              <div className="posx-change-panel">
+                <span className="posx-change-title">استلم من العميل</span>
+                <div className="posx-change-options">
+                  {tenderSuggestions.map((amount) => {
+                    const change = Math.max(0, Math.round((amount - total) * 100) / 100);
+                    const exact = change < 0.01;
+                    return (
+                      <button
+                        type="button"
+                        key={amount}
+                        className={`posx-change-option${cashTender != null && Math.abs(cashTender - amount) < 0.01 ? " active" : ""}`}
+                        onClick={() => setCashTender(amount)}
+                      >
+                        <b>{money(amount)}</b>
+                        <span>{exact ? "بدون باقي" : `الباقي ${money(change)}`}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {cashTender != null && (
+                  <div className="posx-change-result">
+                    <span>الباقي للعميل</span>
+                    <strong>{money(selectedChange)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {(() => {

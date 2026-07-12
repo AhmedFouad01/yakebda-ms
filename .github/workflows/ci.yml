@@ -46,6 +46,20 @@ jobs:
         if: github.head_ref == 'feature/order-sources-price-lists'
         shell: bash
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/qa/apply-order-sources.mjs")
+          source = path.read_text()
+          source = source.replace(
+              "'             order_type: input.order_type,\\n             total: quote.total,'",
+              "'            order_type: input.order_type,\\n            total: quote.total,'",
+          )
+          source = source.replace(
+              "'             order_type: input.order_type,\\n             source_id: quote.source.id,\\n             source_name: quote.source.name_ar,\\n             total: quote.total,'",
+              "'            order_type: input.order_type,\\n            source_id: quote.source.id,\\n            source_name: quote.source.name_ar,\\n            total: quote.total,'",
+          )
+          path.write_text(source)
+          PY
           if ! node tools/qa/apply-order-sources.mjs > patch-output.txt 2>&1; then
             cat patch-output.txt
             git config user.name "github-actions[bot]"
@@ -89,6 +103,7 @@ jobs:
         if: github.head_ref == 'feature/order-sources-price-lists'
         shell: bash
         run: |
+          rm -f patch-output.txt
           rm tools/qa/apply-order-sources.mjs
           rm .github/workflows/apply-order-sources.yml
           git checkout 3054e165a36487eae7cb99aff4e3bdf6682878a8 -- .github/workflows/ci.yml

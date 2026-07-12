@@ -132,6 +132,19 @@ describe("Security and branch scope stabilization", () => {
     expect(crm.status).toBe(200);
   });
 
+  it("checks orders.create before exposing configuration validation", async () => {
+    const res = await request(app)
+      .post("/api/v1/orders")
+      .set(auth(manageOnlyToken))
+      .send({
+        branch_id: branchId,
+        order_type: "takeaway",
+        payment_method: "unpaid",
+        items: [{ product_id: newId(), qty: 1, modifier_ids: [] }],
+      });
+    expect(res.status).toBe(403);
+  });
+
   it("rejects payment capture when the user lacks payments.record", async () => {
     const res = await request(app)
       .post("/api/v1/orders")

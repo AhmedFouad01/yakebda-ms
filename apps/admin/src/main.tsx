@@ -17,8 +17,7 @@ import "./final-closure.css";
 import "./select-rendering-fix.css";
 import "./pos-1920-density.css";
 import "./pos-delivery-checkout.css";
-import "./pos-cart-workflow.css";
-import "./pos-layout-runtime";
+import "./pos-fast-rail.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

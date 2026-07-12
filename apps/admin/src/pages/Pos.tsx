@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { api, resolveAssetUrl } from "../lib/api";
@@ -7,6 +7,7 @@ import { Receipt, FullOrder } from "../components/Receipt";
 import { OrderDetail } from "../components/OrderDetail";
 import { useMe } from "../lib/me";
 import { Drawer } from "../components/ui/overlays";
+import { PosCartLine } from "../components/pos/PosCartLine";
 
 interface MenuModifier {
   id: string;
@@ -241,8 +242,9 @@ export function Pos() {
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
-  const [cashTender, setCashTender] = useState<number | null>(null);
   const [shellControlsRoot, setShellControlsRoot] = useState<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const sourceSelectRef = useRef<HTMLSelectElement>(null);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
@@ -284,6 +286,25 @@ export function Pos() {
 
   useEffect(() => {
     setShellControlsRoot(document.getElementById("pos-appshell-controls"));
+  }, []);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editing = target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+      if (event.key === "/" && !editing) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (event.key === "F2") {
+        event.preventDefault();
+        sourceSelectRef.current?.focus();
+      } else if (event.key === "F4") {
+        event.preventDefault();
+        setHistoryOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
 
   useEffect(() => {
@@ -564,16 +585,6 @@ export function Pos() {
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
-  const tenderSuggestions = useMemo(() => {
-    if (total <= 0) return [] as number[];
-    const exact = Math.round(total * 100) / 100;
-    const roundUp = (step: number) => Math.ceil((exact + 0.0001) / step) * step;
-    const middleStep = exact < 200 ? 50 : 100;
-    const highStep = exact < 200 ? 100 : exact < 1000 ? 500 : 1000;
-    const values = [exact, roundUp(middleStep), roundUp(highStep)];
-    return values.filter((value, index) => values.findIndex((candidate) => Math.abs(candidate - value) < 0.01) === index).slice(0, 3);
-  }, [total]);
-  const selectedChange = cashTender == null ? 0 : Math.max(0, Math.round((cashTender - total) * 100) / 100);
 
   function addProduct(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
     const key = cartLineKey(product, variant, modifiers);
@@ -748,7 +759,6 @@ export function Pos() {
       setDeliveryPhone("");
       setDeliveryZoneId("");
       setDeliveryFee(0);
-      setCashTender(null);
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
@@ -769,32 +779,20 @@ export function Pos() {
   return (
     <div className="posx" dir="rtl">
       {shellControlsRoot && createPortal(
-        <div className="posx-shell-order-controls">
-          <div className="seg dark posx-shell-order-types">
-            {enabledOrderTypes.map((type) => (
-              <button
-                type="button"
-                key={type}
-                className={orderType === type ? "active" : ""}
-                onClick={() => {
-                  setOrderType(type);
-                  setSourceId("");
-                  setDeliveryZoneId("");
-                  setDeliveryFee(0);
-                  setCashTender(null);
-                }}
-              >
-                {t.orders.types[type]}
-              </button>
-            ))}
-          </div>
-          <label className="posx-shell-source">
-            <span>مصدر الطلب</span>
-            <select value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
-              <option value="">اختر مصدر الطلب…</option>
-              {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
-            </select>
-          </label>
+        <div className="posx-shell-operation-controls" aria-label="أدوات تشغيل نقطة البيع">
+          <span className={shift ? "posx-shift on" : "posx-shift off"}>
+            <span>{me?.name ?? "الكاشير"}</span>
+            <span>{shift ? t.shift.openTitle : t.shift.noShift}</span>
+            {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>{shift ? t.shift.close : t.shift.open}</button>}
+          </span>
+          <input
+            ref={searchInputRef}
+            className="posx-search"
+            placeholder="ابحث باسم الصنف أو المكونات…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
         </div>,
         shellControlsRoot
       )}
@@ -808,13 +806,6 @@ export function Pos() {
                 <option key={branch.id} value={branch.id}>{branch.name}</option>
               ))}
             </select>
-            <span className={shift ? "posx-shift on" : "posx-shift off"}>
-              <span>{me?.name ?? "الكاشير"}</span>
-              <span>{shift ? t.shift.openTitle : t.shift.noShift}</span>
-              {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>{shift ? t.shift.close : t.shift.open}</button>}
-            </span>
-            <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
             <button
               type="button"
               className="posx-cart-toggle"
@@ -863,32 +854,48 @@ export function Pos() {
           {error && <div className="alert dark-alert">{error}</div>}
           {msg && <div className="ok dark-ok">{msg}</div>}
 
+          <div className="posx-order-rail" aria-label="بيانات الطلب الأساسية">
+            <div className="seg dark">
+              {enabledOrderTypes.map((type) => (
+                <button
+                  type="button"
+                  key={type}
+                  className={orderType === type ? "active" : ""}
+                  onClick={() => {
+                    setOrderType(type);
+                    setSourceId("");
+                    setDeliveryZoneId("");
+                    setDeliveryFee(0);
+                  }}
+                >
+                  {t.orders.types[type]}
+                </button>
+              ))}
+            </div>
+            <label className="posx-source-field">
+              <span>مصدر الطلب</span>
+              <select ref={sourceSelectRef} value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
+                <option value="">اختر مصدر الطلب…</option>
+                {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
+              </select>
+            </label>
+          </div>
+
           <div className="posx-cart-scroll">
             <div className="posx-cart-lines">
-            {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
-            {cart.map((line, index) => (
-              <div key={`${line.key}-${index}`} className="posx-line">
-                <ProductThumb product={line.product} />
-                <div className="posx-line-content">
-                  <div className="posx-line-head">
-                    <span className="posx-line-name">{line.product.name_ar}</span>
-                    <span className="posx-line-total">{money(unitPrice(line) * line.qty)}</span>
-                  </div>
-                  <div className="posx-line-selection">
-                    {line.variant?.name_ar && <span>{line.variant.name_ar}</span>}
-                    {line.modifiers.map((modifier) => <span key={modifier.id}>{modifier.name_ar}</span>)}
-                  </div>
-                  <div className="posx-line-actions">
-                    <span className="posx-line-qty" aria-label={`الكمية ${line.qty}`}>{line.qty}</span>
-                    <button aria-label="زيادة الكمية" onClick={() => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, qty: row.qty + 1 } : row)))}>+</button>
-                    <button aria-label="تقليل الكمية" onClick={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}>−</button>
-                    <button className="rm" aria-label="حذف الصنف من الطلب" onClick={() => setCart((rows) => rows.filter((_, i) => i !== index))}>✕</button>
-                  </div>
-                  <input className="posx-line-note" placeholder={t.pos.itemNotes} value={line.notes} onChange={(e) => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, notes: e.target.value } : row)))} />
-                </div>
-              </div>
-            ))}
-          </div>
+              {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
+              {cart.map((line, index) => (
+                <PosCartLine
+                  key={`${line.key}-${index}`}
+                  line={line}
+                  totalLabel={money(unitPrice(line) * line.qty)}
+                  onIncrease={() => setCart((rows) => rows.map((row, i) => i === index ? { ...row, qty: row.qty + 1 } : row))}
+                  onDecrease={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}
+                  onRemove={() => setCart((rows) => rows.filter((_, i) => i !== index))}
+                  onNotesChange={(notes) => setCart((rows) => rows.map((row, i) => i === index ? { ...row, notes } : row))}
+                />
+              ))}
+            </div>
 
           <div className="posx-opts">
             {orderType === "delivery" && (
@@ -992,7 +999,7 @@ export function Pos() {
             <input placeholder={t.pos.orderNotes} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
             <div className="seg dark wrap">
               {enabledMethods.map((method) => (
-                <button key={method} className={payment === method ? "active" : ""} onClick={() => { setPayment(method); setCashTender(null); }}>{paymentLabels[method] ?? method}</button>
+                <button key={method} className={payment === method ? "active" : ""} onClick={() => setPayment(method)}>{paymentLabels[method] ?? method}</button>
               ))}
             </div>
             {cashBlocked && <div className="posx-warn">{t.shift.cashNeedsShift}</div>}
@@ -1004,35 +1011,8 @@ export function Pos() {
             {serviceFeeEstimate > 0 && <div className="receipt-row"><span>{t.pos.serviceFee}</span><span>{money(serviceFeeEstimate)}</span></div>}
             {orderType === "delivery" && activeDeliveryFee > 0 && <div className="receipt-row"><span>{t.pos.deliveryFee}</span><span>{money(activeDeliveryFee)}</span></div>}
             {vatEstimate > 0 && <div className="receipt-row"><span>{t.pos.vat} ({settings?.vat_percentage}%)</span><span>{money(vatEstimate)}</span></div>}
-            <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{quoteBusy && !currentQuote ? "…" : money(total)}</span></div>
-            {payment === "cash" && total > 0 && (
-              <div className="posx-change-panel">
-                <span className="posx-change-title">استلم من العميل</span>
-                <div className="posx-change-options">
-                  {tenderSuggestions.map((amount) => {
-                    const change = Math.max(0, Math.round((amount - total) * 100) / 100);
-                    const exact = change < 0.01;
-                    return (
-                      <button
-                        type="button"
-                        key={amount}
-                        className={`posx-change-option${cashTender != null && Math.abs(cashTender - amount) < 0.01 ? " active" : ""}`}
-                        onClick={() => setCashTender(amount)}
-                      >
-                        <b>{money(amount)}</b>
-                        <span>{exact ? "بدون باقي" : `الباقي ${money(change)}`}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {cashTender != null && (
-                  <div className="posx-change-result">
-                    <span>الباقي للعميل</span>
-                    <strong>{money(selectedChange)}</strong>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="receipt-row posx-total"><span>{t.pos.total}</span><span aria-live="polite">{!sourceId ? "—" : quoteBusy && !currentQuote ? "…" : currentQuote ? money(total) : "—"}</span></div>
+            {!sourceId && cart.length > 0 && <span className="posx-total-helper">اختر مصدر الطلب لحساب الإجمالي</span>}
           </div>
 
           {(() => {
@@ -1259,21 +1239,6 @@ export function Pos() {
         </div>
       )}
     </div>
-  );
-}
-
-function ProductThumb({ product }: { product: MenuProduct }) {
-  const src = resolveAssetUrl(product.image_url);
-  const [broken, setBroken] = useState(false);
-
-  useEffect(() => setBroken(false), [src]);
-
-  return (
-    <span className="posx-line-thumb" aria-hidden>
-      {src && !broken
-        ? <img src={src} alt="" onError={() => setBroken(true)} />
-        : <span>{product.name_ar.trim().charAt(0)}</span>}
-    </span>
   );
 }
 

@@ -1,5 +1,7 @@
 const BASE = "/api/v1";
 const ASSET_ORIGIN = String(import.meta.env.VITE_API_ORIGIN ?? "").replace(/\/$/, "");
+const AUTH_PATHS = new Set(["/auth/login", "/auth/pin-login"]);
+let redirectingToLogin = false;
 
 export function getToken(): string | null {
   return sessionStorage.getItem("ykms_token");
@@ -15,6 +17,14 @@ export class ApiFail extends Error {
   }
 }
 
+function expireSession(path: string) {
+  if (AUTH_PATHS.has(path)) return;
+  setToken(null);
+  if (redirectingToLogin || window.location.pathname === "/login") return;
+  redirectingToLogin = true;
+  window.location.replace("/login");
+}
+
 export async function api<T = any>(
   path: string,
   opts: { method?: string; body?: unknown } = {}
@@ -28,7 +38,16 @@ export async function api<T = any>(
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiFail(res.status, data.message ?? "حدث خطأ غير متوقع.", data.details);
+  if (!res.ok) {
+    if (res.status === 401) expireSession(path);
+    throw new ApiFail(
+      res.status,
+      res.status === 401 && !AUTH_PATHS.has(path)
+        ? "انتهت جلسة الدخول. سجّل الدخول مرة أخرى."
+        : data.message ?? "حدث خطأ غير متوقع.",
+      data.details
+    );
+  }
   return data;
 }
 
@@ -37,7 +56,13 @@ export async function downloadFile(path: string, filename: string): Promise<void
   const res = await fetch(`${BASE}${path}`, {
     headers: { ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
   });
-  if (!res.ok) throw new ApiFail(res.status, "تعذّر التنزيل");
+  if (!res.ok) {
+    if (res.status === 401) expireSession(path);
+    throw new ApiFail(
+      res.status,
+      res.status === 401 ? "انتهت جلسة الدخول. سجّل الدخول مرة أخرى." : "تعذّر التنزيل"
+    );
+  }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -61,7 +86,6 @@ export function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
 
 /**
  * Resolve uploaded assets against the API origin.

@@ -159,6 +159,8 @@ const unitPrice = (line: CartLine) =>
   line.product.effective_price +
   Number(line.variant?.price_delta ?? 0) +
   line.modifiers.reduce((sum, mod) => sum + Number(mod.price_delta), 0);
+const cartLineKey = (product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) =>
+  `${product.id}|${variant?.id ?? ""}|${modifiers.map((modifier) => modifier.id).sort().join(",")}`;
 const catRank = (name: string) => {
   const index = CAT_ORDER.indexOf(name);
   return index === -1 ? 99 : index;
@@ -365,7 +367,7 @@ export function Pos() {
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
 
   function addProduct(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
-    const key = `${product.id}|${variant?.id ?? ""}|${modifiers.map((modifier) => modifier.id).sort().join(",")}`;
+    const key = cartLineKey(product, variant, modifiers);
     setCart((current) => {
       const found = current.find((line) => line.key === key && !line.notes);
       if (found) {
@@ -375,19 +377,17 @@ export function Pos() {
     });
   }
 
-  function quickRemove(product: MenuProduct) {
+  function quickRemove(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
+    const key = cartLineKey(product, variant, modifiers);
     setCart((rows) => {
-      const index = rows.findIndex((line) => line.product.id === product.id);
-      if (index === -1) return rows;
-      return rows.flatMap((line, i) => {
-        if (i !== index) return [line];
+      const exactIndex = rows.findIndex((line) => line.key === key && !line.notes);
+      const fallbackIndex = exactIndex === -1 ? rows.findIndex((line) => line.key === key) : exactIndex;
+      if (fallbackIndex === -1) return rows;
+      return rows.flatMap((line, index) => {
+        if (index !== fallbackIndex) return [line];
         return line.qty > 1 ? [{ ...line, qty: line.qty - 1 }] : [];
       });
     });
-  }
-
-  function productQty(product: MenuProduct) {
-    return cart.filter((line) => line.product.id === product.id).reduce((sum, line) => sum + line.qty, 0);
   }
 
   async function openShift() {
@@ -591,12 +591,11 @@ export function Pos() {
               <ProductCard
                 key={product.id}
                 product={product}
-                qty={productQty(product)}
+                cartLines={cart}
                 showImage={settings?.show_product_images !== false}
                 money={money}
-                onAdd={(variant, mods) => addProduct(product, variant, mods)}
-                onQuickRemove={() => quickRemove(product)}
-                onOpenDetail={() => setPicking(product)}
+                onAdd={(variant, modifiers) => addProduct(product, variant, modifiers)}
+                onQuickRemove={(variant, modifiers) => quickRemove(product, variant, modifiers)}
               />
             ))}
           </div>
@@ -612,17 +611,23 @@ export function Pos() {
             {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
             {cart.map((line, index) => (
               <div key={`${line.key}-${index}`} className="posx-line">
-                <div className="posx-line-head">
-                  <span>{line.product.name_ar}{line.variant ? ` (${line.variant.name_ar})` : ""}</span>
-                  <span>{money(unitPrice(line) * line.qty)}</span>
-                </div>
-                {line.modifiers.length > 0 && <div className="posx-line-mods">{line.modifiers.map((modifier) => modifier.name_ar).join("، ")}</div>}
-                <div className="posx-line-actions">
-                  <button onClick={() => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, qty: row.qty + 1 } : row)))}>+</button>
-                  <span>{line.qty}</span>
-                  <button onClick={() => setCart((rows) => rows.map((row, i) => (i === index && row.qty > 1 ? { ...row, qty: row.qty - 1 } : row)))}>−</button>
-                  <button className="rm" onClick={() => setCart((rows) => rows.filter((_, i) => i !== index))}>✕</button>
-                  <input placeholder={t.pos.itemNotes} value={line.notes} onChange={(e) => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, notes: e.target.value } : row)))} />
+                <ProductThumb product={line.product} />
+                <div className="posx-line-content">
+                  <div className="posx-line-head">
+                    <span className="posx-line-name">{line.product.name_ar}</span>
+                    <span className="posx-line-total">{money(unitPrice(line) * line.qty)}</span>
+                  </div>
+                  <div className="posx-line-selection">
+                    {line.variant?.name_ar && <span>{line.variant.name_ar}</span>}
+                    {line.modifiers.map((modifier) => <span key={modifier.id}>{modifier.name_ar}</span>)}
+                  </div>
+                  <div className="posx-line-actions">
+                    <span className="posx-line-qty" aria-label={`الكمية ${line.qty}`}>{line.qty}</span>
+                    <button aria-label="زيادة الكمية" onClick={() => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, qty: row.qty + 1 } : row)))}>+</button>
+                    <button aria-label="تقليل الكمية" onClick={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}>−</button>
+                    <button className="rm" aria-label="حذف الصنف من الطلب" onClick={() => setCart((rows) => rows.filter((_, i) => i !== index))}>✕</button>
+                  </div>
+                  <input className="posx-line-note" placeholder={t.pos.itemNotes} value={line.notes} onChange={(e) => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, notes: e.target.value } : row)))} />
                 </div>
               </div>
             ))}
@@ -836,6 +841,21 @@ export function Pos() {
   );
 }
 
+function ProductThumb({ product }: { product: MenuProduct }) {
+  const src = resolveAssetUrl(product.image_url);
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => setBroken(false), [src]);
+
+  return (
+    <span className="posx-line-thumb" aria-hidden>
+      {src && !broken
+        ? <img src={src} alt="" onError={() => setBroken(true)} />
+        : <span>{product.name_ar.trim().charAt(0)}</span>}
+    </span>
+  );
+}
+
 function ItemManager(props: {
   products: AdminProduct[];
   categories: AdminCategory[];
@@ -919,38 +939,75 @@ function OffersPanel() {
 }
 
 /**
- * YKMS-02G-E — بطاقة طلب فقط.
- * Left click adds the selected configuration; right click decrements it.
- * Product editing stays exclusively in the top administration flow.
+ * POS product card v2.
+ * The selected size and bread stay inline for speed. Left click increments the
+ * exact selected configuration; right click decrements that same configuration.
  */
 function ProductCard({
   product,
-  qty,
+  cartLines,
   showImage,
   money,
   onAdd,
   onQuickRemove,
-  onOpenDetail,
 }: {
   product: MenuProduct;
-  qty: number;
+  cartLines: CartLine[];
   showImage: boolean;
-  money: (v: number) => string;
-  onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void;
-  onQuickRemove: () => void;
-  onOpenDetail: () => void;
+  money: (value: number) => string;
+  onAdd: (variant: MenuVariant | null, modifiers: MenuModifier[]) => void;
+  onQuickRemove: (variant: MenuVariant | null, modifiers: MenuModifier[]) => void;
 }) {
   const inlineGroups = product.modifier_groups.filter((group) => group.is_required && group.max_select === 1);
-  const detailGroups = product.modifier_groups.filter((group) => !(group.is_required && group.max_select === 1));
-  const hasSizes = product.variants.length > 0;
-  const hasDetail = detailGroups.length > 0;
+  const breadTerms = Array.from(new Set(
+    inlineGroups.flatMap((group) => group.modifiers.map((modifier) => modifier.name_ar.trim())).filter(Boolean)
+  ));
 
-  const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
+  function sizeLabel(name: string) {
+    let label = name.trim();
+    for (const bread of breadTerms) label = label.split(bread).join(" ");
+    label = label.replace(/\b(فينو|سياحي)\b/g, " ").replace(/[\-–—/|]+/g, " ").replace(/\s+/g, " ").trim();
+    return label || name.trim();
+  }
+
+  const sizeOptions = product.variants.reduce<Array<{ label: string; fallback: MenuVariant }>>((result, item) => {
+    const label = sizeLabel(item.name_ar);
+    if (!result.some((option) => option.label === label)) result.push({ label, fallback: item });
+    return result;
+  }, []);
+
   const [breadSel, setBreadSel] = useState<Record<string, MenuModifier>>(() => {
     const initial: Record<string, MenuModifier> = {};
     for (const group of inlineGroups) if (group.modifiers[0]) initial[group.id] = group.modifiers[0];
     return initial;
   });
+  const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
+
+  const selectedModifiers = Object.values(breadSel);
+  const selectedBreadNames = selectedModifiers.map((modifier) => modifier.name_ar.trim()).filter(Boolean);
+  const selectedSize = variant ? sizeLabel(variant.name_ar) : sizeOptions[0]?.label ?? "";
+
+  function chooseVariant(size: string, breadNames = selectedBreadNames) {
+    const exact = product.variants.find((item) => {
+      if (sizeLabel(item.name_ar) !== size) return false;
+      return breadNames.length === 0 || breadNames.every((bread) => item.name_ar.includes(bread));
+    });
+    return exact ?? product.variants.find((item) => sizeLabel(item.name_ar) === size) ?? null;
+  }
+
+  function selectSize(size: string) {
+    setVariant(chooseVariant(size));
+  }
+
+  function selectModifier(group: MenuGroup, modifier: MenuModifier) {
+    setBreadSel((current) => ({ ...current, [group.id]: modifier }));
+    if (selectedSize) {
+      const nextBreadNames = Object.entries(breadSel)
+        .map(([groupId, selected]) => groupId === group.id ? modifier.name_ar.trim() : selected.name_ar.trim())
+        .filter(Boolean);
+      setVariant(chooseVariant(selectedSize, nextBreadNames));
+    }
+  }
 
   const imageSrc = resolveAssetUrl(product.image_url);
   const [imageBroken, setImageBroken] = useState(false);
@@ -959,11 +1016,15 @@ function ProductCard({
   const priceNow =
     product.effective_price +
     Number(variant?.price_delta ?? 0) +
-    Object.values(breadSel).reduce((sum, modifier) => sum + Number(modifier.price_delta ?? 0), 0);
+    selectedModifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta ?? 0), 0);
+  const selectedKey = cartLineKey(product, variant, selectedModifiers);
+  const selectedQty = cartLines
+    .filter((line) => line.key === selectedKey)
+    .reduce((sum, line) => sum + line.qty, 0);
+  const hasInlineOptions = sizeOptions.length > 0 || inlineGroups.length > 0;
 
   function add() {
-    if (!product.is_available) return;
-    onAdd(variant, Object.values(breadSel));
+    if (product.is_available) onAdd(variant, selectedModifiers);
   }
 
   function isControl(target: EventTarget | null) {
@@ -976,12 +1037,10 @@ function ProductCard({
       role="button"
       tabIndex={product.is_available ? 0 : -1}
       aria-label={`${product.name_ar} — كليك شمال للإضافة، كليك يمين للتقليل`}
-      onClick={(event) => {
-        if (!isControl(event.target)) add();
-      }}
+      onClick={(event) => { if (!isControl(event.target)) add(); }}
       onContextMenu={(event) => {
         event.preventDefault();
-        if (!isControl(event.target) && qty > 0) onQuickRemove();
+        if (!isControl(event.target) && selectedQty > 0) onQuickRemove(variant, selectedModifiers);
       }}
       onKeyDown={(event) => {
         if ((event.key === "Enter" || event.key === " ") && !isControl(event.target)) {
@@ -991,77 +1050,61 @@ function ProductCard({
       }}
     >
       <div className="posx-card2-media">
-        {showImage && imageSrc && !imageBroken ? (
-          <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
-        ) : (
-          <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>
-        )}
-        {qty > 0 && <span className="posx-card2-qty-badge">{qty}</span>}
+        {showImage && imageSrc && !imageBroken
+          ? <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
+          : <span className="posx-card2-img ph" />}
+        <span className="posx-card2-price">{money(priceNow)}</span>
+        {selectedQty > 0 && <span className="posx-card2-qty-badge">×{selectedQty}</span>}
       </div>
 
       <div className="posx-card2-info">
         <h3 className="posx-card2-name">{product.name_ar}</h3>
-        <span className="posx-card2-price">{money(priceNow)}</span>
       </div>
 
       {!product.is_available && <div className="posx-card2-off">{product.availability_note_ar ?? t.menu.unavailable}</div>}
 
-      {product.is_available && hasSizes && (
-        <div className="posx-card2-opt">
-          <span className="posx-card2-opt-label">الحجم</span>
-          <div className="posx-chips">
-            {product.variants.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                className={variant?.id === item.id ? "active" : ""}
-                onClick={(event) => { event.stopPropagation(); setVariant(item); }}
-                onContextMenu={(event) => event.stopPropagation()}
-              >
-                {item.name_ar}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {product.is_available && inlineGroups.map((group) => (
-        <div key={group.id} className="posx-card2-opt">
-          <span className="posx-card2-opt-label">{group.name_ar}</span>
-          <div className="posx-chips">
-            {group.modifiers.map((modifier) => (
-              <button
-                type="button"
-                key={modifier.id}
-                className={breadSel[group.id]?.id === modifier.id ? "active" : ""}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setBreadSel((current) => ({ ...current, [group.id]: modifier }));
-                }}
-                onContextMenu={(event) => event.stopPropagation()}
-              >
-                {modifier.name_ar}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-
       {product.is_available && (
-        <footer className="posx-card2-foot">
-          {hasDetail ? (
-            <button type="button" className="posx-card2-detail" onClick={(event) => { event.stopPropagation(); onOpenDetail(); }}>
-              + إضافات
-            </button>
-          ) : (
-            <span className="posx-card2-hint">شمال + / يمين −</span>
+        <div className="posx-card2-options">
+          {sizeOptions.length > 0 && (
+            <div className="posx-card2-opt">
+              <span className="posx-card2-opt-label">الحجم</span>
+              <div className="posx-chips" role="group" aria-label="الحجم">
+                {sizeOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.label}
+                    className={selectedSize === option.label ? "active" : ""}
+                    onClick={(event) => { event.stopPropagation(); selectSize(option.label); }}
+                    onContextMenu={(event) => event.stopPropagation()}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-          <div className="posx-card2-stepper">
-            <button type="button" onClick={(event) => { event.stopPropagation(); onQuickRemove(); }} disabled={!qty}>−</button>
-            <span>{qty}</span>
-            <button type="button" onClick={(event) => { event.stopPropagation(); add(); }}>+</button>
-          </div>
-        </footer>
+
+          {inlineGroups.map((group) => (
+            <div key={group.id} className="posx-card2-opt">
+              <span className="posx-card2-opt-label">{group.name_ar.includes("عيش") ? "نوع العيش" : group.name_ar}</span>
+              <div className="posx-chips" role="group" aria-label={group.name_ar}>
+                {group.modifiers.map((modifier) => (
+                  <button
+                    type="button"
+                    key={modifier.id}
+                    className={breadSel[group.id]?.id === modifier.id ? "active" : ""}
+                    onClick={(event) => { event.stopPropagation(); selectModifier(group, modifier); }}
+                    onContextMenu={(event) => event.stopPropagation()}
+                  >
+                    {modifier.name_ar}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {!hasInlineOptions && <div className="posx-card2-direct">اضغط على الكارت للإضافة</div>}
+        </div>
       )}
     </article>
   );

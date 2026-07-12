@@ -399,3 +399,522 @@
     grid-template-columns: 40px minmax(0, 1fr) 40px !important;
   }
 }
+
+/* ==================================================================
+   System-wide UI consistency contract
+   Owns unclassed legacy controls, list/table presentation, active states,
+   and modal/action geometry. Specialized POS and KDS controls remain scoped.
+   ================================================================== */
+
+:root {
+  --ui-control-h: 40px;
+  --ui-control-h-sm: 34px;
+  --ui-radius: 10px;
+  --ui-gap: 8px;
+}
+
+/* ---------- Legacy raw buttons become real design-system controls ---------- */
+.app2-main:not(.full) button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn),
+.modal button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn),
+.uif-drawer button:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn) {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: var(--ui-control-h);
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--ui-radius);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease, box-shadow 130ms ease, transform 80ms ease;
+}
+
+.app2-main:not(.full) button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn):hover:not(:disabled),
+.modal button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled),
+.uif-drawer button:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled) {
+  border-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-main:not(.full) button:active:not(:disabled),
+.modal button:active:not(:disabled),
+.uif-drawer button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button.secondary,
+.uif-btn.secondary {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+button.success,
+.uif-btn.success {
+  border-color: var(--success) !important;
+  background: var(--success) !important;
+  color: #08170f !important;
+}
+
+button.success:hover:not(:disabled),
+.uif-btn.success:hover:not(:disabled) {
+  border-color: var(--success) !important;
+  background: color-mix(in srgb, var(--success) 88%, white) !important;
+  color: #08170f !important;
+}
+
+button.danger:hover:not(:disabled),
+.uif-btn.danger:hover:not(:disabled) {
+  border-color: var(--danger) !important;
+  background: color-mix(in srgb, var(--danger) 86%, black) !important;
+  color: #ffffff !important;
+}
+
+/* ---------- Active and selected states are never implicit ---------- */
+.app2-main:not(.full) .seg,
+.uif-tabs,
+.od-modal-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.app2-main:not(.full) .seg > button,
+.uif-tabs > button,
+.od-modal-tabs > button {
+  min-height: 34px !important;
+  padding-inline: 13px !important;
+  border-color: transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+}
+
+.app2-main:not(.full) .seg > button.active,
+.app2-main:not(.full) .seg > button[aria-selected="true"],
+.uif-tabs > button.active,
+.uif-tabs > button[aria-selected="true"],
+.od-modal-tabs > button.active,
+.od-modal-tabs > button[aria-selected="true"],
+.od-modal-tabs > button[data-state="active"] {
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: var(--on-brand) !important;
+  font-weight: 900 !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 28%, transparent) !important;
+}
+
+.app2-main:not(.full) .seg > button:not(.active):hover:not(:disabled),
+.uif-tabs > button:not(.active):hover:not(:disabled),
+.od-modal-tabs > button:not(.active):hover:not(:disabled) {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
+}
+
+.rbac-role.active,
+.rbac-role[aria-pressed="true"] {
+  border-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+/* ---------- Data tables and operational lists ---------- */
+.data-table-shell,
+.app2-main:not(.full) .panel {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: 0 5px 18px var(--theme-shadow);
+}
+
+:is(.data-table-shell, .panel, .uif-card-body) > table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+:is(.data-table-shell, .panel, .uif-card-body) > table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+:is(.data-table-shell, .panel, .uif-card-body) > table tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  vertical-align: middle;
+  line-height: 1.45;
+}
+
+:is(.data-table-shell, .panel, .uif-card-body) > table tbody tr:last-child > td {
+  border-bottom: 0;
+}
+
+:is(.data-table-shell, .panel, .uif-card-body) > table tbody tr:hover > td {
+  background: color-mix(in srgb, var(--theme-brand-soft) 35%, var(--surface-1));
+}
+
+:is(.data-table-shell, .panel, .uif-card-body) > table :is(th, td):last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.table-actions-cell,
+.menu-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.table-action,
+:is(.data-table-shell, .panel, .uif-card-body) > table button:not(.crm-name):not(.menu-status):not(.uif-stepper-btn) {
+  min-height: var(--ui-control-h-sm) !important;
+  height: var(--ui-control-h-sm) !important;
+  min-width: 96px;
+  padding-inline: 12px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+.crm-name {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--brand) !important;
+  font-weight: 900 !important;
+  text-align: start !important;
+}
+
+.crm-name:hover {
+  color: var(--brand-hover) !important;
+  text-decoration: underline;
+}
+
+/* ---------- Modal forms and footers ---------- */
+.modal h3,
+.uif-drawer-title {
+  margin-block-start: 0;
+  color: var(--text-primary);
+}
+
+.modal .stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.modal .stack > :is(input, select, textarea, .uif-field),
+.modal :is(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.modal > .form-row,
+.modal .modal-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px !important;
+  margin: 16px 0 0 !important;
+  padding: 14px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--border-subtle) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.modal > .form-row > button,
+.modal .modal-actions > button,
+.uif-drawer-foot > button {
+  min-width: 112px;
+}
+
+.uif-drawer-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Orders list and order-detail workspace ---------- */
+.orders-page {
+  min-width: 0;
+}
+
+.orders-page > h2 {
+  margin: 0 0 14px;
+  font-size: 22px;
+}
+
+.orders-filters {
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.orders-filters select {
+  width: min(210px, 100%);
+}
+
+.orders-table .table-action {
+  min-width: 112px;
+}
+
+.od-modal-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px !important;
+}
+
+.od-modal-title {
+  min-width: 0;
+}
+
+.od-modal-title h3,
+.od-modal-title .od-modal-meta {
+  overflow-wrap: anywhere;
+}
+
+.od-modal-tabs {
+  justify-self: center;
+  flex-wrap: nowrap;
+}
+
+.order-detail {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 290px);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.order-detail > * {
+  min-width: 0;
+}
+
+.order-actions {
+  position: sticky;
+  top: 0;
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 12px;
+  background: var(--surface-1) !important;
+}
+
+.order-actions > button,
+.order-actions .order-action-group,
+.order-actions .cancel-box {
+  width: 100%;
+  min-width: 0;
+}
+
+.order-actions > button {
+  min-height: 40px !important;
+}
+
+.order-actions .cancel-box,
+.order-actions .order-action-group {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 !important;
+  padding: 9px !important;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.order-actions .cancel-box > :is(input, select, button),
+.order-actions .order-action-group > :is(input, select, button) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* ---------- Settings rows and embedded CRUD lists ---------- */
+.settings-page .uif-card-body {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.settings-page .uif-card-body > .uif-field.inline,
+.settings-page .uif-card-body > .uif-number-field {
+  display: grid !important;
+  grid-template-columns: minmax(190px, 1fr) 176px;
+  align-items: center;
+  gap: 12px !important;
+  min-height: 54px;
+  margin: 0 !important;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-page .uif-card-body > .uif-toggle {
+  min-height: 50px;
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-page .uif-card-body > .uif-field.inline:last-child,
+.settings-page .uif-card-body > .uif-number-field:last-child,
+.settings-page .uif-card-body > .uif-toggle:last-child {
+  border-bottom: 0;
+}
+
+.settings-page .uif-card-body > .uif-field.inline > .uif-label,
+.settings-page .uif-card-body > .uif-number-field > .uif-label,
+.settings-page .uif-card-body > .uif-toggle .uif-toggle-label {
+  color: var(--text-primary) !important;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.settings-page .uif-card-body > .uif-field.inline > .uif-select,
+.settings-page .uif-card-body > .uif-number-field > .uif-number-stepper {
+  justify-self: start;
+}
+
+.settings-page .uif-card-body > table :is(input, select, .uif-input) {
+  width: 100% !important;
+  min-width: 120px;
+  max-width: 190px;
+}
+
+.settings-page .uif-card-body > table .uif-toggle {
+  min-width: 44px;
+  justify-content: center;
+}
+
+.settings-page .set-sub {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--brand);
+  font-weight: 900;
+}
+
+/* ---------- Generic toolbar/list alignment ---------- */
+.users-toolbar,
+.crm-search,
+.filters,
+.form-row {
+  max-width: 100%;
+}
+
+.users-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+.crm-search {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-search input {
+  flex: 1 1 260px;
+  min-width: 180px;
+}
+
+/* ---------- Responsive system-wide rules ---------- */
+@media (max-width: 900px) {
+  .order-detail {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .order-actions {
+    position: static;
+  }
+
+  .od-modal-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .od-modal-tabs {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+  }
+
+  .od-modal-tabs > button {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .settings-page .uif-card-body > .uif-field.inline,
+  .settings-page .uif-card-body > .uif-number-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-page .uif-card-body > .uif-field.inline > .uif-select,
+  .settings-page .uif-card-body > .uif-number-field > .uif-number-stepper {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-self: stretch;
+  }
+
+  .modal > .form-row > button,
+  .modal .modal-actions > button,
+  .uif-drawer-foot > button {
+    flex: 1 1 130px;
+    min-width: 0;
+  }
+
+  .data-table-shell,
+  .app2-main:not(.full) .panel {
+    border-radius: 9px;
+  }
+}

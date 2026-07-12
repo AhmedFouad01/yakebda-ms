@@ -86,6 +86,49 @@ jobs:
             git push origin HEAD:feature/order-sources-price-lists
             exit 1
           fi
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("apps/api/src/modules/orderSources.ts")
+          source = path.read_text()
+          old = '''const sourceSchema = z
+            .object({
+              name_ar: z.string().trim().min(1).max(120),
+              is_active: z.boolean().default(true),
+              supports_takeaway: z.boolean().default(true),
+              supports_delivery: z.boolean().default(true),
+              sort_order: z.number().int().default(0),
+              copy_from_source_id: z.string().uuid().optional().nullable(),
+            })
+            .refine((value) => value.supports_takeaway || value.supports_delivery, {
+              message: "يجب تفعيل نوع طلب واحد على الأقل",
+              path: ["supports_takeaway"],
+            });
+
+          const sourcePatchSchema = sourceSchema
+            .omit({ copy_from_source_id: true })'''
+          new = '''const sourceObjectSchema = z.object({
+            name_ar: z.string().trim().min(1).max(120),
+            is_active: z.boolean().default(true),
+            supports_takeaway: z.boolean().default(true),
+            supports_delivery: z.boolean().default(true),
+            sort_order: z.number().int().default(0),
+            copy_from_source_id: z.string().uuid().optional().nullable(),
+          });
+
+          const sourceSchema = sourceObjectSchema.refine(
+            (value) => value.supports_takeaway || value.supports_delivery,
+            {
+              message: "يجب تفعيل نوع طلب واحد على الأقل",
+              path: ["supports_takeaway"],
+            }
+          );
+
+          const sourcePatchSchema = sourceObjectSchema
+            .omit({ copy_from_source_id: true })'''
+          if old not in source:
+              raise SystemExit("source schema correction target missing")
+          path.write_text(source.replace(old, new))
+          PY
           rm -f patch-output.txt
 
       - name: Guard accepted POS cards and KDS

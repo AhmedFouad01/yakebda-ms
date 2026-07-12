@@ -1,0 +1,28 @@
+/* Final corrections for the layout polish layer. */
+.settings-page .set-perms > .stub {
+  display: inline-flex !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.settings-page .set-perms > .stub:only-child {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: auto !important;
+  min-height: 28px !important;
+  padding: 3px 11px !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+  white-space: normal !important;
+}

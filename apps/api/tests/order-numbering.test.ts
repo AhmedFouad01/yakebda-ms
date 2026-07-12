@@ -10,20 +10,32 @@ const db = makeKnex(config.testDatabaseUrl);
 let app: ReturnType<typeof createApp>;
 let ownerToken = "";
 let branchId = "";
+let branch2Id = "";
 let productId = "";
 
 const auth = () => ({ Authorization: `Bearer ${ownerToken}` });
 
-async function createOrder() {
+async function createOrder(targetBranchId = branchId) {
   return request(app)
     .post("/api/v1/orders")
     .set(auth())
     .send({
-      branch_id: branchId,
+      branch_id: targetBranchId,
       order_type: "takeaway",
       payment_method: "unpaid",
       items: [{ product_id: productId, qty: 1, modifier_ids: [] }],
     });
+}
+
+function expectUniqueSequentialNumbers(responses: Array<{ status: number; body: any }>) {
+  expect(responses.map((res) => res.status)).toEqual(Array(responses.length).fill(201));
+  const numbers = responses.map((res) => Number(res.body.data.order_no));
+  expect(new Set(numbers).size).toBe(numbers.length);
+
+  const sorted = [...numbers].sort((a, b) => a - b);
+  for (let index = 1; index < sorted.length; index += 1) {
+    expect(sorted[index]).toBe(sorted[index - 1] + 1);
+  }
 }
 
 beforeAll(async () => {
@@ -31,6 +43,7 @@ beforeAll(async () => {
   await db.migrate.latest();
   const seed = await seedFoundation(db);
   branchId = seed.branchId;
+  branch2Id = seed.branch2Id!;
   app = createApp(db);
 
   const login = await request(app)
@@ -68,13 +81,21 @@ describe("Atomic order numbering", () => {
       Array.from({ length: 8 }, () => createOrder())
     );
 
-    expect(responses.map((res) => res.status)).toEqual(Array(8).fill(201));
-    const numbers = responses.map((res) => Number(res.body.data.order_no));
-    expect(new Set(numbers).size).toBe(numbers.length);
+    expectUniqueSequentialNumbers(responses);
+  });
 
-    const sorted = [...numbers].sort((a, b) => a - b);
-    for (let index = 1; index < sorted.length; index += 1) {
-      expect(sorted[index]).toBe(sorted[index - 1] + 1);
-    }
+  it("assigns one account-wide sequence across concurrent orders in two branches", async () => {
+    const settings = await request(app)
+      .patch("/api/v1/settings")
+      .set(auth())
+      .send({ branch_specific_numbering: false });
+    expect(settings.status).toBe(200);
+
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, (_, index) => createOrder(index % 2 === 0 ? branchId : branch2Id))
+    );
+
+    expectUniqueSequentialNumbers(responses);
+    expect(new Set(responses.map((res) => res.body.data.numbering_key)).size).toBe(1);
   });
 });

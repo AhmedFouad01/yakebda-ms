@@ -249,9 +249,13 @@
 
 .app2-pos .posx-fast-line-note-button {
   justify-self: start !important;
-  min-height: 24px !important;
-  height: 24px !important;
-  padding: 0 3px !important;
+  min-height: 26px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 999px !important;
+  text-decoration: none !important;
   font-size: 10.5px !important;
   line-height: 1 !important;
 }

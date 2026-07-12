@@ -7,7 +7,7 @@ on:
     branches: [main, dev]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ykms-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -44,9 +44,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -54,13 +51,8 @@ jobs:
           node-version: 20.19.0
           cache: npm
 
-      - name: Refresh lock and install
-        run: |
-          npm install --package-lock-only --ignore-scripts
-          npm ci
-
-      - name: Apply semantic POS card migration
-        run: node tools/qa/apply-pos-a11y-fix.mjs
+      - name: Install
+        run: npm ci
 
       - name: API tests
         run: npm run api:test
@@ -101,27 +93,7 @@ jobs:
           exit 1
 
       - name: Cashier, accessibility, contrast, and visual tests
-        run: npm run qa:e2e:update
-
-      - name: Commit generated QA assets
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            package-lock.json \
-            apps/admin/src/pages/Pos.tsx \
-            apps/admin/src/final-closure.css \
-            tests/e2e/*-snapshots
-
-          if git diff --cached --quiet; then
-            echo "No generated QA assets changed"
-            exit 0
-          fi
-
-          git commit -m "chore(qa): persist semantic fix and visual baselines [qa-bootstrap]"
-          git push origin HEAD:${{ github.head_ref }}
+        run: npm run qa:e2e
 
       - name: Print server logs on failure
         if: failure()

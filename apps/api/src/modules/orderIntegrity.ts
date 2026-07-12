@@ -2,7 +2,7 @@ import { Router } from "express";
 import { Knex } from "knex";
 import { z } from "zod";
 import { err } from "../lib/errors";
-import { requireUser } from "../middleware/auth";
+import { requirePermission, requireUser } from "../middleware/auth";
 
 const orderConfigurationSchema = z.object({
   items: z
@@ -118,9 +118,8 @@ export async function validateOrderConfiguration(
 
 export function orderIntegrityRoutes(db: Knex): Router {
   const router = Router();
-  router.use(requireUser(db));
 
-  router.post("/", async (req, _res, next) => {
+  router.post("/", requireUser(db), requirePermission("orders.create"), async (req, _res, next) => {
     try {
       const parsed = orderConfigurationSchema.safeParse(req.body);
       // Leave malformed request reporting to the canonical create-order schema.

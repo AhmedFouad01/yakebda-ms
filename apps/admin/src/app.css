@@ -1,0 +1,28 @@
+/*
+ * YAKEBDA MS — single stylesheet entry.
+ *
+ * The application previously imported twelve CSS files directly from main.tsx.
+ * This file makes the cascade order explicit and gives each generation a bounded
+ * layer. Existing screen-specific rules remain intact while legacy selectors are
+ * retired incrementally under regression coverage.
+ */
+
+@layer foundation, legacy, operational, semantic, polish, closure;
+
+@import url("./styles.css") layer(foundation);
+
+@import url("./ykms-02d.css") layer(legacy);
+@import url("./ykms-02f.css") layer(legacy);
+
+@import url("./pos-operational.css") layer(operational);
+@import url("./pos-final.css") layer(operational);
+@import url("./pos-card-layout-fix.css") layer(operational);
+
+@import url("./ui-cleanup.css") layer(semantic);
+@import url("./theme.css") layer(semantic);
+@import url("./theme-interactions.css") layer(semantic);
+
+@import url("./ui-polish.css") layer(polish);
+@import url("./ui-polish-final.css") layer(polish);
+
+@import url("./final-closure.css") layer(closure);

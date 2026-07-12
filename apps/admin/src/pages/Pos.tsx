@@ -5,7 +5,6 @@ import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
 import { OrderDetail } from "../components/OrderDetail";
 import { useMe } from "../lib/me";
-import { ProductEditor } from "./menu/ProductEditor";
 import { Drawer } from "../components/ui/overlays";
 
 interface MenuModifier {
@@ -134,25 +133,8 @@ interface CartLine {
   qty: number;
   notes: string;
 }
-interface AdminCategory {
-  id: string;
-  name_ar: string;
-}
-interface AdminProduct {
-  id: string;
-  category_id: string;
-  name_ar: string;
-  base_price: string | number;
-  sku?: string | null;
-  image_url?: string | null;
-  ingredients_ar?: string | null;
-  portion_note_ar?: string | null;
-  is_active: boolean;
-  variants: MenuVariant[];
-}
-
 type OrderType = "takeaway" | "delivery";
-type AdminPanel = "items" | "shift" | "offers" | null;
+type AdminPanel = "shift" | null;
 type PaymentMethod = "cash" | "card" | "wallet" | "unpaid";
 
 const CAT_ORDER = ["الكل", "ساندوتشات", "أطباق", "وجبات", "الحواوشي", "البطاطس", "فواتح الشهية", "إضافات", "مشروبات"];
@@ -198,13 +180,11 @@ export function Pos() {
   const [activeCat, setActiveCat] = useState("الكل");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [picking, setPicking] = useState<MenuProduct | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string; address?: string }>>([]);
   const [customerId, setCustomerId] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [editorProductId, setEditorProductId] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
@@ -226,17 +206,6 @@ export function Pos() {
   const [historyOrderError, setHistoryOrderError] = useState("");
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
-  const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
-  const [adminCategories, setAdminCategories] = useState<AdminCategory[]>([]);
-  const [adminSearch, setAdminSearch] = useState("");
-  const [editing, setEditing] = useState<AdminProduct | null>(null);
-  const [editForm, setEditForm] = useState({
-    name_ar: "",
-    base_price: 0,
-    image_url: "",
-    ingredients_ar: "",
-    portion_note_ar: "",
-  });
 
   const quotePayload = useMemo(() => ({
     branch_id: branchId,
@@ -360,19 +329,12 @@ export function Pos() {
     }
   }
 
-  async function loadMenu(currentBranchId = branchId, preserve = false) {
+  async function loadMenu(currentBranchId = branchId) {
     if (!currentBranchId) return;
-    const menuEl = document.querySelector(".posx-menu");
-    const scrollTop = preserve ? menuEl?.scrollTop ?? 0 : 0;
     const response = await api<{ data: { categories: MenuCategory[] } }>(`/branches/${currentBranchId}/menu`);
     const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
     setCategories(sorted);
-    if (!preserve) setActiveCat("الكل");
-    // YKMS-02F: العودة من محرر الأصناف تُرجع نفس موضع التمرير — لا تدمير لحالة POS
-    if (preserve) requestAnimationFrame(() => {
-      const el = document.querySelector(".posx-menu");
-      if (el) el.scrollTop = scrollTop;
-    });
+    setActiveCat("الكل");
   }
 
   useEffect(() => {
@@ -543,85 +505,6 @@ export function Pos() {
     setCalc((value) => value + key);
   }
 
-  async function loadAdminProducts() {
-    const [productsResponse, categoriesResponse] = await Promise.all([
-      api<{ data: AdminProduct[] }>("/products"),
-      api<{ data: AdminCategory[] }>("/categories"),
-    ]);
-    setAdminProducts(productsResponse.data);
-    setAdminCategories(categoriesResponse.data);
-  }
-
-  async function openItemsPanel() {
-    setAdminPanel("items");
-    setEditing(null);
-    setError("");
-    try {
-      await loadAdminProducts();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
-  function startEdit(product: AdminProduct | MenuProduct) {
-    const row: AdminProduct =
-      "base_price" in product
-        ? product
-        : {
-            ...product,
-            category_id: "",
-            base_price: product.effective_price,
-            is_active: product.is_available,
-            sku: null,
-            variants: product.variants,
-          };
-    setEditing(row);
-    setEditForm({
-      name_ar: row.name_ar,
-      base_price: Number(row.base_price),
-      image_url: row.image_url ?? "",
-      ingredients_ar: row.ingredients_ar ?? "",
-      portion_note_ar: row.portion_note_ar ?? "",
-    });
-    setAdminPanel("items");
-  }
-
-  async function saveProduct() {
-    if (!editing) return;
-    try {
-      await api(`/products/${editing.id}`, {
-        method: "PATCH",
-        body: {
-          name_ar: editForm.name_ar,
-          base_price: Number(editForm.base_price),
-          image_url: editForm.image_url || null,
-          ingredients_ar: editForm.ingredients_ar || null,
-          portion_note_ar: editForm.portion_note_ar || null,
-        },
-      });
-      setEditing(null);
-      setMsg("تم حفظ الصنف");
-      await loadAdminProducts();
-      await loadMenu();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
-  async function toggleProduct(product: AdminProduct) {
-    try {
-      await api(`/products/${product.id}`, { method: "PATCH", body: { is_active: !product.is_active } });
-      await loadAdminProducts();
-      await loadMenu();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
-  const adminVisible = adminProducts.filter(
-    (product) => !adminSearch || product.name_ar.includes(adminSearch) || product.sku?.includes(adminSearch)
-  );
-
   return (
     <div className="posx" dir="rtl">
 
@@ -644,9 +527,8 @@ export function Pos() {
             <details className="posx-adminmenu">
               <summary>الإدارة ▾</summary>
               <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
-                {can("menu.manage") && <button onClick={openItemsPanel}>إدارة الأصناف</button>}
+                {can("menu.manage") && <button onClick={() => navigate("/menu")}>إدارة المنيو</button>}
                 {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
-                <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
                 {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
               </div>
               </details>
@@ -874,15 +756,6 @@ export function Pos() {
         </div>
       )}
 
-      {picking && <OptionPicker product={picking} onCancel={() => setPicking(null)} onAdd={(variant, modifiers) => { addProduct(picking, variant, modifiers); setPicking(null); }} />}
-      {/* YKMS-02F: محرر الأصناف الكامل — Drawer فوق POS، السلة/الفئة/التمرير محفوظة */}
-      {editorProductId && (
-        <ProductEditor
-          productId={editorProductId}
-          onClose={() => setEditorProductId(null)}
-          onSaved={() => loadMenu(branchId, true).catch((e: Error) => setError(e.message))}
-        />
-      )}
       {done && (
         <div className="modal-back" onClick={() => setDone(null)}>
           <div className="modal receipt-modal" onClick={(e) => e.stopPropagation()}>
@@ -894,26 +767,10 @@ export function Pos() {
           </div>
         </div>
       )}
-      {adminPanel && (
+      {adminPanel === "shift" && (
         <div className="modal-back" onClick={() => setAdminPanel(null)}>
           <div className="modal posx-admin-modal" onClick={(e) => e.stopPropagation()}>
-            {adminPanel === "items" && (
-              <ItemManager
-                products={adminVisible}
-                categories={adminCategories}
-                search={adminSearch}
-                setSearch={setAdminSearch}
-                editing={editing}
-                editForm={editForm}
-                setEditForm={setEditForm}
-                startEdit={startEdit}
-                saveProduct={saveProduct}
-                cancelEdit={() => setEditing(null)}
-                toggleProduct={toggleProduct}
-              />
-            )}
-            {adminPanel === "shift" && <ShiftPanel shift={shift} money={money} openShift={openShift} closeShift={closeShift} />}
-            {adminPanel === "offers" && <OffersPanel />}
+            <ShiftPanel shift={shift} money={money} openShift={openShift} closeShift={closeShift} />
           </div>
         </div>
       )}
@@ -936,63 +793,6 @@ function ProductThumb({ product }: { product: MenuProduct }) {
   );
 }
 
-function ItemManager(props: {
-  products: AdminProduct[];
-  categories: AdminCategory[];
-  search: string;
-  setSearch: (value: string) => void;
-  editing: AdminProduct | null;
-  editForm: { name_ar: string; base_price: number; image_url: string; ingredients_ar: string; portion_note_ar: string };
-  setEditForm: (value: { name_ar: string; base_price: number; image_url: string; ingredients_ar: string; portion_note_ar: string }) => void;
-  startEdit: (product: AdminProduct) => void;
-  saveProduct: () => void;
-  cancelEdit: () => void;
-  toggleProduct: (product: AdminProduct) => void;
-}) {
-  const { products, categories, search, setSearch, editing, editForm, setEditForm, startEdit, saveProduct, cancelEdit, toggleProduct } = props;
-  return (
-    <div className="posx-admin-grid">
-      <section>
-        <h3>إدارة الأصناف</h3>
-        <input className="posx-admin-search" placeholder="ابحث عن صنف أو SKU" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <div className="posx-admin-list">
-          {products.map((product) => (
-            <div key={product.id} className={product.is_active ? "posx-admin-row" : "posx-admin-row off"}>
-              <div>
-                <b>{product.name_ar}</b>
-                <span>{categories.find((category) => category.id === product.category_id)?.name_ar ?? "—"} · {Number(product.base_price).toFixed(2)} ج.م</span>
-              </div>
-              <button onClick={() => startEdit(product)}>تعديل</button>
-              <button onClick={() => toggleProduct(product)}>{product.is_active ? "تعطيل" : "تفعيل"}</button>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section className="posx-edit-card">
-        <h3>{editing ? "تعديل الصنف" : "اختار صنف للتعديل"}</h3>
-        {editing ? (
-          <>
-            <div className="image-rec">الصورة المقترحة: مربعة 1:1 — 800×800px — JPG/WebP — أقل من 400KB</div>
-            {editForm.image_url && <img className="posx-edit-preview" src={resolveAssetUrl(editForm.image_url)} alt={editForm.name_ar} />}
-            <label>اسم الصنف<input value={editForm.name_ar} onChange={(e) => setEditForm({ ...editForm, name_ar: e.target.value })} /></label>
-            <label>السعر<input type="number" min={0} value={editForm.base_price} onChange={(e) => setEditForm({ ...editForm, base_price: Number(e.target.value) })} /></label>
-            <label>رابط صورة مربعة<input dir="ltr" value={editForm.image_url} onChange={(e) => setEditForm({ ...editForm, image_url: e.target.value })} /></label>
-            <label>المكونات<input value={editForm.ingredients_ar} onChange={(e) => setEditForm({ ...editForm, ingredients_ar: e.target.value })} /></label>
-            <label>وصف الحجم/الحصة<input value={editForm.portion_note_ar} onChange={(e) => setEditForm({ ...editForm, portion_note_ar: e.target.value })} /></label>
-            <div className="pos-actions">
-              <button className="primary" onClick={saveProduct}>حفظ</button>
-              <button onClick={cancelEdit}>إلغاء</button>
-            </div>
-            <p className="muted">رفع الصور كملف مباشر يحتاج endpoint تخزين ملفات. الحالي يدعم رابط صورة مع preview.</p>
-          </>
-        ) : (
-          <p className="muted">اضغط تعديل أمام أي صنف. كل تغيير في السعر أو الاسم أو الصورة ينعكس مباشرة على POS بعد الحفظ.</p>
-        )}
-      </section>
-    </div>
-  );
-}
-
 function ShiftPanel({ shift, money, openShift, closeShift }: { shift: Shift | null; money: (value: number) => string; openShift: () => void; closeShift: () => void }) {
   return (
     <div>
@@ -1005,15 +805,6 @@ function ShiftPanel({ shift, money, openShift, closeShift }: { shift: Shift | nu
         <div><span>المتوقع</span><b>{money(Number(shift?.totals?.expected_cash ?? 0))}</b></div>
       </div>
       <div className="pos-actions"><button className="primary" onClick={shift ? closeShift : openShift}>{shift ? "إغلاق الشيفت" : "فتح شيفت"}</button></div>
-    </div>
-  );
-}
-
-function OffersPanel() {
-  return (
-    <div>
-      <h3>إدارة العروض</h3>
-      <p className="muted">العروض لم تُفعّل كـ backend module في YKMS-02D. الخصم اليدوي الحالي مرتبط بالفاتورة والتقارير. تنفيذ العروض يحتاج جدول rules وربطها بالمنتجات قبل الدفع.</p>
     </div>
   );
 }
@@ -1190,50 +981,3 @@ function ProductCard({
   );
 }
 
-function OptionPicker({ product, onAdd, onCancel }: { product: MenuProduct; onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void; onCancel: () => void }) {  const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
-  const [mods, setMods] = useState<MenuModifier[]>([]);
-
-  function toggleMod(group: MenuGroup, modifier: MenuModifier) {
-    setMods((current) => {
-      if (current.some((item) => item.id === modifier.id)) return current.filter((item) => item.id !== modifier.id);
-      const inGroup = current.filter((item) => group.modifiers.some((groupModifier) => groupModifier.id === item.id));
-      if (inGroup.length >= group.max_select) return current;
-      return [...current, modifier];
-    });
-  }
-
-  const valid = product.modifier_groups.every((group) => {
-    const count = mods.filter((item) => group.modifiers.some((groupModifier) => groupModifier.id === item.id)).length;
-    return count >= (group.is_required ? Math.max(1, group.min_select) : group.min_select);
-  });
-
-  return (
-    <div className="modal-back" onClick={onCancel}>
-      <div className="modal posx-picker" onClick={(e) => e.stopPropagation()} dir="rtl">
-        <h3>{t.pos.chooseOptions} — {product.name_ar}</h3>
-        {product.ingredients_ar && <p className="muted">{product.ingredients_ar}</p>}
-        {product.variants.length > 0 && (
-          <div className="seg wrap">
-            {product.variants.map((item) => (
-              <button key={item.id} className={variant?.id === item.id ? "active" : ""} onClick={() => setVariant(item)}>{item.name_ar}{Number(item.price_delta) ? ` (+${Number(item.price_delta)})` : ""}</button>
-            ))}
-          </div>
-        )}
-        {product.modifier_groups.map((group) => (
-          <div key={group.id} className="mod-group">
-            <div className="mod-group-name">{group.name_ar} {group.is_required ? `— ${t.menu.required}` : ""}</div>
-            <div className="seg wrap">
-              {group.modifiers.map((modifier) => (
-                <button key={modifier.id} className={mods.some((item) => item.id === modifier.id) ? "active" : ""} onClick={() => toggleMod(group, modifier)}>{modifier.name_ar}{Number(modifier.price_delta) ? ` (+${Number(modifier.price_delta)})` : ""}</button>
-              ))}
-            </div>
-          </div>
-        ))}
-        <div className="pos-actions">
-          <button className="primary" disabled={!valid} onClick={() => onAdd(variant, mods)}>{t.pos.addToCart}</button>
-          <button onClick={onCancel}>{t.common.cancel}</button>
-        </div>
-      </div>
-    </div>
-  );
-}

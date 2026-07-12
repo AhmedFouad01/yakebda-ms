@@ -1,0 +1,47 @@
+name: Validate PR19 cart refinement
+
+on:
+  push:
+    branches:
+      - refactor/global-color-tokens
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ykms
+          POSTGRES_PASSWORD: ykms
+          POSTGRES_DB: ykms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ykms -d ykms_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      JWT_SECRET: ci-only-change-me
+      API_PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Global color contract
+        run: npm run ui:colors:check
+      - name: API tests
+        run: npm run api:test
+      - name: Admin build
+        run: npm run admin:build

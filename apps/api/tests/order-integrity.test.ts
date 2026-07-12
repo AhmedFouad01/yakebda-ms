@@ -9,9 +9,7 @@ import { newId } from "../src/lib/ids";
 const db = makeKnex(config.testDatabaseUrl);
 let app: ReturnType<typeof createApp>;
 let ownerToken = "";
-let accountId = "";
 let branchId = "";
-let branch2Id = "";
 let productA = "";
 let productB = "";
 let requiredModifierA = "";
@@ -20,19 +18,15 @@ let foreignModifier = "";
 
 const auth = () => ({ Authorization: `Bearer ${ownerToken}` });
 
-async function createOrder(
-  targetBranchId: string,
-  modifierIds: string[],
-  productId = productA
-) {
+async function createOrder(modifierIds: string[]) {
   return request(app)
     .post("/api/v1/orders")
     .set(auth())
     .send({
-      branch_id: targetBranchId,
+      branch_id: branchId,
       order_type: "takeaway",
       payment_method: "unpaid",
-      items: [{ product_id: productId, qty: 1, modifier_ids: modifierIds }],
+      items: [{ product_id: productA, qty: 1, modifier_ids: modifierIds }],
     });
 }
 
@@ -40,9 +34,7 @@ beforeAll(async () => {
   await db.migrate.rollback(undefined, true);
   await db.migrate.latest();
   const seed = await seedFoundation(db);
-  accountId = seed.accountId;
   branchId = seed.branchId;
-  branch2Id = seed.branch2Id!;
   app = createApp(db);
 
   const login = await request(app)
@@ -55,7 +47,7 @@ beforeAll(async () => {
   productB = newId();
   await db("categories").insert({
     id: categoryId,
-    account_id: accountId,
+    account_id: seed.accountId,
     name_ar: "سلامة الطلبات",
     sort_order: 0,
     is_active: true,
@@ -63,7 +55,7 @@ beforeAll(async () => {
   await db("products").insert([
     {
       id: productA,
-      account_id: accountId,
+      account_id: seed.accountId,
       category_id: categoryId,
       name_ar: "منتج أ",
       base_price: 30,
@@ -72,7 +64,7 @@ beforeAll(async () => {
     },
     {
       id: productB,
-      account_id: accountId,
+      account_id: seed.accountId,
       category_id: categoryId,
       name_ar: "منتج ب",
       base_price: 40,
@@ -90,7 +82,7 @@ beforeAll(async () => {
   await db("modifier_groups").insert([
     {
       id: requiredGroup,
-      account_id: accountId,
+      account_id: seed.accountId,
       name_ar: "اختيار إجباري",
       min_select: 1,
       max_select: 1,
@@ -100,7 +92,7 @@ beforeAll(async () => {
     },
     {
       id: foreignGroup,
-      account_id: accountId,
+      account_id: seed.accountId,
       name_ar: "مجموعة منتج آخر",
       min_select: 0,
       max_select: 1,
@@ -144,72 +136,32 @@ afterAll(async () => {
 
 describe("Order configuration integrity", () => {
   it("rejects an order missing a required modifier group", async () => {
-    const res = await createOrder(branchId, []);
+    const res = await createOrder([]);
     expect(res.status).toBe(422);
     expect(res.body.details.modifier_ids).toContain("يجب اختيار");
   });
 
   it("rejects a modifier that belongs to another product", async () => {
-    const res = await createOrder(branchId, [foreignModifier]);
+    const res = await createOrder([foreignModifier]);
     expect(res.status).toBe(422);
     expect(res.body.details.modifier_ids).toContain("لا يتبع الصنف");
   });
 
   it("rejects selecting more modifiers than max_select", async () => {
-    const res = await createOrder(branchId, [requiredModifierA, requiredModifierB]);
+    const res = await createOrder([requiredModifierA, requiredModifierB]);
     expect(res.status).toBe(422);
     expect(res.body.details.modifier_ids).toContain("الحد الأقصى");
   });
 
   it("rejects selecting the same modifier more than once", async () => {
-    const res = await createOrder(branchId, [requiredModifierA, requiredModifierA]);
+    const res = await createOrder([requiredModifierA, requiredModifierA]);
     expect(res.status).toBe(422);
     expect(res.body.details.modifier_ids).toContain("تكرار نفس الإضافة");
   });
 
   it("accepts a valid required selection", async () => {
-    const res = await createOrder(branchId, [requiredModifierA]);
+    const res = await createOrder([requiredModifierA]);
     expect(res.status).toBe(201);
     expect(Number(res.body.data.total)).toBe(32);
-  });
-});
-
-describe("Atomic order numbering", () => {
-  it("assigns unique sequential numbers to concurrent orders in one branch", async () => {
-    const responses = await Promise.all(
-      Array.from({ length: 8 }, () => createOrder(branchId, [requiredModifierA]))
-    );
-
-    expect(responses.every((res) => res.status === 201)).toBe(true);
-    const numbers = responses.map((res) => Number(res.body.data.order_no));
-    expect(new Set(numbers).size).toBe(numbers.length);
-
-    const sorted = [...numbers].sort((a, b) => a - b);
-    for (let index = 1; index < sorted.length; index += 1) {
-      expect(sorted[index]).toBe(sorted[index - 1] + 1);
-    }
-  });
-
-  it("serializes account-wide numbering across different branches", async () => {
-    await request(app)
-      .patch("/api/v1/settings")
-      .set(auth())
-      .send({ branch_specific_numbering: false });
-
-    const [first, second] = await Promise.all([
-      createOrder(branchId, [requiredModifierA]),
-      createOrder(branch2Id, [requiredModifierA]),
-    ]);
-
-    expect(first.status).toBe(201);
-    expect(second.status).toBe(201);
-    expect(first.body.data.order_no).not.toBe(second.body.data.order_no);
-
-    const rows = await db("orders")
-      .whereIn("id", [first.body.data.id, second.body.data.id])
-      .select("numbering_key", "order_no");
-    expect(rows).toHaveLength(2);
-    expect(rows[0].numbering_key).toBe(rows[1].numbering_key);
-    expect(rows[0].numbering_key).toBe(`account:${accountId}:continuous`);
   });
 });

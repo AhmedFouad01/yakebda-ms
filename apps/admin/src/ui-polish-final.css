@@ -52,3 +52,66 @@
 .kds-bread b {
   color: var(--text-secondary);
 }
+
+/* Chromium customizable-select API: styles the opened picker, not only the closed field. */
+@supports (appearance: base-select) {
+  .app2 select,
+  .uif-drawer select,
+  .modal select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  .app2 select,
+  .uif-drawer select,
+  .modal select {
+    background-image: none !important;
+  }
+
+  .app2 select::picker-icon,
+  .uif-drawer select::picker-icon,
+  .modal select::picker-icon {
+    color: var(--text-secondary);
+    transition: rotate 140ms ease;
+  }
+
+  .app2 select:open::picker-icon,
+  .uif-drawer select:open::picker-icon,
+  .modal select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  ::picker(select) {
+    margin-block-start: 5px;
+    padding: 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    box-shadow: 0 14px 36px var(--theme-shadow);
+  }
+
+  option {
+    min-height: 38px;
+    padding: 8px 11px;
+    border-radius: 7px;
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    text-align: right;
+  }
+
+  option:hover,
+  option:focus-visible {
+    background: var(--theme-brand-soft);
+    color: var(--text-primary);
+  }
+
+  option:checked {
+    background: var(--brand);
+    color: var(--on-brand);
+  }
+
+  option::checkmark {
+    color: var(--brand);
+  }
+}

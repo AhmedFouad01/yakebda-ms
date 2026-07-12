@@ -123,6 +123,16 @@ function formatExact(iso: string | null): string {
   return `${date} — ${time}`;
 }
 
+function formatClock(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDay(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+}
+
 type WorkflowStatus = "submitted" | "in_kitchen" | "ready";
 type SlaState = "normal" | "warning" | "late";
 
@@ -138,6 +148,12 @@ const SLA_ICON: Record<SlaState, string> = {
   late: "!",
 };
 
+const COLUMN_META: Record<WorkflowStatus, { description: string }> = {
+  submitted: { description: "طلبات وصلت وتنتظر بدء التحضير" },
+  in_kitchen: { description: "طلبات يعمل عليها المطبخ الآن" },
+  ready: { description: "طلبات جاهزة للتسليم أو الإغلاق" },
+};
+
 function slaStateFor(status: string, minutes: number, settings: KdsSettings): SlaState {
   if (status === "ready") return "normal";
   if (minutes >= settings.kds_late_minutes) return "late";
@@ -145,10 +161,10 @@ function slaStateFor(status: string, minutes: number, settings: KdsSettings): Sl
   return "normal";
 }
 
-function workflowTone(status: WorkflowStatus): "neutral" | "info" | "success" {
+function workflowTone(status: WorkflowStatus): "info" | "warning" | "success" {
   if (status === "ready") return "success";
-  if (status === "in_kitchen") return "info";
-  return "neutral";
+  if (status === "in_kitchen") return "warning";
+  return "info";
 }
 
 const BREAD_TERMS = ["فينو", "سياحي"] as const;
@@ -286,15 +302,23 @@ export function Kitchen() {
 
   const stats = useMemo(() => {
     const totalItems = orders.reduce((sum, order) => sum + order.items.reduce((count, item) => count + item.qty, 0), 0);
-    const waiting = orders.filter((order) => order.status === "submitted").length;
-    const cooking = orders.filter((order) => order.status === "in_kitchen").length;
-    const ready = orders.filter((order) => order.status === "ready").length;
-    return { totalItems, waiting, cooking, ready };
+    return { totalItems };
   }, [orders]);
 
   return (
     <div dir="rtl" className="kitchen-page">
-      <div className="page-head"><h1>{t.kitchen.title}</h1></div>
+      <header className="kds-page-head">
+        <div>
+          <span className="kds-page-eyebrow">تشغيل مباشر</span>
+          <h1>{t.kitchen.title}</h1>
+          <p>ثلاث مراحل واضحة لمتابعة الطلبات من الوصول حتى الجاهزية.</p>
+        </div>
+        <div className="kds-live" role="status">
+          <span className="kds-live-dot" aria-hidden />
+          تحديث تلقائي كل 5 ثوانٍ
+        </div>
+      </header>
+
       {error && (
         <div className="kds-state danger" role="alert">
           <StatusChip tone="danger">خطأ في شاشة المطبخ</StatusChip>
@@ -314,36 +338,42 @@ export function Kitchen() {
         </div>
       ) : settings ? (
         <>
-          <div className="kds-stats">
-            <div className="kds-stat"><b>{orders.length}</b><span>طلبات مفتوحة</span></div>
-            <div className="kds-stat"><b>{stats.totalItems}</b><span>أصناف</span></div>
-            <div className="kds-stat"><b>{stats.waiting}</b><span>تم الإرسال</span></div>
-            <div className="kds-stat"><b>{stats.cooking}</b><span>في المطبخ</span></div>
-            <div className="kds-stat is-ready"><b>{stats.ready}</b><span>جاهز</span></div>
-            <div className="kds-stat" title="متوسط زمن التحضير لطلبات اليوم المكتملة"><b>{metrics?.avg_prep_minutes != null ? `${metrics.avg_prep_minutes} د` : "—"}</b><span>متوسط التحضير</span></div>
-            <div className="kds-stat" title="الوسيط"><b>{metrics?.median_prep_minutes != null ? `${metrics.median_prep_minutes} د` : "—"}</b><span>وسيط التحضير</span></div>
-            <div className="kds-stat"><b>{metrics?.completed_today ?? 0}</b><span>اكتمل اليوم</span></div>
-            {metrics != null && metrics.late_completed > 0 && <div className="kds-stat is-late"><b>{metrics.late_completed}</b><span>متأخر اليوم</span></div>}
-          </div>
+          <section className="kds-overview" aria-label="ملخص أداء المطبخ">
+            <div className="kds-stats">
+              <div className="kds-stat is-open"><b>{orders.length}</b><span>طلبات مفتوحة</span></div>
+              <div className="kds-stat is-info"><b>{stats.totalItems}</b><span>إجمالي الأصناف</span></div>
+              <div className="kds-stat is-warning"><b>{metrics?.avg_prep_minutes != null ? `${metrics.avg_prep_minutes} د` : "—"}</b><span>متوسط التحضير</span></div>
+              <div className="kds-stat is-info"><b>{metrics?.within_sla ?? 0}</b><span>ضمن الوقت اليوم</span></div>
+              <div className="kds-stat is-ready"><b>{metrics?.completed_today ?? 0}</b><span>اكتمل اليوم</span></div>
+              <div className={`kds-stat${(metrics?.late_completed ?? 0) > 0 ? " is-late" : ""}`}><b>{metrics?.late_completed ?? 0}</b><span>متأخر اليوم</span></div>
+            </div>
+          </section>
+
           {!orders.length && (
             <div className="kds-state empty" role="status">
               <Badge>لا توجد طلبات</Badge>
               <span>{t.kitchen.empty}</span>
             </div>
           )}
+
           <div className="kds">
             {cols.map(({ status, label }) => {
               const columnOrders = orders.filter((order) => order.status === status);
               return (
                 <section key={status} className={`kds-col workflow-${status}`} aria-labelledby={`kds-col-${status}`}>
                   <header className="kds-col-head">
-                    <span className="kds-col-title" id={`kds-col-${status}`}>
-                      <span className="kds-workflow-dot" aria-hidden />
-                      {label}
-                    </span>
-                    <Badge>{columnOrders.length} طلب</Badge>
+                    <div className="kds-col-head-copy">
+                      <span className="kds-col-title" id={`kds-col-${status}`}>
+                        <span className="kds-workflow-dot" aria-hidden />
+                        {label}
+                      </span>
+                      <small>{COLUMN_META[status].description}</small>
+                    </div>
+                    <span className="kds-col-count" aria-label={`${columnOrders.length} طلب`}>{columnOrders.length}</span>
                   </header>
+
                   {!columnOrders.length && <div className="kds-col-empty">لا توجد طلبات في هذه المرحلة</div>}
+
                   <div className="kds-col-list">
                     {columnOrders.map((order) => {
                       const anchor = order.submitted_at ?? order.created_at;
@@ -352,33 +382,69 @@ export function Kitchen() {
                       const slaLabel = order.status === "ready" ? "تم التجهيز" : SLA_LABEL[slaState];
                       const elapsed = formatElapsed(anchor, now);
                       const itemCount = order.items.reduce((sum, item) => sum + item.qty, 0);
+                      const orderType = t.orders.types[order.order_type] ?? order.order_type;
+
                       return (
                         <article key={order.id} className={`kds-card workflow-${order.status} sla-${slaState}`}>
                           <div className="kds-card-head">
                             <div className="kds-order-identity">
                               <strong>{t.kitchen.orderNo} #{order.order_prefix ?? ""}{order.order_no}</strong>
-                              <Badge tone={workflowTone(status)}>{label}</Badge>
+                              <div className="kds-order-tags">
+                                <Badge tone={workflowTone(status)}>{label}</Badge>
+                                <span className="kds-order-type">{orderType}</span>
+                              </div>
                             </div>
                             <div className={`kds-sla sla-${slaState}`} title={`${slaLabel}: ${elapsed}`}>
                               <span className="kds-sla-label"><span aria-hidden>{SLA_ICON[slaState]}</span>{slaLabel}</span>
                               <span className="kds-timer" dir="ltr" aria-label={`الزمن المنقضي ${elapsed}، حالة SLA: ${slaLabel}`}>{elapsed}</span>
                             </div>
                           </div>
+
                           <div className="kds-meta">
-                            <span><b>النوع</b>{t.orders.types[order.order_type] ?? order.order_type}</span>
-                            <span><b>الأصناف</b>{itemCount}</span>
-                            <span className="kds-received"><b>ورد</b>{formatExact(anchor)}</span>
-                            {order.ready_at && order.status === "ready" && <span className="kds-received"><b>جاهز منذ</b>{formatExact(order.ready_at)}</span>}
+                            <span className="kds-received" title={formatExact(anchor)}>
+                              <b>ورد</b>
+                              <time dateTime={anchor ?? undefined}>{formatClock(anchor)}</time>
+                              <small>{formatDay(anchor)}</small>
+                            </span>
+                            <span>
+                              <b>الأصناف</b>
+                              <strong>{itemCount}</strong>
+                            </span>
+                            {order.ready_at && order.status === "ready" && (
+                              <span className="kds-received" title={formatExact(order.ready_at)}>
+                                <b>جاهز منذ</b>
+                                <time dateTime={order.ready_at}>{formatClock(order.ready_at)}</time>
+                                <small>{formatDay(order.ready_at)}</small>
+                              </span>
+                            )}
                           </div>
+
                           <ul className="kds-items">
                             {order.items.map((item) => {
                               const choices = kitchenItemChoices(item);
                               return (
                                 <li key={item.id}>
-                                  <div className="kds-item-main"><strong><span className="kds-item-qty">{item.qty}×</span>{item.name_ar}</strong></div>
-                                  {choices.size && <div className="kds-variant"><b>الحجم:</b> {choices.size}</div>}
-                                  {choices.bread && <div className="kds-bread"><b>نوع العيش:</b> {choices.bread}</div>}
-                                  {choices.extras.length > 0 && <div className="kds-mods"><b>الإضافات:</b> {choices.extras.join("، ")}</div>}
+                                  <div className="kds-item-top">
+                                    <div className="kds-item-main">
+                                      <strong><span className="kds-item-qty">{item.qty}×</span>{item.name_ar}</strong>
+                                    </div>
+                                    {(choices.size || choices.bread) && (
+                                      <div className="kds-item-choices" aria-label="اختيارات الصنف">
+                                        {choices.size && <span className="kds-choice size"><b>الحجم</b>{choices.size}</span>}
+                                        {choices.bread && <span className="kds-choice bread"><b>العيش</b>{choices.bread}</span>}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {choices.extras.length > 0 && (
+                                    <div className="kds-mods">
+                                      <b>الإضافات</b>
+                                      <div className="kds-extra-list">
+                                        {choices.extras.map((extra, index) => <span key={`${item.id}-extra-${index}`}>{extra}</span>)}
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {(item.prep_station_ar || (item.prep_time_minutes ?? 0) > 0) && (
                                     <div className="kds-station">
                                       {item.prep_station_ar && <span><b>المحطة:</b> {item.prep_station_ar}</span>}
@@ -390,6 +456,7 @@ export function Kitchen() {
                               );
                             })}
                           </ul>
+
                           {order.notes && <div className="kds-note order-note"><strong>{t.kitchen.notes}:</strong> {order.notes}</div>}
                           {NEXT[order.status] && (
                             <div className="kds-card-actions">

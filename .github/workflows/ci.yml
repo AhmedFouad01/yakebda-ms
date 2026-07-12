@@ -2,7 +2,7 @@ name: YAKEBDA MS CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, fix/runtime-reliability-stabilization]
   pull_request:
     branches: [main, dev]
 

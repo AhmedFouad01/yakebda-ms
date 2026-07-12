@@ -1,6 +1,14 @@
 name: Apply Security Scope Stabilization
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-security-scope-stabilization.yml
+      - tools/patch_security_core.py
+      - tools/patch_orders_security.py
+      - tools/add_security_scope_regression.py
   push:
     branches:
       - fix/security-scope-stabilization
@@ -12,7 +20,7 @@ permissions:
 
 jobs:
   apply-and-validate:
-    if: github.event.head_commit.message == 'chore: run security scope stabilization'
+    if: github.event_name == 'pull_request' || github.event.head_commit.message == 'chore: run security scope stabilization'
     runs-on: ubuntu-latest
 
     services:
@@ -39,7 +47,7 @@ jobs:
       CORS_ORIGIN: http://localhost:5173
 
     steps:
-      - name: Checkout branch
+      - name: Checkout feature branch
         uses: actions/checkout@v4
         with:
           ref: fix/security-scope-stabilization

@@ -2,6 +2,8 @@
  * Full-HD cashier density pass.
  * Layout-only overrides: preserves POS behavior and card visual language while
  * fitting five products per row and giving the order cart more working space.
+ * Acceptance target at 1920x1080: five cards per row, two complete visible rows,
+ * and a 480-520px cart column.
  */
 
 @media (min-width: 1700px) and (min-height: 900px) {

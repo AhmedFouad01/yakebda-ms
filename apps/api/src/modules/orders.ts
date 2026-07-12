@@ -4,7 +4,7 @@ import { Knex } from "knex";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
-import { requirePermission, requireUser } from "../middleware/auth";
+import { AuthUser, canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { renderReceiptPayload, renderKitchenTicketPayload } from "../lib/receipt";
 import { getSettings, Settings } from "./settings";
@@ -158,6 +158,12 @@ function orderPrefix(settings: Settings, orderType: string): string | null {
   return prefix || null;
 }
 
+function canReadOrder(user: AuthUser, order: { branch_id: string; created_by?: string | null }): boolean {
+  if (!canAccessBranch(user, order.branch_id)) return false;
+  if (user.permissions.includes("orders.manage")) return true;
+  return user.permissions.includes("orders.create") && order.created_by === user.id;
+}
+
 export function orderRoutes(db: Knex): Router {
   const r = Router();
   r.use(requireUser(db));
@@ -171,10 +177,20 @@ export function orderRoutes(db: Knex): Router {
         })
         .safeParse(req.query);
       if (!q.success) throw err.validation(q.error.flatten());
+
+      const canManage = req.user!.permissions.includes("orders.manage");
+      const canCreate = req.user!.permissions.includes("orders.create");
+      if (!canManage && !canCreate) throw err.forbidden();
+      if (q.data.branch_id && !canAccessBranch(req.user!, q.data.branch_id)) throw err.forbidden();
+
       const rows = await db("orders")
         .where({ account_id: req.user!.accountId })
         .modify((qb) => {
           if (q.data.branch_id) qb.where("branch_id", q.data.branch_id);
+          else if (req.user!.branchId && !req.user!.permissions.includes("branches.manage")) {
+            qb.where("branch_id", req.user!.branchId);
+          }
+          if (!canManage) qb.where("created_by", req.user!.id);
           if (q.data.status) qb.where("status", q.data.status);
         })
         .orderBy("created_at", "desc")
@@ -193,6 +209,7 @@ export function orderRoutes(db: Knex): Router {
 
       const branchId = q.data.branch_id ?? req.user!.branchId;
       if (!branchId) throw err.validation({ branch_id: "الفرع مطلوب" });
+      if (!canAccessBranch(req.user!, branchId)) throw err.forbidden();
 
       const branch = await db("branches")
         .where({ id: branchId, account_id: req.user!.accountId, is_active: true })
@@ -287,6 +304,7 @@ export function orderRoutes(db: Knex): Router {
     try {
       const order = await loadFullOrder(db, req.user!.accountId, req.params.id);
       if (!order) throw err.notFound();
+      if (!canReadOrder(req.user!, order)) throw err.forbidden();
       res.json({ data: order });
     } catch (e) {
       next(e);
@@ -300,9 +318,13 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const d = body.data;
       const accountId = req.user!.accountId;
+      if (d.payment_method && d.payment_method !== "unpaid" && !req.user!.permissions.includes("payments.record")) {
+        throw err.forbidden();
+      }
 
       const branch = await db("branches").where({ id: d.branch_id, account_id: accountId }).first();
       if (!branch) throw err.notFound();
+      if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
 
       // YKMS-02E: الإعدادات مصدر الحقيقة التشغيلي
       const settings = await getSettings(db, accountId, branch.id);
@@ -569,6 +591,7 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!order) throw err.notFound();
+      if (!canAccessBranch(req.user!, order.branch_id)) throw err.forbidden();
       // YKMS-02E: إلغاء الطلب قد يتطلب صلاحية مدير حسب الإعدادات
       if (body.data.status === "cancelled") {
         const settings = await getSettings(db, req.user!.accountId, order.branch_id);
@@ -603,6 +626,7 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!order) throw err.notFound();
+      if (!canAccessBranch(req.user!, order.branch_id)) throw err.forbidden();
       if (order.status === "cancelled") throw err.validation({ status: ar.errors.bad_status_transition });
       // YKMS-02C: الإعدادات تتحكم في طرق الدفع وشرط الشيفت للنقدي
       const settings = await getSettings(db, req.user!.accountId, order.branch_id);
@@ -683,6 +707,7 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await loadFullOrder(db, req.user!.accountId, req.params.id);
       if (!order) throw err.notFound();
+      if (!canAccessBranch(req.user!, order.branch_id)) throw err.forbidden();
       const settings = await getSettings(db, req.user!.accountId, order.branch_id);
       if (!settings.receipt_printing_enabled) {
         throw err.validation({ printing: ar.errors.receipt_printing_disabled });
@@ -739,6 +764,7 @@ export function orderRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!order) throw err.notFound();
+      if (!canAccessBranch(req.user!, order.branch_id)) throw err.forbidden();
       if (order.order_type !== "delivery") throw err.validation({ order_type: ar.errors.order_type_disabled });
       if (body.data.driver_id) {
         const driver = await db("drivers")

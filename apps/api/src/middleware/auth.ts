@@ -84,15 +84,29 @@ export function requireUser(db: Knex) {
   };
 }
 
+/**
+ * Permission implication rules.
+ * A broader management permission satisfies the narrower read-only lookup permission.
+ */
+export function hasPermission(user: AuthUser, key: string): boolean {
+  if (user.permissions.includes(key)) return true;
+  return key === "customers.lookup" && user.permissions.includes("customers.manage");
+}
+
 /** RBAC check — FR-010 / FR-013. Owners pass everything via seeded full permissions. */
 export function requirePermission(...keys: string[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     const u = req.user;
     if (!u) return next(err.unauthorized());
-    const ok = keys.every((k) => u.permissions.includes(k));
+    const ok = keys.every((k) => hasPermission(u, k));
     if (!ok) return next(err.forbidden());
     next();
   };
+}
+
+/** Branch access for operational users. Global users and branch managers may cross branches. */
+export function canAccessBranch(user: AuthUser, branchId: string): boolean {
+  return user.branchId == null || user.branchId === branchId || user.permissions.includes("branches.manage");
 }
 
 /** API token auth (bridge, website, QR...). Scope check included. */

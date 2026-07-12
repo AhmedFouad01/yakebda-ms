@@ -125,7 +125,33 @@ export function customerRoutes(db: Knex): Router {
     return out;
   }
 
-  r.get("/", async (req, res, next) => {
+  // Minimal POS lookup. Full CRM fields remain protected by customers.manage.
+  r.get("/lookup", requirePermission("customers.lookup"), async (req, res, next) => {
+    try {
+      const q = z.object({ search: z.string().optional() }).safeParse(req.query);
+      if (!q.success) throw err.validation(q.error.flatten());
+      const rows = await db("customers")
+        .where({ account_id: req.user!.accountId })
+        .modify((qb) => {
+          if (q.data.search) {
+            qb.where((w) =>
+              w
+                .where("name", "ilike", `%${q.data.search}%`)
+                .orWhere("phone", "ilike", `%${q.data.search}%`)
+                .orWhere("alt_phone", "ilike", `%${q.data.search}%`)
+            );
+          }
+        })
+        .select("id", "name", "phone", "address")
+        .orderBy("created_at", "desc")
+        .limit(200);
+      res.json({ data: rows });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  r.get("/", requirePermission("customers.manage"), async (req, res, next) => {
     try {
       const q = z.object({ search: z.string().optional() }).safeParse(req.query);
       // DTO خفيف للقائمة — بلا تحليلات ثقيلة لكل صف
@@ -150,7 +176,7 @@ export function customerRoutes(db: Knex): Router {
   });
 
   // YKMS-02G-D — ملف العميل الكامل مع تحليلات مجمّعة (استعلام واحد للإجماليات).
-  r.get("/:id", async (req, res, next) => {
+  r.get("/:id", requirePermission("customers.manage"), async (req, res, next) => {
     try {
       const accountId = req.user!.accountId;
       const customer = await db("customers").where({ id: req.params.id, account_id: accountId }).first();
@@ -231,7 +257,7 @@ export function customerRoutes(db: Knex): Router {
   });
 
   // YKMS-02G-D — سجل طلبات العميل (مصفح، DTO خفيف)
-  r.get("/:id/orders", async (req, res, next) => {
+  r.get("/:id/orders", requirePermission("customers.manage"), async (req, res, next) => {
     try {
       const accountId = req.user!.accountId;
       const customer = await db("customers").where({ id: req.params.id, account_id: accountId }).first();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, getToken } from "./api";
 
 /**
@@ -63,5 +63,6 @@ export function useMe(): { me: Me | null; ready: boolean; can: (p: string) => bo
       listeners.delete(listener);
     };
   }, []);
-  return { me, ready, can: (p: string) => can(me, p) };
+  const canPermission = useCallback((p: string) => can(me, p), [me]);
+  return { me, ready, can: canPermission };
 }

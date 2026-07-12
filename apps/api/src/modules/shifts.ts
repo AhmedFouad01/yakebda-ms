@@ -4,7 +4,7 @@ import { Knex } from "knex";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
-import { requirePermission, requireUser } from "../middleware/auth";
+import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 
 function cashAmount(v: unknown): number {
@@ -43,6 +43,7 @@ export function shiftRoutes(db: Knex): Router {
     try {
       const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
       if (!q.success) throw err.validation(q.error.flatten());
+      if (q.data.branch_id && !canAccessBranch(req.user!, q.data.branch_id)) throw err.forbidden();
       const row = await db("shifts")
         .where({ account_id: req.user!.accountId, cashier_user_id: req.user!.id, status: "open" })
         .modify((qb) => {
@@ -61,6 +62,7 @@ export function shiftRoutes(db: Knex): Router {
     try {
       const body = z.object({ branch_id: z.string().uuid(), opening_cash: z.number().nonnegative().default(0), notes: z.string().optional().nullable() }).safeParse(req.body);
       if (!body.success) throw err.validation(body.error.flatten());
+      if (!canAccessBranch(req.user!, body.data.branch_id)) throw err.forbidden();
       const branch = await db("branches").where({ id: body.data.branch_id, account_id: req.user!.accountId, is_active: true }).first();
       if (!branch) throw err.notFound();
       const open = await db("shifts").where({ account_id: req.user!.accountId, branch_id: branch.id, cashier_user_id: req.user!.id, status: "open" }).first();
@@ -80,6 +82,7 @@ export function shiftRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const shift = await db("shifts").where({ id: req.params.id, account_id: req.user!.accountId, status: "open" }).first();
       if (!shift) throw err.notFound();
+      if (!canAccessBranch(req.user!, shift.branch_id)) throw err.forbidden();
       await db("shift_cash_movements").insert({ id: newId(), shift_id: shift.id, type: "cash_in", amount: body.data.amount, reason: body.data.reason, created_by: req.user!.id });
       await writeAudit(db, { accountId: req.user!.accountId, branchId: shift.branch_id, userId: req.user!.id, action: "shift.cash_in", entityType: "shift", entityId: shift.id, meta: body.data, ip: req.ip });
       res.json({ data: await summarizeShift(db, shift.id), message: ar.messages.updated });
@@ -94,6 +97,7 @@ export function shiftRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const shift = await db("shifts").where({ id: req.params.id, account_id: req.user!.accountId, status: "open" }).first();
       if (!shift) throw err.notFound();
+      if (!canAccessBranch(req.user!, shift.branch_id)) throw err.forbidden();
       await db("shift_cash_movements").insert({ id: newId(), shift_id: shift.id, type: "cash_out", amount: body.data.amount, reason: body.data.reason, created_by: req.user!.id });
       await writeAudit(db, { accountId: req.user!.accountId, branchId: shift.branch_id, userId: req.user!.id, action: "shift.cash_out", entityType: "shift", entityId: shift.id, meta: body.data, ip: req.ip });
       res.json({ data: await summarizeShift(db, shift.id), message: ar.messages.updated });
@@ -108,6 +112,7 @@ export function shiftRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const summary = await summarizeShift(db, req.params.id);
       if (!summary || summary.account_id !== req.user!.accountId || summary.status !== "open") throw err.notFound();
+      if (!canAccessBranch(req.user!, summary.branch_id)) throw err.forbidden();
       await db("shifts").where({ id: summary.id }).update({ status: "closed", closed_at: db.fn.now(), actual_cash: body.data.actual_cash, closing_cash: body.data.actual_cash, expected_cash: summary.totals.expected_cash, notes: body.data.notes ?? summary.notes, updated_at: db.fn.now() });
       await writeAudit(db, { accountId: req.user!.accountId, branchId: summary.branch_id, userId: req.user!.id, action: "shift.close", entityType: "shift", entityId: summary.id, meta: { actual_cash: body.data.actual_cash, expected_cash: summary.totals.expected_cash }, ip: req.ip });
       res.json({ data: await summarizeShift(db, summary.id), message: ar.messages.updated });
@@ -120,6 +125,7 @@ export function shiftRoutes(db: Knex): Router {
     try {
       const summary = await summarizeShift(db, req.params.id);
       if (!summary || summary.account_id !== req.user!.accountId) throw err.notFound();
+      if (!canAccessBranch(req.user!, summary.branch_id)) throw err.forbidden();
       res.json({ data: summary });
     } catch (e) {
       next(e);

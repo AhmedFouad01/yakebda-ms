@@ -26,6 +26,11 @@ export function branchRoutes(db: Knex): Router {
     try {
       const rows = await db("branches")
         .where({ account_id: req.user!.accountId })
+        .modify((qb) => {
+          if (req.user!.branchId && !req.user!.permissions.includes("branches.manage")) {
+            qb.where("id", req.user!.branchId);
+          }
+        })
         .orderBy("created_at", "asc");
       res.json({ data: rows });
     } catch (e) {

@@ -283,20 +283,9 @@ button.wide { width: 100%; margin-top: 8px; }
 .receipt-total { font-weight: 800; font-size: 15px; border-top: 1px solid var(--ink); margin-top: 6px; padding-top: 6px; }
 .receipt-thanks { text-align: center; font-weight: 800; margin-top: 6px; }
 
-/* ---------- YKMS-02: orders detail ---------- */
-.order-detail { display: grid; grid-template-columns: 1fr 240px; gap: 16px; }
-.order-actions { display: flex; flex-direction: column; gap: 9px; }
-.order-actions button { padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; font-family: inherit; font-weight: 700; }
-.order-actions button.primary { background: var(--teal); color: #fff; border-color: var(--teal); }
-.order-actions button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
-.cancel-box { display: flex; gap: 6px; }
-.cancel-box input, .cancel-box select { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-family: inherit; min-width: 0; }
-.stub-row { text-align: center; }
-
 @media (max-width: 900px) {
   .pos { grid-template-columns: 1fr; }
   .kds { grid-template-columns: 1fr; }
-  .order-detail { grid-template-columns: 1fr; }
 }
 
 /* ================== YKMS-02C: dark POS workspace ================== */

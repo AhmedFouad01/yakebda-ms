@@ -352,42 +352,13 @@ html, body { overflow-x: hidden; }
 .posx-card2-detail { background: transparent; border: 1px dashed #5d4b14; color: var(--yk-yellow); border-radius: 8px; padding: 5px 10px; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .posx-card2-detail:hover { background: rgba(246,192,38,0.08); }
 
-/* ================================================================
-   YKMS-02G — Order Detail (مراجعة تشغيلية كاملة)
-   ================================================================ */
-.od-modal { max-width: min(920px, 96vw); display: flex; flex-direction: column; max-height: 92dvh; }
-.od-modal-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--yk-line); }
-.od-modal-head h3 { margin: 0; font-size: 15px; }
-.od-modal-tabs { display: flex; gap: 4px; margin-inline-start: auto; }
-.od-modal-tabs button { height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--yk-line); background: var(--yk-black-2); color: var(--yk-text); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-.od-modal-tabs button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.od-modal-x { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--yk-line); background: transparent; color: var(--yk-muted); cursor: pointer; }
-.od-modal-x:hover { color: #ff9c8a; border-color: #ff9c8a; }
-.od { padding: var(--sp-4); overflow-y: auto; }
-.od-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3); }
-.od-section { background: var(--yk-black-2); border: 1px solid var(--yk-line); border-radius: 10px; padding: var(--sp-3); margin-bottom: var(--sp-3); }
-.od-section h4 { margin: 0 0 var(--sp-2); font-size: 12.5px; color: var(--yk-yellow); }
+/* Legacy key/value rows are also used by the customer profile drawer. */
 .od-row { display: flex; justify-content: space-between; gap: var(--sp-2); padding: 4px 0; border-bottom: 1px dashed var(--yk-line); font-size: 12.5px; }
 .od-row:last-child { border-bottom: 0; }
 .od-row-label { color: var(--yk-muted); }
 .od-row-value { font-weight: 700; text-align: end; }
 .od-row-value.mono, .od .mono { font-variant-numeric: tabular-nums; }
 .od-row-value.na { color: #6d746c; font-weight: 400; }
-.od-uuid { font-size: 10.5px; direction: ltr; word-break: break-all; }
-.od-items { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.od-items th, .od-items td { text-align: start; padding: 6px 8px; border-bottom: 1px solid var(--yk-line); }
-.od-items th { color: var(--yk-muted); font-size: 11.5px; }
-.od-mods { color: #7fd4c4; font-size: 11px; margin-top: 2px; }
-.od-inote { color: var(--yk-muted); font-size: 11px; margin-top: 3px; }
-.od-timeline { display: flex; flex-direction: column; gap: 2px; }
-.od-tl-item { display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0; font-size: 12.5px; opacity: 0.5; }
-.od-tl-item.done { opacity: 1; }
-.od-tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--yk-line); flex: 0 0 9px; }
-.od-tl-item.done .od-tl-dot { background: var(--yk-yellow); }
-.od-tl-label { font-weight: 700; min-width: 90px; }
-.od-tl-time { color: var(--yk-muted); font-variant-numeric: tabular-nums; }
-.od-tl-time.na { color: #565c53; }
-.app2-main:not(.full) .od-section { background: #fafbf9; }
 
 /* ================================================================
    YKMS-02G — Menu Management (toolbar, table, image upload, import)
@@ -654,10 +625,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .posx-history-status.kitchen-ready { color: #b7ff8a; border-color: #4d7c2f; }
 .posx-history-status.kitchen-cancelled { color: #ff9c8a; border-color: #7a2a2a; }
 .posx-history-empty { padding: 24px; color: var(--yk-muted); text-align: center; }
-
-.od-item-main { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: center; }
-.od-item-image { width: 54px; height: 54px; object-fit: cover; border-radius: 9px; }
-.od-item-image.ph { display: grid; place-items: center; background: #2d260d; color: var(--yk-yellow); font-weight: 900; }
 
 @media (max-width: 1450px) {
   .posx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

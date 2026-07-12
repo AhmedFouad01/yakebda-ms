@@ -119,6 +119,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ShellIcon name="back" />
         </button>
         {sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
+        {isPos && <div id="pos-appshell-controls" className="app2-pos-controls-slot" aria-label="إعدادات الطلب" />}
         <span className="app2-spacer" />
         <div className="app2-theme-control" title={themeLabel}>
           <ToggleSwitch

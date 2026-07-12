@@ -18,6 +18,7 @@ import { Orders } from "./pages/Orders";
 import { Customers } from "./pages/Customers";
 import { Reports } from "./pages/Reports";
 import { SettingsPage } from "./pages/Settings";
+import { NotFound } from "./pages/NotFound";
 import { useMe } from "./lib/me";
 import { ReactNode } from "react";
 
@@ -31,8 +32,6 @@ function Guard({ perm, anyOf, children }: { perm?: string; anyOf?: string[]; chi
 }
 
 function Shell() {
-  // YKMS-02F: AppShell موحد — AppBar + NavDrawer + Sidebar للشاشات الإدارية،
-  // وPOS يحصل على كامل المساحة مع بقاء التنقل العلوي ظاهرًا دائمًا.
   if (!getToken()) return <Navigate to="/login" replace />;
   return (
     <AppShell>
@@ -63,6 +62,7 @@ export function App() {
           <Route path="/api-clients" element={<ApiClients />} />
           <Route path="/audit" element={<Audit />} />
           <Route path="/tables" element={<Navigate to="/pos" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

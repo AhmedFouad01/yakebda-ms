@@ -2,73 +2,100 @@
 
 ## Application Structure
 
-### Admin and POS
+### Admin, POS, and KDS
 
 - React + Vite + TypeScript.
 - Arabic-first and RTL-first.
-- AppShell owns the global header, navigation, and full-page layout.
-- POS, kitchen, orders, menu, customers, users, roles, reports, and settings are active application areas.
+- AppShell owns global navigation and identity.
+- Active areas include POS, kitchen, orders, menu, customers, users, roles, reports, settings, devices, printing, and audit.
+- The global light/dark UI foundation is currently being finalized in Draft PR #14 and is not part of main until merged.
 
 ### API
 
 - Node.js + TypeScript + Express.
 - PostgreSQL through Knex.
-- JWT-based authentication.
-- Permission middleware protects operational and administrative endpoints.
-- Audit records are created for sensitive state changes.
+- JWT authentication and API permission middleware.
+- Sensitive state changes create audit records.
+- Order pricing, tax, fees, discounts, and rounding are backend responsibilities.
 
 ### Database
 
 - Numbered Knex migrations are the schema source of truth.
-- Account and branch scope must be preserved in queries and constraints.
-- Development and test databases must remain separate.
+- Account and branch scope must be preserved.
+- Development and test databases remain separate.
 
-## Operational Invariants
+## Implemented Operational Areas
 
-### Orders
+- Tenant, branches, users, roles, permissions, and audit.
+- Devices, hardware endpoints, print jobs, and bridge contracts.
+- Menu catalog, variants, modifier groups, branch availability, and menu import/export.
+- POS order creation and backend quote calculations.
+- Order lifecycle and status history.
+- KDS with timestamps, SLA metrics, and operational actions.
+- Payments, shifts, receipts, and reports.
+- Settings, CRM, and customer analytics.
 
-- Order totals are computed by backend services.
-- Frontend code must not recreate pricing, tax, service-fee, discount, or rounding rules.
-- Order submission must prevent duplicate requests.
-- Cart state is cleared only after a confirmed successful operation.
+## Current Invariants
+
+### Orders and Pricing
+
+- Frontend code must not recreate final pricing.
+- Existing quote and order services are the starting point for YKMS-11.
+- Order submission prevents duplicate requests.
+- Cart state clears only after confirmed success.
+- Existing orders do not yet have the proposed source/menu/pricelist snapshots.
 
 ### Payments and Shifts
 
-- Cash operations may require an active shift depending on settings.
-- Shift-scoped history uses the actual shift opening timestamp.
-- Payment status is derived from recorded payments and the order total.
+- Cash operations may require an active shift.
+- Payment state is derived from payments and authoritative totals.
+- Shift history uses the actual opening timestamp.
 
 ### Kitchen
 
-- Kitchen state is derived from authoritative order status and timestamps.
-- Operational timestamps include submission, kitchen entry, ready, completion, and cancellation where available.
-
-### Product Images
-
-- Uploaded files are served by the API under `/uploads` in local development.
-- Frontend image paths must use the shared `resolveAssetUrl` helper.
-- Runtime upload directories are not source-controlled.
+- KDS derives state from order statuses and timestamps.
+- Ready, completion, and cancellation timestamps remain authoritative.
 
 ### Product Management
 
-- POS product cards are for ordering.
-- Product editing is handled through menu-management workflows.
-- Variants and modifier requirements must not be bypassed by quick-add interactions.
+- Master product management belongs in menu workflows.
+- POS product cards are ordering surfaces.
+- Variant and modifier requirements must not be bypassed.
+
+## Proposed, Not Implemented
+
+The following are approved planning targets only:
+
+- Order source configuration.
+- Source-specific pricelists.
+- Channel menus and external mappings.
+- Server-side source repricing snapshots.
+- Inventory items, UOM, recipes, stock ledger, and valuation.
+- Dispatch, driver state machine, COD custody, and settlements.
+- Expenses, source settlements, payment reconciliation, and finance close.
+- Financial event outbox, accounting journals, COGS, and profitability.
+- Platform adapters and Egyptian e-receipt integration.
+
+## Required Reading for Next Core Work
+
+- `docs/YAKEBDA_MS_Project_Master_v1.2_AR_RTL.md`
+- `docs/YAKEBDA_MS_Execution_Roadmap_v2_AR_RTL.md`
+- `docs/YAKEBDA_MS_SRS_v2_AR_RTL.md`
+- `docs/adr/ADR-002-order-sources-channel-menus-pricelists.md`
+- `docs/adr/ADR-003-sequencing-inventory-drivers-finance.md`
 
 ## Validation Commands
 
 ```bash
+npm audit
 npm run api:migrate
 npm run api:test
 npm run admin:build
+git diff --check
 ```
 
-For UI changes, verify the affected operational screens at common cashier resolutions and check RTL behavior.
-
-## Platform Direction
-
-The application is cloud-first. The current web interface and API remain the core platform. Windows operational clients, local device integration, resilient local caching, and synchronization are planned platform capabilities and must be treated as architecture work until implemented and validated.
+Core pricing, inventory, delivery, and finance changes also require focused idempotency, scope, reconciliation, and rollback tests.
 
 ## Documentation Boundary
 
-Repository documentation contains current engineering facts and safe operating instructions. Private product strategy, commercial research, internal rationale, prompts, and conversation history are maintained outside the repository.
+Repository documentation contains engineering facts, requirements, and approved architecture. Private research notes, commercial comparisons, chat history, and memory packets remain in Google Drive.

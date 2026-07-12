@@ -4,6 +4,7 @@ import { createApp } from "../src/app";
 import { config } from "../src/config";
 import { makeKnex } from "../src/db/knex";
 import { seedFoundation } from "../src/db/seedData";
+import { newId } from "../src/lib/ids";
 
 const db = makeKnex(config.testDatabaseUrl);
 let app: ReturnType<typeof createApp>;
@@ -37,8 +38,24 @@ beforeAll(async () => {
     .send({ email: seed.ownerEmail, password: seed.ownerPassword });
   ownerToken = login.body.token;
 
-  const pepsi = await db("products").where({ account_id: seed.accountId, name_ar: "بيبسي" }).first();
-  productId = pepsi.id;
+  const categoryId = newId();
+  productId = newId();
+  await db("categories").insert({
+    id: categoryId,
+    account_id: seed.accountId,
+    name_ar: "اختبار الترقيم",
+    sort_order: 99,
+    is_active: true,
+  });
+  await db("products").insert({
+    id: productId,
+    account_id: seed.accountId,
+    category_id: categoryId,
+    name_ar: "صنف ترقيم مستقل",
+    base_price: 10,
+    sort_order: 0,
+    is_active: true,
+  });
 });
 
 afterAll(async () => {
@@ -46,11 +63,11 @@ afterAll(async () => {
 });
 
 describe("Atomic order numbering", () => {
-  it("classifies concurrent order outcomes", async () => {
+  it("creates all concurrent orders successfully", async () => {
     const responses = await Promise.all(
       Array.from({ length: 8 }, () => createOrder())
     );
 
-    expect(responses.every((res) => [201, 409].includes(res.status))).toBe(true);
+    expect(responses.map((res) => res.status)).toEqual(Array(8).fill(201));
   });
 });

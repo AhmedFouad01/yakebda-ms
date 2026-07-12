@@ -4,7 +4,7 @@ import { z } from "zod";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
-import { renderKitchenTicketPayload } from "../lib/receipt";
+import { renderKitchenTicketPayload, renderReceiptPayload } from "../lib/receipt";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { getSettings, Settings } from "./settings";
@@ -531,6 +531,37 @@ export function orderPricingRoutes(db: Knex): Router {
             },
             ip: req.ip,
           });
+        }
+
+        // Runtime reliability: auto-print receipt for payments captured during order creation.
+        if (paymentId && settings.auto_print_on_payment && settings.receipt_printing_enabled) {
+          try {
+            const endpoint = await db("hardware_endpoints")
+              .where({ branch_id: branch.id, kind: "receipt_printer", is_active: true })
+              .first();
+            if (endpoint) {
+              const full = await loadFullOrder(db, accountId, orderId);
+              await db("print_jobs").insert({
+                id: newId(),
+                branch_id: branch.id,
+                endpoint_id: endpoint.id,
+                device_id: endpoint.device_id ?? null,
+                type: "receipt",
+                payload: JSON.stringify(
+                  renderReceiptPayload(full!, {
+                    footer: settings.receipt_footer,
+                    paperWidthMm: settings.paper_width_mm,
+                    copies: settings.receipt_copies,
+                    taxDisplay: settings.receipt_tax_display,
+                  })
+                ),
+                status: "pending",
+                created_by: req.user!.id,
+              });
+            }
+          } catch {
+            // Printing failure must never roll back a paid order.
+          }
         }
 
         res.status(201).json({

@@ -222,6 +222,8 @@ export function Pos() {
   const [historyError, setHistoryError] = useState("");
   const [history, setHistory] = useState<ShiftOrderSummary[]>([]);
   const [historyOrder, setHistoryOrder] = useState<FullOrder | null>(null);
+  const [historyOrderBusy, setHistoryOrderBusy] = useState(false);
+  const [historyOrderError, setHistoryOrderError] = useState("");
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
@@ -284,16 +286,38 @@ export function Pos() {
     };
   }, [branchId, cart.length, quoteKey, quotePayload]);
   useEffect(() => {
-    api<{ data: Branch[] }>("/branches").then((response) => {
-      setBranches(response.data);
-      if (!branchId && response.data.length) setBranchId(response.data[0].id);
-    });
-    if (can("customers.lookup") || can("customers.manage")) {
-      api<{ data: typeof customers }>("/customers/lookup")
-        .then((response) => setCustomers(response.data))
-        .catch(() => {});
+    let cancelled = false;
+    api<{ data: Branch[] }>("/branches")
+      .then((response) => {
+        if (cancelled) return;
+        setBranches(response.data);
+        setBranchId((current) => current || response.data[0]?.id || "");
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!can("customers.lookup") && !can("customers.manage")) {
+      setCustomers([]);
+      return;
     }
-  }, [branchId, can]);
+    let cancelled = false;
+    api<{ data: typeof customers }>("/customers/lookup")
+      .then((response) => {
+        if (!cancelled) setCustomers(response.data);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [can]);
 
   async function loadShift(currentBranchId: string) {
     try {
@@ -322,9 +346,18 @@ export function Pos() {
   }
 
   async function openHistoryOrder(id: string) {
-    const response = await api<{ data: FullOrder }>(`/orders/${id}`);
-    setHistoryOpen(false);
-    setHistoryOrder(response.data);
+    if (historyOrderBusy) return;
+    setHistoryOrderBusy(true);
+    setHistoryOrderError("");
+    try {
+      const response = await api<{ data: FullOrder }>(`/orders/${id}`);
+      setHistoryOpen(false);
+      setHistoryOrder(response.data);
+    } catch (e: any) {
+      setHistoryOrderError(e.message);
+    } finally {
+      setHistoryOrderBusy(false);
+    }
   }
 
   async function loadMenu(currentBranchId = branchId, preserve = false) {
@@ -776,6 +809,8 @@ export function Pos() {
       <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="سجل طلبات الشيفت" wide>
         {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
         {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
+        {historyOrderBusy && <div className="posx-history-empty">جارٍ تحميل تفاصيل الطلب…</div>}
+        {!historyOrderBusy && historyOrderError && <div className="alert dark-alert">{historyOrderError}</div>}
         {!historyBusy && !historyError && !shift && (
           <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
         )}
@@ -793,7 +828,7 @@ export function Pos() {
               order.kitchen_status === "completed" ? "مكتمل" :
               order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
             return (
-              <button key={order.id} className="posx-history-card" onClick={() => openHistoryOrder(order.id)}>
+              <button key={order.id} className="posx-history-card" disabled={historyOrderBusy} onClick={() => openHistoryOrder(order.id)}>
                 <div className="posx-history-card-head">
                   <span className="posx-history-main">
                     <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>

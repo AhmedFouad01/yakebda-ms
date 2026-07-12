@@ -76,6 +76,10 @@ The legacy files are not deleted in this patch because they still contain screen
 4. Remove duplicate global selectors after their dependent screens are migrated.
 5. Consolidate `ui-polish.css`, `ui-polish-final.css`, and `final-closure.css` once regression coverage exists for every affected screen.
 
+## Acceptance gate
+
+The PR remains Draft until the strict CI run passes on its final head and the final visual review is accepted explicitly. No merge is implied by automated success alone.
+
 ## Non-goals
 
 - No API, database, pricing, order workflow, payment, permission, or audit behavior changes.

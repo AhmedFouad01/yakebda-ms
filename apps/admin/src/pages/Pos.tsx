@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { api, resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
@@ -170,7 +170,6 @@ function safeCalc(expression: string): string {
 
 export function Pos() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const { can, me } = useMe();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState(params.get("branch") ?? "");
@@ -204,6 +203,8 @@ export function Pos() {
   const [historyOrder, setHistoryOrder] = useState<FullOrder | null>(null);
   const [historyOrderBusy, setHistoryOrderBusy] = useState(false);
   const [historyOrderError, setHistoryOrderError] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
@@ -517,6 +518,12 @@ export function Pos() {
     setCalc((value) => value + key);
   }
 
+  const normalizedHistorySearch = historySearch.trim().replace(/^#/, "").toLocaleLowerCase("ar-EG");
+  const filteredHistory = normalizedHistorySearch
+    ? history.filter((order) => `${order.order_prefix ?? ""}${order.order_no}`.toLocaleLowerCase("ar-EG").includes(normalizedHistorySearch))
+    : history;
+  const shiftOrdersCount = shift?.totals?.orders_count ?? history.length;
+
   return (
     <div className="posx" dir="rtl">
 
@@ -545,14 +552,6 @@ export function Pos() {
             >
               السلة <span>{itemCount}</span>
             </button>
-            <details className="posx-adminmenu">
-              <summary>الإدارة ▾</summary>
-              <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
-                {can("menu.manage") && <button onClick={() => navigate("/menu")}>إدارة المنيو</button>}
-                {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
-                {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
-              </div>
-              </details>
             </div>
             <div className="posx-cats">
             <button className={activeCat === "الكل" && !search ? "active" : ""} onClick={() => { setActiveCat("الكل"); setSearch(""); }}>الكل</button>
@@ -726,58 +725,96 @@ export function Pos() {
       </div>
 
       <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="سجل طلبات الشيفت" wide>
-        {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
-        {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
-        {historyOrderBusy && <div className="posx-history-empty">جارٍ تحميل تفاصيل الطلب…</div>}
-        {!historyOrderBusy && historyOrderError && <div className="alert dark-alert">{historyOrderError}</div>}
-        {!historyBusy && !historyError && !shift && (
-          <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
-        )}
-        {!historyBusy && !historyError && shift && !history.length && (
-          <div className="posx-history-empty">لم يتم تسجيل طلبات في الشيفت الحالي بعد.</div>
-        )}
-        <div className="posx-history-list">
-          {history.map((order) => {
-            const amount = Number(order.total);
-            const paymentState = order.payment_status === "paid" ? "مدفوع" : order.payment_status === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
-            const kitchenState =
-              order.kitchen_status === "waiting" ? "في انتظار المطبخ" :
-              order.kitchen_status === "preparing" ? "قيد التحضير" :
-              order.kitchen_status === "ready" ? "جاهز" :
-              order.kitchen_status === "completed" ? "مكتمل" :
-              order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
-            return (
-              <button key={order.id} className="posx-history-card" disabled={historyOrderBusy} onClick={() => openHistoryOrder(order.id)}>
-                <div className="posx-history-card-head">
-                  <span className="posx-history-main">
-                    <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
-                    <span>{new Date(order.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span>
-                  </span>
-                  <strong className="posx-history-total">{money(amount)}</strong>
-                </div>
-                <div className="posx-history-items">
-                  {order.preview_items.map((item) => {
-                    const src = resolveAssetUrl(item.image_url);
-                    return (
-                      <span key={item.id} className="posx-history-item">
-                        {src ? <img src={src} alt="" /> : <span className="posx-history-item-ph">{item.name_ar.trim().charAt(0)}</span>}
-                        <span className="posx-history-item-copy">
-                          <b>{item.qty} × {item.name_ar}</b>
-                          {item.variant_name_ar && <small>{item.variant_name_ar}</small>}
-                        </span>
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="posx-history-meta">
-                  <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
-                  <span>{order.item_count} قطعة</span>
-                  <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
-                  <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
-                </div>
-              </button>
-            );
-          })}
+        <div className="posx-history">
+          <div className="posx-history-toolbar">
+            <label className="posx-history-search">
+              <span>بحث برقم الطلب</span>
+              <input
+                inputMode="numeric"
+                placeholder="مثال: 31 أو #31"
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+              />
+            </label>
+            <div className="posx-history-kpi" aria-label={`إجمالي طلبات الشيفت ${shiftOrdersCount}`}>
+              <span>إجمالي طلبات الشيفت</span>
+              <strong>{shiftOrdersCount}</strong>
+            </div>
+          </div>
+
+          {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
+          {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
+          {historyOrderBusy && <div className="posx-history-empty">جارٍ تحميل تفاصيل الطلب…</div>}
+          {!historyOrderBusy && historyOrderError && <div className="alert dark-alert">{historyOrderError}</div>}
+          {!historyBusy && !historyError && !shift && (
+            <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
+          )}
+          {!historyBusy && !historyError && shift && !history.length && (
+            <div className="posx-history-empty">لم يتم تسجيل طلبات في الشيفت الحالي بعد.</div>
+          )}
+          {!historyBusy && !historyError && history.length > 0 && !filteredHistory.length && (
+            <div className="posx-history-empty">لا يوجد طلب مطابق لرقم البحث.</div>
+          )}
+
+          <div className="posx-history-list">
+            {filteredHistory.map((order) => {
+              const expanded = expandedHistoryId === order.id;
+              const amount = Number(order.total);
+              const paymentState = order.payment_status === "paid" ? "مدفوع" : order.payment_status === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
+              const kitchenState =
+                order.kitchen_status === "waiting" ? "في انتظار المطبخ" :
+                order.kitchen_status === "preparing" ? "قيد التحضير" :
+                order.kitchen_status === "ready" ? "جاهز" :
+                order.kitchen_status === "completed" ? "مكتمل" :
+                order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
+              return (
+                <article key={order.id} className={`posx-history-card${expanded ? " expanded" : ""}`}>
+                  <button
+                    type="button"
+                    className="posx-history-summary"
+                    aria-expanded={expanded}
+                    aria-controls={`shift-order-${order.id}`}
+                    onClick={() => setExpandedHistoryId((current) => current === order.id ? null : order.id)}
+                  >
+                    <span className="posx-history-main">
+                      <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
+                      <span>{new Date(order.created_at).toLocaleString("ar-EG", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                    </span>
+                    <span className="posx-history-meta">
+                      <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+                      <span>{order.item_count} قطعة</span>
+                      <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
+                      <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
+                    </span>
+                    <span className="posx-history-expand-icon" aria-hidden>{expanded ? "−" : "+"}</span>
+                  </button>
+
+                  {expanded && (
+                    <div id={`shift-order-${order.id}`} className="posx-history-expanded">
+                      <div className="posx-history-items">
+                        {order.preview_items.map((item) => {
+                          const src = resolveAssetUrl(item.image_url);
+                          return (
+                            <span key={item.id} className="posx-history-item">
+                              {src ? <img src={src} alt="" /> : <span className="posx-history-item-ph">{item.name_ar.trim().charAt(0)}</span>}
+                              <span className="posx-history-item-copy">
+                                <b>{item.qty} × {item.name_ar}</b>
+                                {item.variant_name_ar && <small>{item.variant_name_ar}</small>}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <div className="posx-history-expanded-foot">
+                        <strong>{money(amount)}</strong>
+                        <button type="button" disabled={historyOrderBusy} onClick={() => openHistoryOrder(order.id)}>فتح التفاصيل الكاملة</button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         </div>
       </Drawer>
 

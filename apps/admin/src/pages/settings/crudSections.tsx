@@ -102,7 +102,7 @@ export function MenuSection({ editable }: { editable: boolean }) {
         </div>
       )}
       {tab === "products" && (
-        <table>
+        <table className="settings-menu-table">
           <thead>
             <tr><th>الصنف</th><th>الصورة (مربعة)</th><th>يظهر في POS</th><th>يُطبع للمطبخ</th><th>قابل للخصم</th><th>محطة التحضير</th><th>تحضير (د)</th></tr>
           </thead>
@@ -123,10 +123,10 @@ export function MenuSection({ editable }: { editable: boolean }) {
                   </td>
                 ))}
                 <td>
-                  <select disabled={!editable} value={p.prep_station_id ?? ""} onChange={(e) => patch(p.id, { prep_station_id: e.target.value || null })}>
+                  <Select disabled={!editable} value={p.prep_station_id ?? ""} onChange={(e) => patch(p.id, { prep_station_id: e.target.value || null })}>
                     <option value="">حسب القسم</option>
                     {stations.map((st) => <option key={st.id} value={st.id}>{st.name_ar}</option>)}
-                  </select>
+                  </Select>
                 </td>
                 <td>
                   <input type="number" min={0} disabled={!editable} defaultValue={p.prep_time_minutes} style={{ width: 60 }}

@@ -918,3 +918,403 @@ button.danger:hover:not(:disabled),
     border-radius: 9px;
   }
 }
+
+
+/* ==================================================================
+   Approved visual review — responsive layout and typography
+   Scoped away from approved POS product cards and KDS presentation.
+   ================================================================== */
+
+:root {
+  --type-xs: 0.75rem;
+  --type-sm: 0.8125rem;
+  --type-body: 0.875rem;
+  --type-md: 1rem;
+  --type-lg: 1.125rem;
+  --type-xl: clamp(1.35rem, 1.7vw, 1.6rem);
+  --type-leading-ar: 1.55;
+}
+
+/* Typography contract for admin pages, settings, tables, modals, and drawers. */
+.app2-main:not(.full),
+.settings-page,
+.reports-page,
+.uif-drawer,
+.modal {
+  font-size: var(--type-body);
+  line-height: var(--type-leading-ar);
+}
+
+:is(.uif-pagehead h1, .page-head h1, .reports-page h1, .settings-page > .uif-pagehead h1) {
+  font-size: var(--type-xl) !important;
+  line-height: 1.35 !important;
+  font-weight: 900 !important;
+}
+
+:is(.uif-card-head h3, .report-panel thead th:first-child, .uif-drawer-title, .modal h3) {
+  font-size: var(--type-md) !important;
+  line-height: 1.45 !important;
+}
+
+:is(.app2-main:not(.full), .settings-page, .reports-page, .uif-drawer, .modal) :is(button, input, select, textarea) {
+  font-size: var(--type-body);
+}
+
+:is(.data-table-shell, .report-panel, .settings-page .uif-card-body) table tbody td {
+  font-size: var(--type-body);
+}
+
+:is(.data-table-shell, .report-panel, .settings-page .uif-card-body) table thead th {
+  font-size: var(--type-sm) !important;
+}
+
+:is(.uif-hint, .muted, .uif-sub, .posx-history-main span, .posx-history-item-copy small) {
+  font-size: var(--type-xs);
+  line-height: 1.5;
+}
+
+/* One RTL select geometry contract. */
+.app2 select,
+.uif-drawer select,
+.modal select {
+  min-height: 40px;
+  padding-block: 0 !important;
+  padding-inline: 12px 40px !important;
+  background-position: left 12px center !important;
+  background-size: 16px 16px !important;
+  text-align: right !important;
+  text-align-last: right;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.app2 select:focus-visible,
+.uif-drawer select:focus-visible,
+.modal select:focus-visible {
+  border-color: var(--brand) !important;
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+
+/* Settings use the available viewport instead of clipping the content column. */
+.settings-page {
+  width: min(1480px, 100%) !important;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.settings-page .setx2 {
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) !important;
+  width: 100%;
+  max-width: 100%;
+  justify-content: stretch !important;
+}
+
+.settings-page .setx2-body {
+  width: 100%;
+  max-width: none !important;
+  overflow: hidden;
+}
+
+.settings-page .uif-card-body:has(.settings-menu-table) {
+  overflow-x: hidden !important;
+}
+
+.settings-menu-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.settings-menu-table :is(th, td) {
+  min-width: 0 !important;
+  padding-inline: 8px !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.settings-menu-table th:nth-child(1) { width: 15%; }
+.settings-menu-table th:nth-child(2) { width: 29%; }
+.settings-menu-table th:nth-child(3),
+.settings-menu-table th:nth-child(4),
+.settings-menu-table th:nth-child(5) { width: 9%; }
+.settings-menu-table th:nth-child(6) { width: 19%; }
+.settings-menu-table th:nth-child(7) { width: 10%; }
+
+.settings-menu-table .set-img {
+  grid-template-columns: 40px minmax(0, 1fr) !important;
+  min-width: 0 !important;
+}
+
+.settings-menu-table .set-img > :is(img, span) {
+  width: 40px;
+  height: 40px;
+}
+
+.settings-menu-table :is(input, select, .uif-input) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.settings-menu-table td:nth-child(3),
+.settings-menu-table td:nth-child(4),
+.settings-menu-table td:nth-child(5) {
+  text-align: center;
+}
+
+/* Reports: responsive cards and tables, no desktop horizontal scroll frames. */
+.reports-page {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.report-summary-grid .card {
+  min-width: 0;
+  margin: 0;
+}
+
+.report-summary-grid .num {
+  font-size: clamp(1.25rem, 1.8vw, 1.65rem) !important;
+  line-height: 1.2;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  align-items: stretch;
+  gap: 12px;
+  min-width: 0;
+}
+
+.report-panel {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden !important;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: 0 5px 18px var(--theme-shadow);
+}
+
+.report-panel > table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.report-panel table :is(th, td) {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 10px 11px !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.report-panel table :is(th, td):last-child {
+  text-align: left;
+}
+
+.report-panel .empty {
+  padding: 24px 12px;
+}
+
+/* POS toolbar after removing the redundant Admin shortcut. */
+.app2-pos .posx-menu-tools {
+  grid-template-columns: minmax(150px, 190px) auto minmax(260px, 1fr) auto auto !important;
+}
+
+/* Shift history: compact collapsed rows, one search, one shift total. */
+.posx-history {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.posx-history-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px);
+  align-items: end;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-block: 2px 10px;
+  background: var(--surface-1);
+}
+
+.posx-history-search {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-weight: 800;
+}
+
+.posx-history-search input {
+  width: 100%;
+  min-width: 0;
+}
+
+.posx-history-kpi {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--brand);
+  border-radius: 11px;
+  background: var(--theme-brand-soft);
+}
+
+.posx-history-kpi span {
+  color: var(--text-secondary);
+  font-size: var(--type-sm);
+  font-weight: 800;
+}
+
+.posx-history-kpi strong {
+  color: var(--brand);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.posx-history-list {
+  gap: 8px !important;
+}
+
+.posx-history-card {
+  display: block !important;
+  padding: 0 !important;
+  overflow: hidden;
+  cursor: default !important;
+}
+
+.uif-drawer .posx-history-summary {
+  width: 100%;
+  min-height: 64px !important;
+  display: grid !important;
+  grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1.8fr) 34px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  text-align: start;
+  transform: none !important;
+}
+
+.uif-drawer .posx-history-summary:hover:not(:disabled),
+.posx-history-card.expanded .posx-history-summary {
+  background: var(--surface-2) !important;
+}
+
+.posx-history-main strong {
+  color: var(--brand);
+  font-size: var(--type-md);
+}
+
+.posx-history-meta {
+  min-width: 0;
+  align-items: center;
+}
+
+.posx-history-meta > span {
+  font-size: var(--type-xs) !important;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.posx-history-expand-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--brand);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.posx-history-expanded {
+  display: grid;
+  gap: 10px;
+  padding: 10px 11px 12px;
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-2) 66%, var(--surface-1));
+}
+
+.posx-history-expanded .posx-history-items {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.posx-history-expanded-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.posx-history-expanded-foot > strong {
+  color: var(--brand);
+  font-size: var(--type-lg);
+}
+
+@media (max-width: 1050px) {
+  .settings-page .setx2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .settings-page .setx2-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  }
+
+  .app2-pos .posx-menu-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .app2-pos .posx-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-page .uif-card-body:has(.settings-menu-table) {
+    overflow-x: auto !important;
+  }
+
+  .settings-menu-table {
+    min-width: 760px !important;
+  }
+
+  .posx-history-toolbar,
+  .uif-drawer .posx-history-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .posx-history-expand-icon {
+    position: absolute;
+    inset-inline-end: 10px;
+    margin-top: 4px;
+  }
+
+  .posx-history-expanded .posx-history-items {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

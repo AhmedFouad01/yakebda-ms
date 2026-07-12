@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [main, dev]
 
-permissions:
-  contents: write
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -39,30 +36,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
-
-      - name: Correct one-time runner
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path("tools/qa/apply-approved-visual-review.mjs")
-          source = p.read_text(encoding="utf-8")
-          source = source.replace(
-              '  source = replaceOnce(source, \'<div className="cards">\', \'<div className="report-summary-grid">\', "reports summary grid");',
-              '  source = source.replace(\'<div className="cards">\', \'<div className="report-summary-grid">\');',
-          )
-          source = source.replace(
-              '  source = replaceOnce(source, \'<div className="cards">\', \'<div className="report-grid">\', "reports data grid");',
-              '  source = source.replace(\'<div className="cards">\', \'<div className="report-grid">\');',
-          )
-          p.write_text(source, encoding="utf-8")
-          PY
-
-      - name: Apply approved visual review
-        run: node tools/qa/apply-approved-visual-review.mjs
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -78,72 +51,3 @@ jobs:
 
       - name: Admin build
         run: npm run admin:build
-
-      - name: Persist approved visual review and restore CI
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          rm -f tools/qa/apply-approved-visual-review.mjs
-          rm -f .github/workflows/apply-approved-visual-review.yml
-
-          cat > .github/workflows/ci.yml <<'EOF'
-          name: YAKEBDA MS CI
-
-          on:
-            push:
-              branches: [main, dev]
-            pull_request:
-              branches: [main, dev]
-
-          jobs:
-            build-and-test:
-              runs-on: ubuntu-latest
-
-              services:
-                postgres:
-                  image: postgres:16
-                  env:
-                    POSTGRES_USER: ykms
-                    POSTGRES_PASSWORD: ykms
-                    POSTGRES_DB: ykms_test
-                  ports:
-                    - 5432:5432
-                  options: >-
-                    --health-cmd "pg_isready -U ykms -d ykms_test"
-                    --health-interval 10s
-                    --health-timeout 5s
-                    --health-retries 5
-
-              env:
-                NODE_ENV: test
-                DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
-                TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
-                JWT_SECRET: ci-only-change-me
-                API_PORT: 3001
-                CORS_ORIGIN: http://localhost:5173
-
-              steps:
-                - name: Checkout
-                  uses: actions/checkout@v4
-
-                - name: Setup Node
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: 20
-                    cache: npm
-
-                - name: Install
-                  run: npm ci
-
-                - name: API tests
-                  run: npm run api:test
-
-                - name: Admin build
-                  run: npm run admin:build
-          EOF
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix(ui): apply approved responsive review [approved-visual-review]"
-          git push origin HEAD:${{ github.head_ref }}

@@ -918,3 +918,34 @@ button.danger:hover:not(:disabled),
     border-radius: 9px;
   }
 }
+
+
+/* POS card semantic primary interaction — no nested controls. */
+.app2-pos .posx-card2-main {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  text-align: inherit !important;
+  cursor: pointer;
+}
+
+.app2-pos .posx-card2-main:hover:not(:disabled),
+.app2-pos .posx-card2-main:active:not(:disabled) {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: inherit !important;
+  transform: none !important;
+}
+
+.app2-pos .posx-card2-main:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: -3px;
+}

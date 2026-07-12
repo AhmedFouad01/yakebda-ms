@@ -993,39 +993,31 @@ function ProductCard({
     if (product.is_available) onAdd(variant, selectedModifiers);
   }
 
-  function isControl(target: EventTarget | null) {
-    return target instanceof HTMLElement && Boolean(target.closest("button, input, select, textarea, a"));
-  }
-
   return (
-    <article
-      className={product.is_available ? "posx-card2" : "posx-card2 off"}
-      role="button"
-      tabIndex={product.is_available ? 0 : -1}
-      aria-label={`${product.name_ar} — كليك شمال للإضافة، كليك يمين للتقليل`}
-      onClick={(event) => { if (!isControl(event.target)) add(); }}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        if (!isControl(event.target) && selectedQty > 0) onQuickRemove(variant, selectedModifiers);
-      }}
-      onKeyDown={(event) => {
-        if ((event.key === "Enter" || event.key === " ") && !isControl(event.target)) {
+    <article className={product.is_available ? "posx-card2" : "posx-card2 off"}>
+      <button
+        type="button"
+        className="posx-card2-main"
+        disabled={!product.is_available}
+        aria-label={`إضافة ${product.name_ar} إلى الطلب — زر الفأرة الأيمن للتقليل`}
+        onClick={add}
+        onContextMenu={(event) => {
           event.preventDefault();
-          add();
-        }
-      }}
-    >
-      <div className="posx-card2-media">
-        {showImage && imageSrc && !imageBroken
-          ? <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
-          : <span className="posx-card2-img ph" />}
-        <span className="posx-card2-price">{money(priceNow)}</span>
-        {selectedQty > 0 && <span className="posx-card2-qty-badge">×{selectedQty}</span>}
-      </div>
+          if (selectedQty > 0) onQuickRemove(variant, selectedModifiers);
+        }}
+      >
+        <div className="posx-card2-media">
+          {showImage && imageSrc && !imageBroken
+            ? <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
+            : <span className="posx-card2-img ph" />}
+          <span className="posx-card2-price">{money(priceNow)}</span>
+          {selectedQty > 0 && <span className="posx-card2-qty-badge">×{selectedQty}</span>}
+        </div>
 
-      <div className="posx-card2-info">
-        <h3 className="posx-card2-name">{product.name_ar}</h3>
-      </div>
+        <div className="posx-card2-info">
+          <h3 className="posx-card2-name">{product.name_ar}</h3>
+        </div>
+      </button>
 
       {!product.is_available && <div className="posx-card2-off">{product.availability_note_ar ?? t.menu.unavailable}</div>}
 

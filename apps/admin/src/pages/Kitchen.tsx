@@ -166,7 +166,7 @@ function kitchenItemChoices(item: KitchenItem) {
   item.modifiers.forEach((modifier) => detectBread(modifier.name_ar));
 
   let size = variantName;
-  for (const term of BREAD_TERMS) size = size.replaceAll(term, " ");
+  for (const term of BREAD_TERMS) size = size.split(term).join(" ");
   size = size.replace(/[\-–—/|]+/g, " ").replace(/\s+/g, " ").trim();
 
   const extras = item.modifiers

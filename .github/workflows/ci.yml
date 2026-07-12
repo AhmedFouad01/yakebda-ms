@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, dev]
 
+concurrency:
+  group: ykms-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -31,7 +35,8 @@ jobs:
       TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
       JWT_SECRET: ci-only-change-me
       API_PORT: 3001
-      CORS_ORIGIN: http://localhost:5173
+      CORS_ORIGIN: http://127.0.0.1:5173
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
 
     steps:
       - name: Checkout
@@ -40,7 +45,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.19.0
           cache: npm
 
       - name: Install
@@ -49,5 +54,57 @@ jobs:
       - name: API tests
         run: npm run api:test
 
+      - name: Admin unit tests
+        run: npm run admin:test
+
+      - name: CSS cascade audit
+        run: npm run qa:css
+
       - name: Admin build
         run: npm run admin:build
+
+      - name: Reset deterministic E2E database
+        run: npm run api:e2e:reset
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start API and Admin
+        shell: bash
+        run: |
+          npm --workspace @ykms/api run start > api.log 2>&1 &
+          npm run admin:dev -- --host 127.0.0.1 > admin.log 2>&1 &
+
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:3001/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:5173/login >/dev/null; then
+              echo "YAKEBDA MS test servers are ready"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Servers did not become ready"
+          cat api.log || true
+          cat admin.log || true
+          exit 1
+
+      - name: Cashier, accessibility, contrast, and visual tests
+        run: npm run qa:e2e
+
+      - name: Print server logs on failure
+        if: failure()
+        run: |
+          cat api.log || true
+          cat admin.log || true
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results/playwright
+          if-no-files-found: ignore
+          retention-days: 14

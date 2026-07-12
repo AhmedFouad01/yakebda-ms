@@ -1,0 +1,46 @@
+name: Validate global color system
+
+on:
+  pull_request:
+    branches: [refactor/pos-fast-rail]
+    paths:
+      - apps/admin/src/global-colors.css
+      - apps/admin/src/main.tsx
+      - apps/admin/src/theme.css
+      - scripts/check-theme-contract.mjs
+      - package.json
+      - .github/workflows/validate-global-colors.yml
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ykms
+          POSTGRES_PASSWORD: ykms
+          POSTGRES_DB: ykms_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ykms -d ykms_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      JWT_SECRET: ci-only-change-me
+      API_PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run ui:colors:check
+      - run: npm run api:test
+      - run: npm run admin:build

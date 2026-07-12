@@ -251,3 +251,5 @@
   .app2-pos .posx-shell-operation-controls { min-width: 620px; }
   .app2-pos .posx-opts > .posx-order-context { grid-template-columns: 1fr; }
 }
+
+/* synchronize temporary patch runner */

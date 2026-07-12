@@ -1,0 +1,141 @@
+name: Apply POS shell and cart item correction
+
+on:
+  push:
+    branches: [feature/order-sources-price-lists]
+    paths: [.github/workflows/fix-pos-shell-cart-items.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/order-sources-price-lists
+          fetch-depth: 0
+      - name: Patch POS layout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('apps/admin/src/pages/Pos.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          def sub_once(pattern: str, replacement: str, label: str, flags=0):
+              global text
+              text, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one match, found {count}')
+
+          # Cancel the cash tender / quick-change experiment completely.
+          sub_once(r'\n  const \[cashTender, setCashTender\] = useState<number \| null>\(null\);', '', 'remove cash tender state')
+          sub_once(
+              r'  const tenderSuggestions = useMemo\(\(\) => \{.*?  const selectedChange = .*?;\n',
+              '',
+              'remove tender suggestion calculations',
+              re.S,
+          )
+          text = re.sub(r'\n\s*setCashTender\(null\);', '', text)
+          text = text.replace(
+              'onClick={() => { setPayment(method); setCashTender(null); }}',
+              'onClick={() => setPayment(method)}',
+          )
+          sub_once(
+              r'\n            \{payment === "cash" && total > 0 && \(\n              <div className="posx-change-panel">.*?\n            \)\}',
+              '',
+              'remove quick change UI',
+              re.S,
+          )
+
+          # AppShell owns shift/search/history only.
+          sub_once(
+              r'      \{shellControlsRoot && createPortal\(\n.*?\n      \)\}\n\n      <div className="posx-body">',
+              '''      {shellControlsRoot && createPortal(
+        <div className="posx-shell-operation-controls">
+          <span className={shift ? "posx-shift on" : "posx-shift off"}>
+            <span>{me?.name ?? "الكاشير"}</span>
+            <span>{shift ? t.shift.openTitle : t.shift.noShift}</span>
+            {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>{shift ? t.shift.close : t.shift.open}</button>}
+          </span>
+          <input
+            className="posx-search"
+            placeholder="ابحث باسم الصنف أو المكونات…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
+        </div>,
+        shellControlsRoot
+      )}
+
+      <div className="posx-body">''',
+              'replace AppShell controls',
+              re.S,
+          )
+
+          # Remove duplicated operational controls from the POS toolbar.
+          sub_once(
+              r'\n            <span className=\{shift \? "posx-shift on" : "posx-shift off"\}>.*?\n            </span>',
+              '',
+              'remove toolbar shift',
+              re.S,
+          )
+          sub_once(
+              r'\n            <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value=\{search\} onChange=\{\(e\) => setSearch\(e.target.value\)\} />',
+              '',
+              'remove toolbar search',
+          )
+          sub_once(
+              r'\n            <button className="posx-history-btn" onClick=\{\(\) => setHistoryOpen\(true\)\}>سجل الطلبات</button>',
+              '',
+              'remove toolbar history',
+          )
+
+          # Restore order type and source to the cart, where the cashier expects them.
+          order_context = '''            <div className="posx-order-context">
+              <div className="seg dark">
+                {enabledOrderTypes.map((type) => (
+                  <button
+                    type="button"
+                    key={type}
+                    className={orderType === type ? "active" : ""}
+                    onClick={() => {
+                      setOrderType(type);
+                      setSourceId("");
+                      setDeliveryZoneId("");
+                      setDeliveryFee(0);
+                    }}
+                  >
+                    {t.orders.types[type]}
+                  </button>
+                ))}
+              </div>
+              <label className="posx-source-field">
+                <span>مصدر الطلب</span>
+                <select value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
+                  <option value="">اختر مصدر الطلب…</option>
+                  {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
+                </select>
+              </label>
+            </div>
+'''
+          sub_once(
+              r'          <div className="posx-opts">\n',
+              '          <div className="posx-opts">\n' + order_context,
+              'restore cart order context',
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/admin/src/pages/Pos.tsx
+          git diff --cached --check
+          git commit -m "fix(pos): move shift tools to shell and restore cart context"
+          git push origin HEAD:feature/order-sources-price-lists

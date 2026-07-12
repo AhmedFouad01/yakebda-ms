@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
+import { OrderDetail } from "../components/OrderDetail";
 import { useMe } from "../lib/me";
 import { ProductEditor } from "./menu/ProductEditor";
+import { Drawer } from "../components/ui/overlays";
 
 interface MenuModifier {
   id: string;
@@ -58,6 +60,39 @@ interface Shift {
     orders_count: number;
   };
 }
+interface ShiftOrderPreviewItem {
+  id: string;
+  name_ar: string;
+  variant_name_ar?: string | null;
+  qty: number;
+  image_url?: string | null;
+}
+interface ShiftOrderSummary {
+  id: string;
+  order_no: number;
+  order_prefix?: string | null;
+  order_type: string;
+  status: string;
+  kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
+  payment_status: "unpaid" | "partial" | "paid";
+  subtotal: string | number;
+  discount: string | number;
+  service_fee: string | number;
+  vat_amount: string | number;
+  delivery_fee: string | number;
+  rounding_adjustment: string | number;
+  total: string | number;
+  paid_amount: string | number;
+  item_count: number;
+  preview_items: ShiftOrderPreviewItem[];
+  created_at: string;
+  submitted_at?: string | null;
+  in_kitchen_at?: string | null;
+  ready_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+}
+
 interface Settings {
   show_product_images: boolean;
   require_open_shift_for_cash: boolean;
@@ -124,6 +159,8 @@ const unitPrice = (line: CartLine) =>
   line.product.effective_price +
   Number(line.variant?.price_delta ?? 0) +
   line.modifiers.reduce((sum, mod) => sum + Number(mod.price_delta), 0);
+const cartLineKey = (product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) =>
+  `${product.id}|${variant?.id ?? ""}|${modifiers.map((modifier) => modifier.id).sort().join(",")}`;
 const catRank = (name: string) => {
   const index = CAT_ORDER.indexOf(name);
   return index === -1 ? 99 : index;
@@ -168,6 +205,11 @@ export function Pos() {
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [history, setHistory] = useState<ShiftOrderSummary[]>([]);
+  const [historyOrder, setHistoryOrder] = useState<FullOrder | null>(null);
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
@@ -203,6 +245,29 @@ export function Pos() {
     }
   }
 
+  async function loadHistory(silent = false) {
+    if (!branchId) return;
+    if (!silent) setHistoryBusy(true);
+    setHistoryError("");
+    try {
+      const response = await api<{ data: { shift: Shift | null; orders: ShiftOrderSummary[] } }>(
+        `/orders/current-shift?branch_id=${branchId}`
+      );
+      setShift(response.data.shift);
+      setHistory(response.data.orders);
+    } catch (e: any) {
+      setHistoryError(e.message);
+    } finally {
+      if (!silent) setHistoryBusy(false);
+    }
+  }
+
+  async function openHistoryOrder(id: string) {
+    const response = await api<{ data: FullOrder }>(`/orders/${id}`);
+    setHistoryOpen(false);
+    setHistoryOrder(response.data);
+  }
+
   async function loadMenu(currentBranchId = branchId, preserve = false) {
     if (!currentBranchId) return;
     const menuEl = document.querySelector(".posx-menu");
@@ -235,6 +300,14 @@ export function Pos() {
     });
     loadShift(branchId);
   }, [branchId]);
+
+  useEffect(() => {
+    if (!historyOpen || !branchId) return;
+    void loadHistory();
+    const timer = window.setInterval(() => void loadHistory(true), 10000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen, branchId]);
 
   // YKMS-02E: إخفاء الأصناف غير المرئية في POS (pos_visible === false)
   const allProducts = useMemo(
@@ -294,7 +367,7 @@ export function Pos() {
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
 
   function addProduct(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
-    const key = `${product.id}|${variant?.id ?? ""}|${modifiers.map((modifier) => modifier.id).sort().join(",")}`;
+    const key = cartLineKey(product, variant, modifiers);
     setCart((current) => {
       const found = current.find((line) => line.key === key && !line.notes);
       if (found) {
@@ -304,19 +377,17 @@ export function Pos() {
     });
   }
 
-  function quickRemove(product: MenuProduct) {
+  function quickRemove(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
+    const key = cartLineKey(product, variant, modifiers);
     setCart((rows) => {
-      const index = rows.findIndex((line) => line.product.id === product.id);
-      if (index === -1) return rows;
-      return rows.flatMap((line, i) => {
-        if (i !== index) return [line];
+      const exactIndex = rows.findIndex((line) => line.key === key && !line.notes);
+      const fallbackIndex = exactIndex === -1 ? rows.findIndex((line) => line.key === key) : exactIndex;
+      if (fallbackIndex === -1) return rows;
+      return rows.flatMap((line, index) => {
+        if (index !== fallbackIndex) return [line];
         return line.qty > 1 ? [{ ...line, qty: line.qty - 1 }] : [];
       });
     });
-  }
-
-  function productQty(product: MenuProduct) {
-    return cart.filter((line) => line.product.id === product.id).reduce((sum, line) => sum + line.qty, 0);
   }
 
   async function openShift() {
@@ -344,7 +415,7 @@ export function Pos() {
     }
   }
 
-  async function fireOrder(opts: { submit: boolean; pay: boolean; print: boolean }) {
+  async function fireOrder() {
     setError("");
     setMsg("");
     if (!cart.length || busy) return;
@@ -359,7 +430,8 @@ export function Pos() {
           customer_id: orderType === "delivery" && customerId ? customerId : null,
           delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
           delivery_fee: orderType === "delivery" ? deliveryFee : 0,
-          submit: opts.submit,
+          submit: true,
+          payment_method: payment,
           discount: settings?.allow_discounts ? discount : 0,
           discount_reason: discount > 0 ? discountReason || null : null,
           notes: orderNotes || null,
@@ -372,14 +444,7 @@ export function Pos() {
           })),
         },
       });
-      let order = response.data;
-      if (opts.pay && payment !== "unpaid") {
-        await api(`/orders/${order.id}/payments`, { method: "POST", body: { method: payment, amount: Number(order.total) } });
-      }
-      if (opts.print && settings?.receipt_printing_enabled) {
-        await api(`/orders/${order.id}/print`, { method: "POST", body: {} });
-      }
-      order = (await api<{ data: FullOrder }>(`/orders/${order.id}`)).data;
+      const order = response.data;
       setDone(order);
       setCart([]);
       setDiscount(0);
@@ -387,6 +452,7 @@ export function Pos() {
       setOrderNotes("");
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
+      if (historyOpen) await loadHistory(true);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -484,56 +550,52 @@ export function Pos() {
 
   return (
     <div className="posx" dir="rtl">
-      <header className="posx-head posx-head-ops">
-        {/* YKMS-02G: هيدر تشغيلي فقط — الهوية والتنقل في AppShell العلوي */}
-        <div className="posx-ops-group">
-          <span className="posx-ops-label">الفرع</span>
-          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>{branch.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className={shift ? "posx-shift on" : "posx-shift off"}>
-          <span className="posx-ops-label">{me?.name ?? "الكاشير"}</span>
-          <span className="posx-shift-state">{shift ? t.shift.openTitle : t.shift.noShift}</span>
-          {can("shifts.manage") && <button onClick={shift ? closeShift : openShift}>{shift ? t.shift.close : t.shift.open}</button>}
-        </div>
-        <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <details className="posx-adminmenu">
-          <summary>الإدارة ▾</summary>
-          <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
-            {can("menu.manage") && <button onClick={openItemsPanel}>إدارة الأصناف</button>}
-            {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
-            <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
-            {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
-          </div>
-        </details>
-      </header>
 
       <div className="posx-body">
         <section className="posx-menu">
-          <div className="posx-cats">
+          <div className="posx-menu-top">
+            <div className="posx-menu-tools">
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              ))}
+            </select>
+            <span className={shift ? "posx-shift on" : "posx-shift off"}>
+              <span>{me?.name ?? "الكاشير"}</span>
+              <span>{shift ? t.shift.openTitle : t.shift.noShift}</span>
+              {can("shifts.manage") && <button onClick={shift ? closeShift : openShift}>{shift ? t.shift.close : t.shift.open}</button>}
+            </span>
+            <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
+            <details className="posx-adminmenu">
+              <summary>الإدارة ▾</summary>
+              <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
+                {can("menu.manage") && <button onClick={openItemsPanel}>إدارة الأصناف</button>}
+                {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
+                <button onClick={() => setAdminPanel("offers")}>إدارة العروض</button>
+                {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
+              </div>
+              </details>
+            </div>
+            <div className="posx-cats">
             <button className={activeCat === "الكل" && !search ? "active" : ""} onClick={() => { setActiveCat("الكل"); setSearch(""); }}>الكل</button>
-            {categories.map((category) => (
-              <button key={category.id} className={category.name_ar === activeCat && !search ? "active" : ""} onClick={() => { setActiveCat(category.name_ar); setSearch(""); }}>
-                {category.name_ar}
-              </button>
-            ))}
+              {categories.map((category) => (
+                <button key={category.id} className={category.name_ar === activeCat && !search ? "active" : ""} onClick={() => { setActiveCat(category.name_ar); setSearch(""); }}>
+                  {category.name_ar}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="posx-grid">
             {visibleProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
-                qty={productQty(product)}
+                cartLines={cart}
                 showImage={settings?.show_product_images !== false}
                 money={money}
-                canEdit={can("menu.manage")}
-                onAdd={(variant, mods) => addProduct(product, variant, mods)}
-                onQuickRemove={() => quickRemove(product)}
-                onEdit={() => setEditorProductId(product.id)}
-                onOpenDetail={() => setPicking(product)}
+                onAdd={(variant, modifiers) => addProduct(product, variant, modifiers)}
+                onQuickRemove={(variant, modifiers) => quickRemove(product, variant, modifiers)}
               />
             ))}
           </div>
@@ -549,17 +611,23 @@ export function Pos() {
             {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
             {cart.map((line, index) => (
               <div key={`${line.key}-${index}`} className="posx-line">
-                <div className="posx-line-head">
-                  <span>{line.product.name_ar}{line.variant ? ` (${line.variant.name_ar})` : ""}</span>
-                  <span>{money(unitPrice(line) * line.qty)}</span>
-                </div>
-                {line.modifiers.length > 0 && <div className="posx-line-mods">{line.modifiers.map((modifier) => modifier.name_ar).join("، ")}</div>}
-                <div className="posx-line-actions">
-                  <button onClick={() => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, qty: row.qty + 1 } : row)))}>+</button>
-                  <span>{line.qty}</span>
-                  <button onClick={() => setCart((rows) => rows.map((row, i) => (i === index && row.qty > 1 ? { ...row, qty: row.qty - 1 } : row)))}>−</button>
-                  <button className="rm" onClick={() => setCart((rows) => rows.filter((_, i) => i !== index))}>✕</button>
-                  <input placeholder={t.pos.itemNotes} value={line.notes} onChange={(e) => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, notes: e.target.value } : row)))} />
+                <ProductThumb product={line.product} />
+                <div className="posx-line-content">
+                  <div className="posx-line-head">
+                    <span className="posx-line-name">{line.product.name_ar}</span>
+                    <span className="posx-line-total">{money(unitPrice(line) * line.qty)}</span>
+                  </div>
+                  <div className="posx-line-selection">
+                    {line.variant?.name_ar && <span>{line.variant.name_ar}</span>}
+                    {line.modifiers.map((modifier) => <span key={modifier.id}>{modifier.name_ar}</span>)}
+                  </div>
+                  <div className="posx-line-actions">
+                    <span className="posx-line-qty" aria-label={`الكمية ${line.qty}`}>{line.qty}</span>
+                    <button aria-label="زيادة الكمية" onClick={() => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, qty: row.qty + 1 } : row)))}>+</button>
+                    <button aria-label="تقليل الكمية" onClick={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}>−</button>
+                    <button className="rm" aria-label="حذف الصنف من الطلب" onClick={() => setCart((rows) => rows.filter((_, i) => i !== index))}>✕</button>
+                  </div>
+                  <input className="posx-line-note" placeholder={t.pos.itemNotes} value={line.notes} onChange={(e) => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, notes: e.target.value } : row)))} />
                 </div>
               </div>
             ))}
@@ -650,19 +718,81 @@ export function Pos() {
             const fireDisabled = busy || !!fireReason;
             return (
               <div className="posx-fire-wrap">
-                <div className="posx-fire">
-                  <button disabled={fireDisabled} title={fireReason ?? undefined} onClick={() => fireOrder({ submit: true, pay: false, print: false })}>{t.pos.kot}</button>
-                  <button disabled={fireDisabled} title={fireReason ?? undefined} onClick={() => fireOrder({ submit: false, pay: false, print: false })}>{t.pos.bill}</button>
-                  <button className="hot" disabled={fireDisabled || payment === "unpaid" || !!payReason} title={payReason ?? (payment === "unpaid" ? "اختر طريقة دفع" : undefined)} onClick={() => fireOrder({ submit: true, pay: true, print: false })}>{t.pos.billPay}</button>
-                  {settings?.receipt_printing_enabled && <button className="hot" disabled={fireDisabled || !!payReason} title={payReason ?? undefined} onClick={() => fireOrder({ submit: true, pay: payment !== "unpaid", print: true })}>{t.pos.billPrint}</button>}
-                  <button className="ghost" disabled={!cart.length} onClick={() => setCart([])}>{t.pos.clear}</button>
-                </div>
+                <button className="posx-order-now" disabled={fireDisabled || !!payReason} title={payReason ?? undefined} onClick={fireOrder}>
+                  {busy ? "جاري تسجيل الطلب…" : "طلب الآن"}
+                </button>
                 {(payReason ?? fireReason) && <div className="posx-fire-reason">{payReason ?? fireReason}</div>}
               </div>
             );
           })()}
         </aside>
       </div>
+
+      <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="سجل طلبات الشيفت" wide>
+        {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
+        {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
+        {!historyBusy && !historyError && !shift && (
+          <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
+        )}
+        {!historyBusy && !historyError && shift && !history.length && (
+          <div className="posx-history-empty">لم يتم تسجيل طلبات في الشيفت الحالي بعد.</div>
+        )}
+        <div className="posx-history-list">
+          {history.map((order) => {
+            const amount = Number(order.total);
+            const paymentState = order.payment_status === "paid" ? "مدفوع" : order.payment_status === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
+            const kitchenState =
+              order.kitchen_status === "waiting" ? "في انتظار المطبخ" :
+              order.kitchen_status === "preparing" ? "قيد التحضير" :
+              order.kitchen_status === "ready" ? "جاهز" :
+              order.kitchen_status === "completed" ? "مكتمل" :
+              order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
+            return (
+              <button key={order.id} className="posx-history-card" onClick={() => openHistoryOrder(order.id)}>
+                <div className="posx-history-card-head">
+                  <span className="posx-history-main">
+                    <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
+                    <span>{new Date(order.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </span>
+                  <strong className="posx-history-total">{money(amount)}</strong>
+                </div>
+                <div className="posx-history-items">
+                  {order.preview_items.map((item) => {
+                    const src = resolveAssetUrl(item.image_url);
+                    return (
+                      <span key={item.id} className="posx-history-item">
+                        {src ? <img src={src} alt="" /> : <span className="posx-history-item-ph">{item.name_ar.trim().charAt(0)}</span>}
+                        <span className="posx-history-item-copy">
+                          <b>{item.qty} × {item.name_ar}</b>
+                          {item.variant_name_ar && <small>{item.variant_name_ar}</small>}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="posx-history-meta">
+                  <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+                  <span>{order.item_count} قطعة</span>
+                  <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
+                  <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Drawer>
+
+      {historyOrder && (
+        <div className="modal-back" onClick={() => setHistoryOrder(null)}>
+          <div className="modal od-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="od-modal-head">
+              <h3>تفاصيل الطلب #{historyOrder.order_prefix ?? ""}{historyOrder.order_no}</h3>
+              <button className="od-modal-x" onClick={() => setHistoryOrder(null)}>✕</button>
+            </div>
+            <OrderDetail order={historyOrder} />
+          </div>
+        </div>
+      )}
 
       {picking && <OptionPicker product={picking} onCancel={() => setPicking(null)} onAdd={(variant, modifiers) => { addProduct(picking, variant, modifiers); setPicking(null); }} />}
       {/* YKMS-02F: محرر الأصناف الكامل — Drawer فوق POS، السلة/الفئة/التمرير محفوظة */}
@@ -711,6 +841,21 @@ export function Pos() {
   );
 }
 
+function ProductThumb({ product }: { product: MenuProduct }) {
+  const src = resolveAssetUrl(product.image_url);
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => setBroken(false), [src]);
+
+  return (
+    <span className="posx-line-thumb" aria-hidden>
+      {src && !broken
+        ? <img src={src} alt="" onError={() => setBroken(true)} />
+        : <span>{product.name_ar.trim().charAt(0)}</span>}
+    </span>
+  );
+}
+
 function ItemManager(props: {
   products: AdminProduct[];
   categories: AdminCategory[];
@@ -748,7 +893,7 @@ function ItemManager(props: {
         {editing ? (
           <>
             <div className="image-rec">الصورة المقترحة: مربعة 1:1 — 800×800px — JPG/WebP — أقل من 400KB</div>
-            {editForm.image_url && <img className="posx-edit-preview" src={editForm.image_url} alt={editForm.name_ar} />}
+            {editForm.image_url && <img className="posx-edit-preview" src={resolveAssetUrl(editForm.image_url)} alt={editForm.name_ar} />}
             <label>اسم الصنف<input value={editForm.name_ar} onChange={(e) => setEditForm({ ...editForm, name_ar: e.target.value })} /></label>
             <label>السعر<input type="number" min={0} value={editForm.base_price} onChange={(e) => setEditForm({ ...editForm, base_price: Number(e.target.value) })} /></label>
             <label>رابط صورة مربعة<input dir="ltr" value={editForm.image_url} onChange={(e) => setEditForm({ ...editForm, image_url: e.target.value })} /></label>
@@ -794,110 +939,174 @@ function OffersPanel() {
 }
 
 /**
- * YKMS-02G — بطاقة صنف تفاعلية.
- * - النقر على البطاقة يضيف الافتراضي مباشرةً (لو بلا خيارات إلزامية).
- * - لو فيه أحجام (لقمة/هامر) أو مجموعة عيش إلزامية (فينو/سياحي) تظهر رقائق مدمجة داخل البطاقة.
- * - الإضافات متعددة الاختيار (طحينة/باربيكيو/شيدر/بطاطس) تُفتح من زر التفاصيل الخفيف.
- * - التعديل داخل قائمة ثلاث نقاط — لا زر دائم على كل بطاقة.
+ * POS product card v2.
+ * The selected size and bread stay inline for speed. Left click increments the
+ * exact selected configuration; right click decrements that same configuration.
  */
 function ProductCard({
   product,
-  qty,
+  cartLines,
   showImage,
   money,
-  canEdit,
   onAdd,
   onQuickRemove,
-  onEdit,
-  onOpenDetail,
 }: {
   product: MenuProduct;
-  qty: number;
+  cartLines: CartLine[];
   showImage: boolean;
-  money: (v: number) => string;
-  canEdit: boolean;
-  onAdd: (variant: MenuVariant | null, mods: MenuModifier[]) => void;
-  onQuickRemove: () => void;
-  onEdit: () => void;
-  onOpenDetail: () => void;
+  money: (value: number) => string;
+  onAdd: (variant: MenuVariant | null, modifiers: MenuModifier[]) => void;
+  onQuickRemove: (variant: MenuVariant | null, modifiers: MenuModifier[]) => void;
 }) {
-  // مجموعات إلزامية أحادية الاختيار (مثل العيش) تُعرض كرقائق؛ الباقي تفصيلي.
-  const inlineGroups = product.modifier_groups.filter((g) => g.is_required && g.max_select === 1);
-  const detailGroups = product.modifier_groups.filter((g) => !(g.is_required && g.max_select === 1));
-  const hasSizes = product.variants.length > 0;
-  const needsChoices = hasSizes || inlineGroups.length > 0;
-  const hasDetail = detailGroups.length > 0;
+  const inlineGroups = product.modifier_groups.filter((group) => group.is_required && group.max_select === 1);
+  const breadTerms = Array.from(new Set(
+    inlineGroups.flatMap((group) => group.modifiers.map((modifier) => modifier.name_ar.trim())).filter(Boolean)
+  ));
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
+  function sizeLabel(name: string) {
+    let label = name.trim();
+    for (const bread of breadTerms) label = label.split(bread).join(" ");
+    label = label.replace(/\b(فينو|سياحي)\b/g, " ").replace(/[\-–—/|]+/g, " ").replace(/\s+/g, " ").trim();
+    return label || name.trim();
+  }
+
+  const sizeOptions = product.variants.reduce<Array<{ label: string; fallback: MenuVariant }>>((result, item) => {
+    const label = sizeLabel(item.name_ar);
+    if (!result.some((option) => option.label === label)) result.push({ label, fallback: item });
+    return result;
+  }, []);
+
   const [breadSel, setBreadSel] = useState<Record<string, MenuModifier>>(() => {
-    const init: Record<string, MenuModifier> = {};
-    for (const g of inlineGroups) if (g.modifiers[0]) init[g.id] = g.modifiers[0];
-    return init;
+    const initial: Record<string, MenuModifier> = {};
+    for (const group of inlineGroups) if (group.modifiers[0]) initial[group.id] = group.modifiers[0];
+    return initial;
   });
+  const [variant, setVariant] = useState<MenuVariant | null>(product.variants[0] ?? null);
+
+  const selectedModifiers = Object.values(breadSel);
+  const selectedBreadNames = selectedModifiers.map((modifier) => modifier.name_ar.trim()).filter(Boolean);
+  const selectedSize = variant ? sizeLabel(variant.name_ar) : sizeOptions[0]?.label ?? "";
+
+  function chooseVariant(size: string, breadNames = selectedBreadNames) {
+    const exact = product.variants.find((item) => {
+      if (sizeLabel(item.name_ar) !== size) return false;
+      return breadNames.length === 0 || breadNames.every((bread) => item.name_ar.includes(bread));
+    });
+    return exact ?? product.variants.find((item) => sizeLabel(item.name_ar) === size) ?? null;
+  }
+
+  function selectSize(size: string) {
+    setVariant(chooseVariant(size));
+  }
+
+  function selectModifier(group: MenuGroup, modifier: MenuModifier) {
+    setBreadSel((current) => ({ ...current, [group.id]: modifier }));
+    if (selectedSize) {
+      const nextBreadNames = Object.entries(breadSel)
+        .map(([groupId, selected]) => groupId === group.id ? modifier.name_ar.trim() : selected.name_ar.trim())
+        .filter(Boolean);
+      setVariant(chooseVariant(selectedSize, nextBreadNames));
+    }
+  }
+
+  const imageSrc = resolveAssetUrl(product.image_url);
+  const [imageBroken, setImageBroken] = useState(false);
+  useEffect(() => setImageBroken(false), [imageSrc]);
 
   const priceNow =
     product.effective_price +
     Number(variant?.price_delta ?? 0) +
-    Object.values(breadSel).reduce((s, m) => s + Number(m.price_delta ?? 0), 0);
+    selectedModifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta ?? 0), 0);
+  const selectedKey = cartLineKey(product, variant, selectedModifiers);
+  const selectedQty = cartLines
+    .filter((line) => line.key === selectedKey)
+    .reduce((sum, line) => sum + line.qty, 0);
+  const hasInlineOptions = sizeOptions.length > 0 || inlineGroups.length > 0;
 
   function add() {
-    if (!product.is_available) return;
-    onAdd(variant, Object.values(breadSel));
+    if (product.is_available) onAdd(variant, selectedModifiers);
+  }
+
+  function isControl(target: EventTarget | null) {
+    return target instanceof HTMLElement && Boolean(target.closest("button, input, select, textarea, a"));
   }
 
   return (
-    <div className={product.is_available ? "posx-card2" : "posx-card2 off"}>
-      <div className="posx-card2-top" onClick={() => (needsChoices ? undefined : add())} role="button">
-        {showImage && (product.image_url ? <img className="posx-card2-img" src={product.image_url} alt={product.name_ar} /> : <span className="posx-card2-img ph">{product.name_ar.trim().charAt(0)}</span>)}
-        <div className="posx-card2-info">
-          <span className="posx-card2-name">{product.name_ar}</span>
-          <span className="posx-card2-price">{money(priceNow)}</span>
-        </div>
-        <button className="posx-card2-more" title="خيارات" onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}>⋮</button>
-        {menuOpen && (
-          <div className="posx-card2-menu" onClick={(e) => e.stopPropagation()}>
-            {(hasDetail || needsChoices) && <button onClick={() => { setMenuOpen(false); onOpenDetail(); }}>التفاصيل والإضافات</button>}
-            {canEdit && <button onClick={() => { setMenuOpen(false); onEdit(); }}>تعديل الصنف</button>}
-          </div>
-        )}
+    <article
+      className={product.is_available ? "posx-card2" : "posx-card2 off"}
+      role="button"
+      tabIndex={product.is_available ? 0 : -1}
+      aria-label={`${product.name_ar} — كليك شمال للإضافة، كليك يمين للتقليل`}
+      onClick={(event) => { if (!isControl(event.target)) add(); }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        if (!isControl(event.target) && selectedQty > 0) onQuickRemove(variant, selectedModifiers);
+      }}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && !isControl(event.target)) {
+          event.preventDefault();
+          add();
+        }
+      }}
+    >
+      <div className="posx-card2-media">
+        {showImage && imageSrc && !imageBroken
+          ? <img className="posx-card2-img" src={imageSrc} alt={product.name_ar} onError={() => setImageBroken(true)} />
+          : <span className="posx-card2-img ph" />}
+        <span className="posx-card2-price">{money(priceNow)}</span>
+        {selectedQty > 0 && <span className="posx-card2-qty-badge">×{selectedQty}</span>}
+      </div>
+
+      <div className="posx-card2-info">
+        <h3 className="posx-card2-name">{product.name_ar}</h3>
       </div>
 
       {!product.is_available && <div className="posx-card2-off">{product.availability_note_ar ?? t.menu.unavailable}</div>}
 
-      {product.is_available && hasSizes && (
-        <div className="posx-card2-opt">
-          <span className="posx-card2-opt-label">الحجم</span>
-          <div className="posx-chips">
-            {product.variants.map((v) => (
-              <button key={v.id} className={variant?.id === v.id ? "active" : ""} onClick={() => setVariant(v)}>{v.name_ar}</button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {product.is_available && inlineGroups.map((g) => (
-        <div key={g.id} className="posx-card2-opt">
-          <span className="posx-card2-opt-label">{g.name_ar}</span>
-          <div className="posx-chips">
-            {g.modifiers.map((m) => (
-              <button key={m.id} className={breadSel[g.id]?.id === m.id ? "active" : ""} onClick={() => setBreadSel((cur) => ({ ...cur, [g.id]: m }))}>{m.name_ar}</button>
-            ))}
-          </div>
-        </div>
-      ))}
-
       {product.is_available && (
-        <div className="posx-card2-foot">
-          <div className="posx-card2-stepper">
-            <button onClick={onQuickRemove} disabled={!qty}>−</button>
-            <span>{qty}</span>
-            <button onClick={add}>+</button>
-          </div>
-          {hasDetail && <button className="posx-card2-detail" onClick={onOpenDetail}>+ إضافات</button>}
+        <div className="posx-card2-options">
+          {sizeOptions.length > 0 && (
+            <div className="posx-card2-opt">
+              <span className="posx-card2-opt-label">الحجم</span>
+              <div className="posx-chips" role="group" aria-label="الحجم">
+                {sizeOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.label}
+                    className={selectedSize === option.label ? "active" : ""}
+                    onClick={(event) => { event.stopPropagation(); selectSize(option.label); }}
+                    onContextMenu={(event) => event.stopPropagation()}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {inlineGroups.map((group) => (
+            <div key={group.id} className="posx-card2-opt">
+              <span className="posx-card2-opt-label">{group.name_ar.includes("عيش") ? "نوع العيش" : group.name_ar}</span>
+              <div className="posx-chips" role="group" aria-label={group.name_ar}>
+                {group.modifiers.map((modifier) => (
+                  <button
+                    type="button"
+                    key={modifier.id}
+                    className={breadSel[group.id]?.id === modifier.id ? "active" : ""}
+                    onClick={(event) => { event.stopPropagation(); selectModifier(group, modifier); }}
+                    onContextMenu={(event) => event.stopPropagation()}
+                  >
+                    {modifier.name_ar}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {!hasInlineOptions && <div className="posx-card2-direct">اضغط على الكارت للإضافة</div>}
         </div>
       )}
-    </div>
+    </article>
   );
 }
 

@@ -1,0 +1,48 @@
+name: Apply POS Visual QA Stage 3
+
+on:
+  push:
+    branches:
+      - ykms-02g-e-pos-operational-qa-fixes
+    paths:
+      - .github/workflows/apply-pos-visual-qa-stage3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'chore: run POS visual QA stage 3'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ykms-02g-e-pos-operational-qa-fixes
+          fetch-depth: 0
+
+      - name: Apply source transformation
+        run: python3 tools/apply_pos_visual_qa_stage3.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build admin
+        run: npm run admin:build
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Remove temporary automation
+        run: |
+          rm tools/apply_pos_visual_qa_stage3.py
+          rm .github/workflows/apply-pos-visual-qa-stage3.yml
+
+      - name: Commit and push final source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/admin/src/pages/Pos.tsx apps/admin/src/ykms-02f.css tools/apply_pos_visual_qa_stage3.py .github/workflows/apply-pos-visual-qa-stage3.yml
+          git commit -m "fix(pos): correct cashier layout and product card proportions"
+          git push origin HEAD:ykms-02g-e-pos-operational-qa-fixes

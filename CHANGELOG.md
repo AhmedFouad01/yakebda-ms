@@ -1,27 +1,32 @@
-# Changelog — YAKEBDA MS
+# Changelog
 
-## 2026-07-09 — YKMS-02B Operational Runner
+This file records notable engineering changes to YAKEBDA MS.
 
-- Added operational attempt around cashier shift/cash workflow.
-- Added shift/cash migration and backend module.
-- Improved POS operational target: open shift, order, payment, receipt, reports.
-- Created Windows runner packages for local testing.
-- Status: operational direction established; local QA still required.
+## Unreleased
 
-## 2026-07-09 — YKMS-02 MVP Artifact
+### POS and Operations
+- Consolidated order submission into a single operational action.
+- Added active-shift order history scoped to the current cashier and branch.
+- Improved product image handling across POS, menu management, and order history.
+- Refined product-card ordering interactions and responsive layout behavior.
 
-- Added Menu Core, POS, Kitchen/KDS, Orders, Tables, Customers, Reports, Receipt UI.
-- Added `YKMS-02-MVP.patch` and validated reproducibility from baseline.
-- Frontend build passed in validation environment.
-- Backend tests reported 31/31 by Claude; local PostgreSQL QA required.
-- Status: accepted for memory, but product quality rejected as too shallow for final operational use.
+### Menu and Product Management
+- Added product image upload support.
+- Added spreadsheet export, template download, dry-run validation, and confirmed import.
+- Expanded product management filters and editing workflows.
 
-## 2026-07-08 — Source Map v2.0
+### Orders and Kitchen
+- Added calculated kitchen metrics.
+- Added complete order-detail views with operational timestamps and staff data.
+- Improved order and kitchen status presentation.
 
-- Upgraded memory/source map to software-delivery source map.
-- Added P0/P1 planning files and explanation PDF.
+### Customers and Access Control
+- Expanded customer profiles and analytics.
+- Added user activation and role assignment management.
+- Added role and permission editing with system-role safeguards.
 
-## 2026-07-07 — Foundation
+## Initial Platform Foundation
 
-- Established YAKEBDA_MS identity, portfolio split, and Real Memory project structure.
-- Confirmed Windows/hardware foundation as core scope.
+- Established the React/Vite administration and POS application.
+- Established the Node.js/TypeScript API and PostgreSQL migration workflow.
+- Added authentication, authorization, audit support, menu, orders, kitchen, customers, reports, shifts, and device integration foundations.

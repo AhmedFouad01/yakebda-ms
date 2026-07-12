@@ -1,0 +1,511 @@
+/*
+ * POS visual system v2 — loaded last.
+ * Keeps the existing fast inline selection flow while standardizing card,
+ * image, price, quantity, and active-order presentation.
+ */
+
+/* Legacy styles.css positioned POS as a fixed full-viewport layer. AppShell is
+   the only owner of the global header. */
+.app2-pos .posx {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.app2-pos .posx-menu-top {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 94px !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+.app2-pos .posx-menu-tools {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 38px !important;
+}
+
+/* Product grid: deterministic columns and equal-width cards. */
+.app2-pos .posx-grid {
+  align-items: start !important;
+  grid-auto-flow: row !important;
+}
+
+/* Card shell */
+.app2-pos .posx-card2 {
+  position: relative;
+  display: grid !important;
+  grid-template-rows: auto 78px minmax(112px, auto) !important;
+  align-content: start;
+  width: 100%;
+  min-width: 0;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
+  border: 1px solid #70590c !important;
+  border-radius: 14px !important;
+  background: #151c20 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  isolation: isolate;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.app2-pos .posx-card2:hover {
+  transform: translateY(-2px);
+  border-color: var(--yk-yellow) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.app2-pos .posx-card2:active {
+  transform: translateY(0) scale(0.992);
+}
+
+.app2-pos .posx-card2:focus-visible {
+  outline: 3px solid rgba(246, 192, 38, 0.48);
+  outline-offset: 2px;
+}
+
+.app2-pos .posx-card2.off {
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+}
+
+/* Square image zone */
+.app2-pos .posx-card2-media {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  background: #0e1215 !important;
+  border-bottom: 1px solid #70590c;
+}
+
+.app2-pos .posx-card2-img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: cover !important;
+  object-position: center;
+  transition: transform 220ms ease;
+}
+
+.app2-pos .posx-card2:hover .posx-card2-img:not(.ph) {
+  transform: scale(1.025);
+}
+
+.app2-pos .posx-card2-img.ph {
+  display: grid !important;
+  place-items: center;
+  font-size: 0 !important;
+  color: transparent !important;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(246, 192, 38, 0.11), transparent 34%),
+    linear-gradient(145deg, #11171b, #211d0c) !important;
+}
+
+.app2-pos .posx-card2-img.ph::before {
+  content: "▧";
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(246, 192, 38, 0.5);
+  border-radius: 14px;
+  color: var(--yk-yellow);
+  font-size: 28px;
+  line-height: 1;
+  background: rgba(246, 192, 38, 0.06);
+}
+
+.app2-pos .posx-card2-img.ph::after {
+  content: "لا توجد صورة";
+  position: absolute;
+  inset-inline: 0;
+  top: calc(50% + 38px);
+  color: #aeb8b4;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Price and selected-configuration quantity overlays */
+.app2-pos .posx-card2-price {
+  position: absolute !important;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  min-height: 42px;
+  max-width: calc(100% - 92px);
+  padding: 7px 11px;
+  margin: 0 !important;
+  border: 1px solid #ffe077;
+  border-radius: 10px;
+  background: var(--yk-yellow) !important;
+  color: #111 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-card2-qty-badge {
+  position: absolute !important;
+  top: 12px;
+  right: 12px;
+  left: auto !important;
+  z-index: 3;
+  display: grid !important;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 9px;
+  border: 1px solid rgba(246, 192, 38, 0.75);
+  border-radius: 11px;
+  background: rgba(7, 9, 11, 0.92) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.36);
+  font-size: 20px !important;
+  font-weight: 950 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fixed title zone */
+.app2-pos .posx-card2-info {
+  display: grid !important;
+  place-items: center;
+  min-height: 78px !important;
+  padding: 10px 14px !important;
+  border-bottom: 1px solid rgba(112, 89, 12, 0.7);
+  background: #151c20 !important;
+  text-align: center;
+}
+
+.app2-pos .posx-card2-name {
+  display: -webkit-box;
+  min-height: 0 !important;
+  max-width: 100%;
+  margin: 0 !important;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #f7f8f5;
+  font-size: clamp(18px, 1.16vw, 23px) !important;
+  font-weight: 950 !important;
+  line-height: 1.25 !important;
+  text-wrap: balance;
+}
+
+/* Fixed options zone */
+.app2-pos .posx-card2-options {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-height: 112px;
+  padding: 11px 13px 13px;
+  background: linear-gradient(180deg, #151c20 0%, #12181b 100%);
+}
+
+.app2-pos .posx-card2-opt {
+  display: grid !important;
+  grid-template-columns: 72px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 !important;
+}
+
+.app2-pos .posx-card2-opt-label {
+  display: block !important;
+  margin: 0 !important;
+  color: #aeb8b4 !important;
+  font-size: 11.5px !important;
+  font-weight: 900 !important;
+  line-height: 1.2;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-chips {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+  align-items: stretch;
+  gap: 7px !important;
+  min-width: 0;
+}
+
+.app2-pos .posx-chips button {
+  width: 100%;
+  min-width: 0 !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 0 9px !important;
+  overflow: hidden;
+  border: 1px solid rgba(246, 192, 38, 0.55) !important;
+  border-radius: 9px !important;
+  background: #11171a !important;
+  color: #f5f6f2 !important;
+  font-family: inherit;
+  font-size: 12.5px !important;
+  font-weight: 900 !important;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+
+.app2-pos .posx-chips button:hover {
+  border-color: var(--yk-yellow) !important;
+  background: #1b2022 !important;
+}
+
+.app2-pos .posx-chips button.active {
+  border-color: var(--yk-yellow) !important;
+  background: var(--yk-yellow) !important;
+  color: #111 !important;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.14);
+}
+
+.app2-pos .posx-card2-direct {
+  display: grid;
+  place-items: center;
+  min-height: 76px;
+  border: 1px dashed rgba(246, 192, 38, 0.34);
+  border-radius: 10px;
+  color: #aeb8b4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app2-pos .posx-card2-off {
+  position: absolute;
+  inset: auto 10px 10px 10px;
+  z-index: 4;
+  border-radius: 9px;
+  background: rgba(77, 19, 15, 0.94);
+  color: #ffb2a6;
+  text-align: center;
+}
+
+/* No action bar inside product cards. The full surface handles add/remove. */
+.app2-pos .posx-card2-foot {
+  display: none !important;
+}
+
+/* Active-order lines: image, yellow quantity, configuration, total, compact controls. */
+.app2-pos .posx-cart-lines {
+  padding: 2px 3px 4px;
+}
+
+.app2-pos .posx-line {
+  display: grid !important;
+  grid-template-columns: 66px minmax(0, 1fr) !important;
+  align-items: start;
+  gap: 10px;
+  margin: 0 0 9px !important;
+  padding: 10px !important;
+  border: 1px solid #263136 !important;
+  border-radius: 12px;
+  background: #11171a !important;
+}
+
+.app2-pos .posx-line-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  overflow: hidden;
+  border: 1px solid rgba(246, 192, 38, 0.48);
+  border-radius: 11px;
+  background: linear-gradient(145deg, #11171b, #211d0c);
+}
+
+.app2-pos .posx-line-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app2-pos .posx-line-thumb > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--yk-yellow);
+  font-size: 25px;
+  font-weight: 950;
+}
+
+.app2-pos .posx-line-content {
+  min-width: 0;
+}
+
+.app2-pos .posx-line-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  margin: 0 !important;
+}
+
+.app2-pos .posx-line-name {
+  overflow: hidden;
+  color: #f7f8f5;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-line-total {
+  color: var(--yk-yellow);
+  font-size: 12px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-line-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 21px;
+  margin-top: 5px;
+}
+
+.app2-pos .posx-line-selection span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid #344047;
+  border-radius: 999px;
+  color: #bdc7c3;
+  background: #171e22;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.app2-pos .posx-line-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 5px !important;
+  margin-top: 7px !important;
+}
+
+.app2-pos .posx-line-actions button {
+  display: grid;
+  place-items: center;
+  width: 27px !important;
+  height: 27px !important;
+  padding: 0 !important;
+  border: 1px solid #344047 !important;
+  border-radius: 7px !important;
+  background: #171e22 !important;
+  color: #f5f6f2 !important;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.app2-pos .posx-line-actions button:hover {
+  border-color: var(--yk-yellow) !important;
+  color: var(--yk-yellow) !important;
+}
+
+.app2-pos .posx-line-actions .rm {
+  margin-inline-start: auto;
+  color: #ff9487 !important;
+}
+
+.app2-pos .posx-line-qty {
+  display: grid;
+  place-items: center;
+  min-width: 29px;
+  height: 29px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--yk-yellow);
+  color: #111;
+  font-size: 13px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-line-note {
+  width: 100%;
+  height: 30px;
+  margin-top: 7px;
+  padding: 0 9px;
+  border: 1px solid #2b363c;
+  border-radius: 8px;
+  background: #0d1215;
+  color: #f1f3ef;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.app2-pos .posx-line-note:focus {
+  border-color: rgba(246, 192, 38, 0.72);
+  outline: 0;
+}
+
+/* Keep the four-card target on large cashier displays; preserve responsive
+   breakpoints already defined in pos-operational.css. */
+@media (min-width: 1601px) {
+  .app2-pos .posx-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 1380px) {
+  .app2-pos .posx-card2 {
+    grid-template-rows: auto 70px minmax(104px, auto) !important;
+  }
+
+  .app2-pos .posx-card2-info {
+    min-height: 70px !important;
+  }
+
+  .app2-pos .posx-card2-name {
+    font-size: 18px !important;
+  }
+
+  .app2-pos .posx-card2-options {
+    min-height: 104px;
+    padding: 9px 10px 11px;
+  }
+
+  .app2-pos .posx-card2-opt {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+    gap: 6px;
+  }
+
+  .app2-pos .posx-chips button {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding-inline: 7px !important;
+    font-size: 11.5px !important;
+  }
+}

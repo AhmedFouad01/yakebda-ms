@@ -1,4 +1,5 @@
 const BASE = "/api/v1";
+const ASSET_ORIGIN = String(import.meta.env.VITE_API_ORIGIN ?? "").replace(/\/$/, "");
 
 export function getToken(): string | null {
   return sessionStorage.getItem("ykms_token");
@@ -59,4 +60,17 @@ export function fileToBase64(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("تعذّرت قراءة الملف"));
     reader.readAsDataURL(file);
   });
+}
+
+
+/**
+ * Resolve uploaded assets against the API origin.
+ * Vite development proxies /uploads; packaged Windows/WebView2 builds can set
+ * VITE_API_ORIGIN (for example http://127.0.0.1:3001).
+ */
+export function resolveAssetUrl(value: string | null | undefined): string {
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  const path = value.startsWith("/") ? value : `/${value}`;
+  return ASSET_ORIGIN ? `${ASSET_ORIGIN}${path}` : path;
 }

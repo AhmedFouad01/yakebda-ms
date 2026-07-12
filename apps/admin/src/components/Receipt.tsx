@@ -40,6 +40,7 @@ export interface FullOrder {
     unit_price: string | number;
     line_total: string | number;
     notes?: string | null;
+    image_url?: string | null;
     modifiers: Array<{ id: string; name_ar: string; price_delta: string | number }>;
   }>;
   payments: Array<{ id: string; method: string; amount: string | number }>;

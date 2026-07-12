@@ -12,6 +12,7 @@ import { bridgeRoutes } from "./modules/bridge";
 import { apiClientRoutes } from "./modules/apiClients";
 import { auditRoutes } from "./modules/auditLogs";
 import { categoryRoutes, productRoutes, modifierGroupRoutes, branchMenuRoutes } from "./modules/menu";
+import { productDeleteRoutes } from "./modules/productDelete";
 import { orderRoutes, kitchenRoutes } from "./modules/orders";
 import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant";
 import { shiftRoutes } from "./modules/shifts";
@@ -20,11 +21,9 @@ import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } f
 export function createApp(db: Knex) {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "8mb" })); // YKMS-02G: يستوعب صور base64
-  // YKMS-02G: خدمة ملفات الرفع محليًا (التطوير) — متوافق مستقبلًا مع CDN/S3
+  app.use(express.json({ limit: "8mb" }));
   app.use("/uploads", express.static(process.env.UPLOAD_DIR || `${process.cwd()}/uploads`));
 
-  // API v1 foundation — FR-160: everything under /api/v1
   const v1 = express.Router();
   app.use("/api/v1", v1);
 
@@ -33,7 +32,7 @@ export function createApp(db: Knex) {
   );
   v1.use("/auth", authRoutes(db));
   v1.use("/branches", branchRoutes(db));
-  v1.use("/branches", branchMenuRoutes(db)); // /:branchId/menu, menu-availability, menu-prices
+  v1.use("/branches", branchMenuRoutes(db));
   v1.use("/users", userRoutes(db));
   v1.use("/roles", roleRoutes(db));
   v1.use("/devices", deviceRoutes(db));
@@ -43,6 +42,7 @@ export function createApp(db: Knex) {
   v1.use("/api-clients", apiClientRoutes(db));
   v1.use("/audit-logs", auditRoutes(db));
   v1.use("/categories", categoryRoutes(db));
+  v1.use("/products", productDeleteRoutes(db));
   v1.use("/products", productRoutes(db));
   v1.use("/modifier-groups", modifierGroupRoutes(db));
   v1.use("/orders", orderRoutes(db));
@@ -58,7 +58,6 @@ export function createApp(db: Knex) {
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));
 
-  // Arabic error responses
   app.use((e: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (e instanceof ApiError) {
       return res.status(e.status).json({ code: e.code, message: e.message, details: e.details });

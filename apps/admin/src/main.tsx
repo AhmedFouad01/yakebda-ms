@@ -12,6 +12,7 @@ import "./ui-cleanup.css";
 import "./theme.css";
 import "./theme-interactions.css";
 import "./ui-polish.css";
+import "./ui-polish-final.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

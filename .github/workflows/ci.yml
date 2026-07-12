@@ -43,12 +43,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
-      - name: Apply security stabilization patch
+      - name: Apply security core patch
         if: github.head_ref == 'fix/security-scope-stabilization'
-        run: |
-          python3 tools/patch_security_core.py
-          python3 tools/patch_orders_security.py
-          python3 tools/add_security_scope_regression.py
+        run: python3 tools/patch_security_core.py
+
+      - name: Apply order security patch
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 tools/patch_orders_security.py
+
+      - name: Add security regression coverage
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 tools/add_security_scope_regression.py
 
       - name: Setup Node
         uses: actions/setup-node@v4

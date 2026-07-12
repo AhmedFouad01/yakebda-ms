@@ -355,3 +355,126 @@
     grid-template-rows: 44px;
   }
 }
+
+
+/* Compact POS AppShell and square cart media. */
+.app2-pos .app2-bar {
+  min-height: 50px !important;
+  padding-block: 4px !important;
+  gap: 6px !important;
+}
+
+.app2-pos .app2-pos-controls-slot {
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.app2-pos .posx-shell-operation-controls {
+  width: min(760px, 100%);
+  grid-template-columns: 40px 40px minmax(260px, 1fr);
+  gap: 6px;
+}
+
+.app2-pos .posx-shell-icon {
+  position: relative;
+  display: grid !important;
+  place-items: center;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 1px solid var(--yk-line) !important;
+  border-radius: 9px !important;
+  background: var(--yk-black-2) !important;
+  color: var(--yk-text) !important;
+  cursor: pointer;
+}
+
+.app2-pos .posx-shell-icon:hover,
+.app2-pos .posx-shell-icon:focus-within {
+  border-color: var(--yk-yellow) !important;
+  color: var(--yk-yellow) !important;
+}
+
+.app2-pos .posx-branch-picker select {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.app2-pos .posx-shell-operation-controls .posx-search {
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+}
+
+.app2-account-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app2-pos .app2-user {
+  padding-inline: 4px !important;
+  white-space: nowrap;
+}
+
+.app2-pos .app2-pos-session-slot {
+  display: flex;
+  align-items: center;
+}
+
+.app2-pos .posx-shift-action {
+  min-height: 36px !important;
+  height: 36px !important;
+  padding-inline: 12px !important;
+  border-color: var(--yk-line) !important;
+  background: var(--yk-black-2) !important;
+  color: var(--yk-text) !important;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-shift-action.is-open {
+  border-color: #31b66b !important;
+  color: #8ce6ad !important;
+}
+
+.app2-pos .posx-source-field {
+  align-self: end;
+}
+
+.app2-pos .posx-fast-line {
+  grid-template-columns: 72px minmax(0, 1fr) 122px;
+  min-height: 92px;
+}
+
+.app2-pos .posx-fast-line-thumb {
+  width: 72px;
+  height: 72px;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  align-self: center;
+}
+
+.app2-pos .posx-fast-remove {
+  width: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  justify-self: center;
+  display: grid !important;
+  place-items: center;
+  border-radius: 9px !important;
+}
+
+@media (max-width: 1280px) {
+  .app2-pos .posx-shell-operation-controls {
+    grid-template-columns: 40px 40px minmax(180px, 1fr);
+  }
+}

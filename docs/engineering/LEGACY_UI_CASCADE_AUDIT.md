@@ -42,6 +42,17 @@ Several files target the same raw selectors (`button`, `select`, `input`, `table
 
 The patch also adds explicit semantic classes and accessibility states to `Orders.tsx` rather than relying only on inherited selectors.
 
+## Approved visual review follow-up
+
+The approved follow-up is deliberately scoped and does not alter the accepted POS product-card or KDS presentation.
+
+- Settings now use the available viewport, and the product-operation table has explicit responsive column geometry instead of being clipped.
+- Reports use responsive summary and report grids; desktop report tables no longer sit inside horizontally scrolling frames.
+- RTL selects share one arrow, padding, alignment, focus, and text-size contract.
+- Typography tokens define consistent page-title, section, body, table, badge, helper, input, and button sizes for administration screens, modals, and drawers.
+- The redundant POS `الإدارة` shortcut was removed without deleting the underlying administration routes.
+- Shift order history is collapsed by default, searchable by order number, shows one total-orders KPI, and expands one order at a time before opening full details.
+
 ## Retirement plan
 
 The legacy files are not deleted in this patch because they still contain screen-specific layout rules. Safe retirement should be incremental:

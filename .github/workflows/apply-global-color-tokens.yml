@@ -6,6 +6,11 @@ on:
     paths:
       - scripts/apply_global_color_tokens.py
       - .github/workflows/apply-global-color-tokens.yml
+  pull_request:
+    branches: [refactor/pos-fast-rail]
+    paths:
+      - scripts/apply_global_color_tokens.py
+      - .github/workflows/apply-global-color-tokens.yml
 
 permissions:
   contents: write

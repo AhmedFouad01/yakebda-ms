@@ -46,6 +46,15 @@ jobs:
         if: github.head_ref == 'feature/order-sources-price-lists'
         shell: bash
         run: |
+          if [ ! -f docs/YAKEBDA_MS_Diagrams_Roadmap_v1_AR_RTL.md ]; then
+            cat > docs/YAKEBDA_MS_Diagrams_Roadmap_v1_AR_RTL.md <<'EOF'
+          <div dir="rtl" align="right">
+
+          # YAKEBDA MS — Flowcharts & Diagrams Roadmap
+
+          </div>
+          EOF
+          fi
           python3 - <<'PY'
           from pathlib import Path
           path = Path("tools/qa/apply-order-sources.mjs")

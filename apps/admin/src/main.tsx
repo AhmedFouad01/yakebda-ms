@@ -10,6 +10,7 @@ import "./pos-final.css";
 import "./pos-card-layout-fix.css";
 import "./ui-cleanup.css";
 import "./theme.css";
+import "./theme-interactions.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

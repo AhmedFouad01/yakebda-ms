@@ -58,6 +58,14 @@ jobs:
               "'             order_type: input.order_type,\\n             source_id: quote.source.id,\\n             source_name: quote.source.name_ar,\\n             total: quote.total,'",
               "'            order_type: input.order_type,\\n            source_id: quote.source.id,\\n            source_name: quote.source.name_ar,\\n            total: quote.total,'",
           )
+          source = source.replace(
+              "'                       <span>{order.item_count} قطعة</span>'",
+              "'<span>{order.item_count} قطعة</span>'",
+          )
+          source = source.replace(
+              "'                       <span>{order.item_count} قطعة</span>\\n                       <span>{order.source_name ?? \"مصدر غير مسجل\"}</span>'",
+              "'<span>{order.item_count} قطعة</span>\\n                       <span>{order.source_name ?? \"مصدر غير مسجل\"}</span>'",
+          )
           path.write_text(source)
           PY
           if ! node tools/qa/apply-order-sources.mjs > patch-output.txt 2>&1; then

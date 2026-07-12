@@ -11,7 +11,6 @@ let app: ReturnType<typeof createApp>;
 let ownerToken = "";
 let branchId = "";
 let productId = "";
-let modifierId = "";
 
 beforeAll(async () => {
   await db.migrate.rollback(undefined, true);
@@ -28,7 +27,6 @@ beforeAll(async () => {
   const categoryId = newId();
   const groupId = newId();
   productId = newId();
-  modifierId = newId();
 
   await db("categories").insert({
     id: categoryId,
@@ -41,7 +39,7 @@ beforeAll(async () => {
     id: productId,
     account_id: seed.accountId,
     category_id: categoryId,
-    name_ar: "منتج سليم",
+    name_ar: "منتج مطلوب له اختيار",
     base_price: 30,
     sort_order: 0,
     is_active: true,
@@ -56,13 +54,6 @@ beforeAll(async () => {
     sort_order: 0,
     is_active: true,
   });
-  await db("modifiers").insert({
-    id: modifierId,
-    modifier_group_id: groupId,
-    name_ar: "اختيار صالح",
-    price_delta: 2,
-    is_active: true,
-  });
   await db("product_modifier_groups").insert({
     product_id: productId,
     modifier_group_id: groupId,
@@ -75,7 +66,7 @@ afterAll(async () => {
 });
 
 describe("Order configuration integrity", () => {
-  it("accepts a valid required selection", async () => {
+  it("returns a validation response when a required group is missing", async () => {
     const res = await request(app)
       .post("/api/v1/orders")
       .set("Authorization", `Bearer ${ownerToken}`)
@@ -83,10 +74,9 @@ describe("Order configuration integrity", () => {
         branch_id: branchId,
         order_type: "takeaway",
         payment_method: "unpaid",
-        items: [{ product_id: productId, qty: 1, modifier_ids: [modifierId] }],
+        items: [{ product_id: productId, qty: 1, modifier_ids: [] }],
       });
 
-    expect(res.status).toBe(201);
-    expect(Number(res.body.data.total)).toBe(32);
+    expect(res.status).toBe(422);
   });
 });

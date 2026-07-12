@@ -17,8 +17,8 @@ import "./final-closure.css";
 import "./select-rendering-fix.css";
 import "./pos-1920-density.css";
 import "./pos-delivery-checkout.css";
-// Final POS geometry layer: AppShell controls, one cart scroll, fixed totals, cash change.
 import "./pos-cart-workflow.css";
+import "./pos-layout-runtime";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

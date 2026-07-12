@@ -1,0 +1,416 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+POS = Path("apps/admin/src/pages/Pos.tsx")
+MAIN = Path("apps/admin/src/main.tsx")
+CSS = Path("apps/admin/src/ui-cleanup.css")
+
+
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{label}: expected one exact match, found {count}")
+    return text.replace(old, new, 1)
+
+
+def main() -> None:
+    pos = POS.read_text(encoding="utf-8")
+    main_tsx = MAIN.read_text(encoding="utf-8")
+
+    if CSS.exists():
+        raise SystemExit(f"{CSS} already exists; refusing to overwrite it")
+
+    pos = replace_once(
+        pos,
+        '  const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);\n',
+        '  const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);\n'
+        '  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);\n',
+        "add cart drawer state",
+    )
+
+    pos = replace_once(
+        pos,
+        '  const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;\n\n'
+        '  useEffect(() => {\n',
+        '  const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;\n\n'
+        '  useEffect(() => {\n'
+        '    if (!cartDrawerOpen) return;\n'
+        '    const closeOnEscape = (event: KeyboardEvent) => {\n'
+        '      if (event.key === "Escape") setCartDrawerOpen(false);\n'
+        '    };\n'
+        '    document.addEventListener("keydown", closeOnEscape);\n'
+        '    return () => document.removeEventListener("keydown", closeOnEscape);\n'
+        '  }, [cartDrawerOpen]);\n\n'
+        '  useEffect(() => {\n',
+        "add cart drawer escape handling",
+    )
+
+    pos = replace_once(
+        pos,
+        '      setOrderNotes("");\n'
+        '      setMsg(`${t.pos.orderCreated} ${order.order_no}`);\n',
+        '      setOrderNotes("");\n'
+        '      setCartDrawerOpen(false);\n'
+        '      setMsg(`${t.pos.orderCreated} ${order.order_no}`);\n',
+        "close drawer after successful order",
+    )
+
+    pos = replace_once(
+        pos,
+        '            <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>\n'
+        '            <details className="posx-adminmenu">\n',
+        '            <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>\n'
+        '            <button\n'
+        '              type="button"\n'
+        '              className="posx-cart-toggle"\n'
+        '              aria-controls="posx-cart-drawer"\n'
+        '              aria-expanded={cartDrawerOpen}\n'
+        '              onClick={() => setCartDrawerOpen(true)}\n'
+        '            >\n'
+        '              السلة <span>{itemCount}</span>\n'
+        '            </button>\n'
+        '            <details className="posx-adminmenu">\n',
+        "add mobile cart toggle",
+    )
+
+    pos = replace_once(
+        pos,
+        '        <aside className="posx-cart">\n'
+        '          <div className="posx-cart-head"><h3>{t.pos.cart}</h3><strong>{itemCount} صنف</strong></div>\n',
+        '        <aside id="posx-cart-drawer" className={`posx-cart${cartDrawerOpen ? " is-open" : ""}`}>\n'
+        '          <div className="posx-cart-head">\n'
+        '            <h3>{t.pos.cart}</h3>\n'
+        '            <strong>{itemCount} صنف</strong>\n'
+        '            <button type="button" className="posx-cart-close" aria-label="إغلاق السلة" onClick={() => setCartDrawerOpen(false)}>\n'
+        '              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">\n'
+        '                <path d="M6 6l12 12M18 6 6 18" />\n'
+        '              </svg>\n'
+        '            </button>\n'
+        '          </div>\n',
+        "convert cart to responsive drawer",
+    )
+
+    pos = replace_once(
+        pos,
+        '        </aside>\n'
+        '      </div>\n\n'
+        '      <Drawer open={historyOpen}',
+        '        </aside>\n'
+        '        {cartDrawerOpen && (\n'
+        '          <button\n'
+        '            type="button"\n'
+        '            className="posx-cart-backdrop"\n'
+        '            aria-label="إغلاق السلة"\n'
+        '            onClick={() => setCartDrawerOpen(false)}\n'
+        '          />\n'
+        '        )}\n'
+        '      </div>\n\n'
+        '      <Drawer open={historyOpen}',
+        "add mobile cart backdrop",
+    )
+
+    main_tsx = replace_once(
+        main_tsx,
+        'import "./pos-card-layout-fix.css";\n',
+        'import "./pos-card-layout-fix.css";\nimport "./ui-cleanup.css";\n',
+        "load UI cleanup stylesheet last",
+    )
+
+    css = r'''/*
+ * PR #14 — final UI cleanup layer.
+ * Loaded last to improve contrast and provide a mobile cart drawer without
+ * rewriting the established desktop POS layout.
+ */
+
+:root {
+  --yk-focus-ring: 0 0 0 3px rgba(246, 192, 38, 0.42);
+  --yk-control-border-strong: #526169;
+  --yk-text-strong: #f8faf7;
+  --yk-text-secondary-strong: #c5cfcb;
+}
+
+/* Contrast and focus normalization inside the POS workspace. */
+.app2-pos .posx-menu-tools select,
+.app2-pos .posx-search,
+.app2-pos .posx-opts select,
+.app2-pos .posx-opts input,
+.app2-pos .posx-line-note {
+  border-color: var(--yk-control-border-strong) !important;
+  background: #0f1518 !important;
+  color: var(--yk-text-strong) !important;
+}
+
+.app2-pos .posx-menu-tools select:focus,
+.app2-pos .posx-search:focus,
+.app2-pos .posx-opts select:focus,
+.app2-pos .posx-opts input:focus,
+.app2-pos .posx-line-note:focus {
+  outline: none;
+  border-color: var(--yk-yellow) !important;
+  box-shadow: var(--yk-focus-ring);
+}
+
+.app2-pos input::placeholder,
+.app2-pos textarea::placeholder {
+  color: #aebbb6 !important;
+  opacity: 1;
+}
+
+.app2-pos button:focus-visible,
+.app2-pos summary:focus-visible,
+.app2-pos [role="button"]:focus-visible {
+  outline: none !important;
+  box-shadow: var(--yk-focus-ring) !important;
+}
+
+.app2-pos .posx-cats button,
+.app2-pos .seg.dark button,
+.app2-pos .posx-history-btn,
+.app2-pos .posx-cart-toggle,
+.app2-pos .posx-cart-close,
+.app2-pos .posx-shift button,
+.app2-pos .posx-adminmenu summary {
+  border-color: var(--yk-control-border-strong) !important;
+  background: #151d21 !important;
+  color: var(--yk-text-strong) !important;
+}
+
+.app2-pos .posx-cats button:hover,
+.app2-pos .seg.dark button:hover,
+.app2-pos .posx-history-btn:hover,
+.app2-pos .posx-cart-toggle:hover,
+.app2-pos .posx-cart-close:hover,
+.app2-pos .posx-shift button:hover,
+.app2-pos .posx-adminmenu summary:hover {
+  border-color: var(--yk-yellow) !important;
+  color: var(--yk-yellow) !important;
+}
+
+.app2-pos .posx-cats button.active,
+.app2-pos .seg.dark button.active {
+  border-color: var(--yk-yellow) !important;
+  background: var(--yk-yellow) !important;
+  color: #111 !important;
+}
+
+.app2-pos .posx-shift.on {
+  border-color: #2f8f5b !important;
+  background: #0d2e20;
+  color: #a8f0c4 !important;
+}
+
+.app2-pos .posx-shift.off {
+  border-color: #8c6a18 !important;
+  background: #30260a;
+  color: #ffe08a !important;
+}
+
+.app2-pos .posx-empty,
+.app2-pos .posx-cart h3,
+.app2-pos .posx-card2-opt-label,
+.app2-pos .posx-card2-direct {
+  color: var(--yk-text-secondary-strong) !important;
+}
+
+.app2-pos .posx-warn,
+.app2-pos .posx-fire-reason {
+  color: #ffe083 !important;
+}
+
+.app2-pos .dark-alert {
+  border: 1px solid #9d4035 !important;
+  background: #451713 !important;
+  color: #ffd2cc !important;
+}
+
+.app2-pos .dark-ok {
+  border: 1px solid #2b8055 !important;
+  background: #0f3d29 !important;
+  color: #bdf4d3 !important;
+}
+
+.app2-pos button:disabled {
+  opacity: 0.62 !important;
+  filter: saturate(0.7);
+}
+
+/* Cart controls are hidden on desktop; the existing two-column layout remains. */
+.posx-cart-toggle,
+.posx-cart-close,
+.posx-cart-backdrop {
+  display: none;
+}
+
+.posx-cart-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.posx-cart-head h3 {
+  margin: 0 !important;
+}
+
+.posx-cart-head strong {
+  margin-inline-start: auto;
+  color: var(--yk-yellow);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .app2-pos .posx-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app2-pos .posx-menu {
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 78px;
+  }
+
+  .app2-pos .posx-menu-tools {
+    flex-wrap: wrap;
+  }
+
+  .app2-pos .posx-search {
+    flex: 1 1 220px;
+    max-width: none;
+  }
+
+  .posx-cart-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 13px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .posx-cart-toggle span {
+    display: grid;
+    place-items: center;
+    min-width: 23px;
+    height: 23px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--yk-yellow);
+    color: #111;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .app2-pos .posx-cart {
+    position: fixed !important;
+    top: var(--appbar-h);
+    bottom: 0;
+    left: 0;
+    right: auto;
+    z-index: 92;
+    width: min(420px, 94vw);
+    max-width: 100%;
+    height: auto !important;
+    padding: 14px !important;
+    overflow: hidden;
+    border: 0 !important;
+    border-inline-end: 1px solid #4a575e !important;
+    background: #11181c !important;
+    box-shadow: 16px 0 44px rgba(0, 0, 0, 0.58);
+    transform: translateX(-105%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 180ms ease, visibility 180ms ease;
+  }
+
+  .app2-pos .posx-cart.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .app2-pos .posx-cart-head {
+    min-height: 44px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #3c484e;
+  }
+
+  .posx-cart-close {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  .posx-cart-backdrop {
+    position: fixed;
+    top: var(--appbar-h);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 91;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: rgba(3, 5, 7, 0.66);
+    cursor: default;
+  }
+
+  .app2-pos .posx-cart .posx-cart-lines {
+    min-height: 96px;
+  }
+
+  .app2-pos .posx-cart .posx-opts {
+    max-height: 31dvh;
+  }
+}
+
+@media (max-width: 560px) {
+  .app2-pos .posx-cart {
+    width: 100vw;
+  }
+
+  .app2-pos .posx-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+  }
+
+  .app2-pos .posx-card2 {
+    border-radius: 11px !important;
+  }
+
+  .app2-pos .posx-card2-info {
+    min-height: 66px !important;
+    padding: 8px 9px !important;
+  }
+
+  .app2-pos .posx-card2-name {
+    font-size: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app2-pos .posx-cart {
+    transition: none;
+  }
+}
+'''
+
+    POS.write_text(pos, encoding="utf-8", newline="\n")
+    MAIN.write_text(main_tsx, encoding="utf-8", newline="\n")
+    CSS.write_text(css, encoding="utf-8", newline="\n")
+
+    print(f"Updated {POS}")
+    print(f"Updated {MAIN}")
+    print(f"Created {CSS}")
+
+
+if __name__ == "__main__":
+    main()

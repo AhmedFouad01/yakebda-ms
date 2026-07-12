@@ -26,3 +26,29 @@
   clip-path: none !important;
   white-space: normal !important;
 }
+
+/* Kitchen choices are split by data: size, bread, then real extras. */
+.kds-mods b {
+  font-size: inherit !important;
+}
+
+.kds-mods b::after {
+  content: none !important;
+}
+
+.kds-bread {
+  min-width: 0;
+  margin-top: 3px;
+  padding: 4px 6px;
+  overflow-wrap: anywhere;
+  border-inline-start: 3px solid var(--brand);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.kds-bread b {
+  color: var(--text-secondary);
+}

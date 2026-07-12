@@ -24,6 +24,8 @@ interface ReceiptOrder {
   source_name?: string | null;
   table_name_ar?: string | null;
   customer_name?: string | null;
+  customer_phone?: string | null;
+  delivery_zone_name?: string | null;
   delivery_address?: string | null;
   delivery_fee: string | number;
   subtotal: string | number;
@@ -61,6 +63,8 @@ export function renderReceiptPayload(order: ReceiptOrder, opts: ReceiptOptions =
   if (order.source_name) lines.push(`المصدر: ${order.source_name}`);
   if (order.table_name_ar) lines.push(`الطاولة: ${order.table_name_ar}`);
   if (order.customer_name) lines.push(`العميل: ${order.customer_name}`);
+  if (order.customer_phone) lines.push(`التليفون: ${order.customer_phone}`);
+  if (order.delivery_zone_name) lines.push(`زون التوصيل: ${order.delivery_zone_name}`);
   if (order.delivery_address) lines.push(`العنوان: ${order.delivery_address}`);
   lines.push(`التاريخ: ${new Date(order.created_at).toLocaleString("ar-EG")}`);
   lines.push("--------------------------------");

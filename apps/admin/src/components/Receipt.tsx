@@ -15,6 +15,9 @@ export interface FullOrder {
   customer_name?: string | null;
   customer_phone?: string | null;
   customer_address?: string | null;
+  delivery_phone_snapshot?: string | null;
+  delivery_zone_name?: string | null;
+  delivery_zone_name_snapshot?: string | null;
   cashier_name?: string | null;
   driver_id?: string | null;
   driver_name?: string | null;
@@ -77,6 +80,7 @@ export function Receipt({ order }: { order: FullOrder }) {
       {order.table_name_ar && <div className="receipt-line">{t.pos.table}: {order.table_name_ar}</div>}
       {order.customer_name && <div className="receipt-line">{t.pos.customer}: {order.customer_name}</div>}
       {order.customer_phone && <div className="receipt-line">{t.receipt.phone}: {order.customer_phone}</div>}
+      {(order.delivery_zone_name ?? order.delivery_zone_name_snapshot) && <div className="receipt-line">زون التوصيل: {order.delivery_zone_name ?? order.delivery_zone_name_snapshot}</div>}
       {order.delivery_address && <div className="receipt-line">{t.pos.deliveryAddress}: {order.delivery_address}</div>}
       {order.driver_name && <div className="receipt-line">{t.receipt.driver}: {order.driver_name}</div>}
       <div className="receipt-line">

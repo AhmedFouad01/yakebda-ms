@@ -22,6 +22,7 @@ export interface PricingItemInput {
 
 export interface PricingInput {
   source_id?: string | null;
+  delivery_zone_id?: string | null;
   order_type: "dine_in" | "takeaway" | "delivery";
   delivery_fee: number;
   discount: number;
@@ -40,6 +41,7 @@ export interface PricedOrderLine {
 
 export interface OrderQuote {
   source: OrderSourceRow;
+  deliveryZone: Record<string, any> | null;
   lines: PricedOrderLine[];
   subtotal: number;
   discount: number;
@@ -104,6 +106,17 @@ export async function buildOrderQuote(
 ): Promise<OrderQuote> {
   await validateOrderConfiguration(db, accountId, input.items);
   const source = await resolveOrderSource(db, accountId, input.source_id, input.order_type);
+  const deliveryZone = input.order_type === "delivery" && input.delivery_zone_id
+    ? await db("delivery_zones")
+        .where({ id: input.delivery_zone_id, account_id: accountId, is_active: true })
+        .first()
+    : null;
+  if (input.order_type === "delivery" && input.delivery_zone_id && !deliveryZone) {
+    throw err.validation({ delivery_zone_id: "زون التوصيل غير متاحة" });
+  }
+  const resolvedDeliveryFee = input.order_type === "delivery"
+    ? deliveryZone ? Number(deliveryZone.fee) : input.delivery_fee
+    : 0;
 
   const productIds = [...new Set(input.items.map((item) => item.product_id))];
   const products = await db("products")
@@ -184,21 +197,19 @@ export async function buildOrderQuote(
     }
   }
 
-  if (
-    input.order_type === "delivery" &&
-    settings.min_delivery_order > 0 &&
-    subtotal < settings.min_delivery_order
-  ) {
+  const deliveryMinimum = Math.max(settings.min_delivery_order, Number(deliveryZone?.min_order ?? 0));
+  if (input.order_type === "delivery" && deliveryMinimum > 0 && subtotal < deliveryMinimum) {
     throw err.validation({ min_order: ar.errors.delivery_min_order });
   }
 
-  const totals = computeOrderTotals(settings, subtotal, discount, input.delivery_fee);
+  const totals = computeOrderTotals(settings, subtotal, discount, resolvedDeliveryFee);
   return {
     source,
+    deliveryZone,
     lines,
     subtotal,
     discount,
-    deliveryFee: input.delivery_fee,
+    deliveryFee: resolvedDeliveryFee,
     ...totals,
   };
 }
@@ -214,6 +225,7 @@ const pricingItemSchema = z.object({
 const quoteSchema = z.object({
   branch_id: z.string().uuid(),
   source_id: z.string().uuid().optional().nullable(),
+  delivery_zone_id: z.string().uuid().optional().nullable(),
   order_type: z.enum(["dine_in", "takeaway", "delivery"]).default("takeaway"),
   delivery_fee: z.number().nonnegative().default(0),
   discount: z.number().nonnegative().default(0),
@@ -225,6 +237,7 @@ const createOrderSchema = quoteSchema.extend({
   table_id: z.string().uuid().optional().nullable(),
   customer_id: z.string().uuid().optional().nullable(),
   delivery_address: z.string().optional().nullable(),
+  delivery_phone: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   submit: z.boolean().default(true),
   payment_method: z.enum(["cash", "card", "wallet", "unpaid"]).optional().nullable(),
@@ -252,6 +265,12 @@ function orderPrefix(settings: Settings, orderType: string): string | null {
 function publicQuote(quote: OrderQuote) {
   return {
     source: { id: quote.source.id, code: quote.source.code, name_ar: quote.source.name_ar },
+    delivery_zone: quote.deliveryZone ? {
+      id: quote.deliveryZone.id,
+      name_ar: quote.deliveryZone.name_ar,
+      fee: Number(quote.deliveryZone.fee),
+      min_order: Number(quote.deliveryZone.min_order),
+    } : null,
     items: quote.lines.map((line) => ({
       product_id: line.product.id,
       name_ar: line.product.name_ar,
@@ -416,6 +435,9 @@ export function orderPricingRoutes(db: Knex): Router {
             table_id: input.table_id ?? null,
             customer_id: input.customer_id ?? null,
             delivery_address: input.delivery_address ?? null,
+            delivery_phone_snapshot: input.delivery_phone ?? null,
+            delivery_zone_id: quote.deliveryZone?.id ?? null,
+            delivery_zone_name_snapshot: quote.deliveryZone?.name_ar ?? null,
             delivery_fee: quote.deliveryFee,
             subtotal: quote.subtotal,
             discount: quote.discount,

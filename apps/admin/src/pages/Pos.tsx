@@ -54,6 +54,29 @@ interface OrderSource {
   supports_takeaway: boolean;
   supports_delivery: boolean;
 }
+interface DeliveryZone {
+  id: string;
+  name_ar: string;
+  fee: string | number;
+  min_order: string | number;
+  is_active: boolean;
+}
+interface CustomerAddress {
+  label?: string | null;
+  area?: string | null;
+  landmark?: string | null;
+  floor?: string | null;
+  notes?: string | null;
+  is_default?: boolean;
+}
+interface PosCustomer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  alt_phone?: string | null;
+  address?: string | null;
+  addresses?: CustomerAddress[] | string | null;
+}
 interface Shift {
   id: string;
   opened_at: string;
@@ -165,15 +188,22 @@ const catRank = (name: string) => {
   return index === -1 ? 99 : index;
 };
 
-function safeCalc(expression: string): string {
-  const cleaned = expression.replace(/[×]/g, "*").replace(/[÷]/g, "/");
-  if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) return "خطأ";
+function parseAddresses(customer: PosCustomer | null): CustomerAddress[] {
+  if (!customer?.addresses) return [];
+  if (Array.isArray(customer.addresses)) return customer.addresses;
   try {
-    const result = Function(`"use strict"; return (${cleaned || 0})`)();
-    return Number.isFinite(result) ? String(Number(result.toFixed(2))) : "خطأ";
+    const parsed = JSON.parse(customer.addresses);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return "خطأ";
+    return [];
   }
+}
+
+function addressText(address: CustomerAddress): string {
+  return [address.area, address.landmark, address.floor, address.notes]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" — ");
 }
 
 export function Pos() {
@@ -190,15 +220,26 @@ export function Pos() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
-  const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string; address?: string }>>([]);
+  const [customers, setCustomers] = useState<PosCustomer[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+  const [deliveryZoneId, setDeliveryZoneId] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const [quickPhone, setQuickPhone] = useState("");
+  const [quickAddress, setQuickAddress] = useState("");
+  const [quickAddressLabel, setQuickAddressLabel] = useState("الرئيسي");
+  const [quickExtraPhone, setQuickExtraPhone] = useState("");
+  const [quickBusy, setQuickBusy] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
-  const [calc, setCalc] = useState("");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
@@ -223,6 +264,7 @@ export function Pos() {
     branch_id: branchId,
     source_id: sourceId || null,
     order_type: orderType,
+    delivery_zone_id: orderType === "delivery" ? deliveryZoneId || null : null,
     delivery_fee: orderType === "delivery" ? deliveryFee : 0,
     discount: settings?.allow_discounts ? discount : 0,
     discount_reason: discount > 0 ? discountReason || null : null,
@@ -233,7 +275,7 @@ export function Pos() {
       notes: line.notes || null,
       modifier_ids: line.modifiers.map((modifier) => modifier.id),
     })),
-  }), [branchId, sourceId, orderType, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
+  }), [branchId, sourceId, orderType, deliveryZoneId, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
   const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
   const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
 
@@ -247,7 +289,7 @@ export function Pos() {
   }, [cartDrawerOpen]);
 
   useEffect(() => {
-    if (!branchId || !sourceId || !cart.length) {
+    if (!branchId || !sourceId || !cart.length || (orderType === "delivery" && !deliveryZoneId)) {
       setQuoteState(null);
       setQuoteBusy(false);
       setQuoteError("");
@@ -275,7 +317,7 @@ export function Pos() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [branchId, sourceId, cart.length, quoteKey, quotePayload]);
+  }, [branchId, sourceId, orderType, deliveryZoneId, cart.length, quoteKey, quotePayload]);
   useEffect(() => {
     let cancelled = false;
     api<{ data: Branch[] }>("/branches")
@@ -292,23 +334,70 @@ export function Pos() {
     };
   }, []);
 
-  useEffect(() => {
+  async function loadCustomers(preferredId?: string) {
     if (!can("customers.lookup") && !can("customers.manage")) {
       setCustomers([]);
       return;
     }
+    const response = await api<{ data: PosCustomer[] }>("/customers/lookup");
+    setCustomers(response.data);
+    if (preferredId) {
+      const customer = response.data.find((item) => item.id === preferredId);
+      if (customer) selectDeliveryCustomer(customer, response.data);
+    }
+  }
+
+  function selectDeliveryCustomer(customer: PosCustomer | null, rows = customers) {
+    if (!customer) {
+      setCustomerId("");
+      setDeliveryAddress("");
+      setDeliveryPhone("");
+      return;
+    }
+    const current = rows.find((item) => item.id === customer.id) ?? customer;
+    setCustomerId(current.id);
+    const savedAddresses = parseAddresses(current);
+    const preferredAddress = savedAddresses.find((item) => item.is_default) ?? savedAddresses[0];
+    setDeliveryAddress(current.address?.trim() || (preferredAddress ? addressText(preferredAddress) : ""));
+    setDeliveryPhone(current.phone?.trim() || current.alt_phone?.trim() || "");
+  }
+
+  useEffect(() => {
     let cancelled = false;
-    api<{ data: typeof customers }>("/customers/lookup")
+    if (!can("customers.lookup") && !can("customers.manage")) {
+      setCustomers([]);
+      return;
+    }
+    api<{ data: PosCustomer[] }>("/customers/lookup")
       .then((response) => {
         if (!cancelled) setCustomers(response.data);
       })
       .catch((e: Error) => {
         if (!cancelled) setError(e.message);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [can]);
+
+  useEffect(() => {
+    if (orderType !== "delivery") {
+      setDeliveryZones([]);
+      setDeliveryZoneId("");
+      setDeliveryFee(0);
+      return;
+    }
+    let cancelled = false;
+    api<{ data: DeliveryZone[] }>("/delivery-zones")
+      .then((response) => {
+        if (cancelled) return;
+        const active = response.data.filter((zone) => zone.is_active !== false);
+        setDeliveryZones(active);
+        setDeliveryZoneId((current) => active.some((zone) => zone.id === current) ? current : "");
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => { cancelled = true; };
+  }, [orderType, branchId]);
 
   async function loadShift(currentBranchId: string) {
     try {
@@ -428,6 +517,25 @@ export function Pos() {
     return (categories.find((category) => category.name_ar === activeCat)?.products ?? []).filter((p) => p.pos_visible !== false);
   }, [categories, allProducts, activeCat, search]);
 
+  const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
+  const selectedZone = deliveryZones.find((zone) => zone.id === deliveryZoneId) ?? null;
+  const customerAddressOptions = (() => {
+    const options: Array<{ label: string; value: string }> = [];
+    const add = (label: string, value?: string | null) => {
+      const clean = value?.trim();
+      if (clean && !options.some((item) => item.value === clean)) options.push({ label, value: clean });
+    };
+    add("العنوان الرئيسي", selectedCustomer?.address);
+    for (const address of parseAddresses(selectedCustomer)) {
+      const value = addressText(address);
+      add(address.label?.trim() || "عنوان محفوظ", value);
+    }
+    return options;
+  })();
+  const customerPhoneOptions = Array.from(new Set(
+    [selectedCustomer?.phone?.trim(), selectedCustomer?.alt_phone?.trim()].filter(Boolean) as string[]
+  ));
+
   const localSubtotal = cart.reduce((sum, line) => sum + unitPrice(line) * line.qty, 0);
   const subtotal = currentQuote?.subtotal ?? localSubtotal;
   // أنواع الطلب من الإعدادات، بينما كل القيم المالية النهائية تأتي من server quote.
@@ -438,7 +546,8 @@ export function Pos() {
   const serviceFeeEstimate = currentQuote?.service_fee ?? 0;
   const vatEstimate = currentQuote?.vat_amount ?? 0;
   const total = currentQuote?.total ?? 0;
-  const belowMinDelivery = orderType === "delivery" && (settings?.min_delivery_order ?? 0) > 0 && subtotal < (settings?.min_delivery_order ?? 0);
+  const deliveryMinimum = Math.max(settings?.min_delivery_order ?? 0, Number(selectedZone?.min_order ?? 0));
+  const belowMinDelivery = orderType === "delivery" && deliveryMinimum > 0 && subtotal < deliveryMinimum;
   const discountOverLimit =
     discount > 0 &&
     !!settings &&
@@ -499,6 +608,86 @@ export function Pos() {
     }
   }
 
+  async function createQuickCustomer() {
+    if (!quickName.trim() || !quickPhone.trim() || quickBusy) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      const initialAddress = quickAddress.trim();
+      const response = await api<{ data: PosCustomer }>("/customers", {
+        method: "POST",
+        body: {
+          name: quickName.trim(),
+          phone: quickPhone.trim(),
+          address: initialAddress || null,
+          addresses: initialAddress ? [{ label: "الرئيسي", area: initialAddress, is_default: true }] : [],
+        },
+      });
+      await loadCustomers(response.data.id);
+      setQuickName("");
+      setQuickPhone("");
+      setQuickAddress("");
+      setCustomerModalOpen(false);
+      setMsg("تمت إضافة العميل واختياره");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
+  async function addQuickAddress() {
+    if (!selectedCustomer || !quickAddress.trim() || quickBusy) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      const existing = parseAddresses(selectedCustomer);
+      const nextAddress: CustomerAddress = {
+        label: quickAddressLabel.trim() || "عنوان إضافي",
+        area: quickAddress.trim(),
+        is_default: existing.length === 0 && !selectedCustomer.address,
+      };
+      await api("/customers/" + selectedCustomer.id, {
+        method: "PATCH",
+        body: {
+          address: selectedCustomer.address || (nextAddress.is_default ? quickAddress.trim() : null),
+          addresses: [...existing, nextAddress],
+        },
+      });
+      await loadCustomers(selectedCustomer.id);
+      setDeliveryAddress(quickAddress.trim());
+      setQuickAddress("");
+      setQuickAddressLabel("الرئيسي");
+      setAddressModalOpen(false);
+      setMsg("تم حفظ عنوان التوصيل");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
+  async function addQuickPhone() {
+    if (!selectedCustomer || !quickExtraPhone.trim() || quickBusy) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      const body = selectedCustomer.phone?.trim()
+        ? { alt_phone: quickExtraPhone.trim() }
+        : { phone: quickExtraPhone.trim() };
+      await api("/customers/" + selectedCustomer.id, { method: "PATCH", body });
+      await loadCustomers(selectedCustomer.id);
+      setDeliveryPhone(quickExtraPhone.trim());
+      setQuickExtraPhone("");
+      setPhoneModalOpen(false);
+      setMsg(selectedCustomer.alt_phone ? "تم تحديث الرقم الإضافي" : "تم حفظ الرقم الإضافي");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
   async function fireOrder() {
     setError("");
     setMsg("");
@@ -514,6 +703,8 @@ export function Pos() {
           table_id: null,
           customer_id: orderType === "delivery" && customerId ? customerId : null,
           delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
+          delivery_phone: orderType === "delivery" ? deliveryPhone || null : null,
+          delivery_zone_id: orderType === "delivery" ? deliveryZoneId || null : null,
           delivery_fee: orderType === "delivery" ? deliveryFee : 0,
           submit: true,
           payment_method: payment,
@@ -535,6 +726,11 @@ export function Pos() {
       setDiscount(0);
       setDiscountReason("");
       setOrderNotes("");
+      setCustomerId("");
+      setDeliveryAddress("");
+      setDeliveryPhone("");
+      setDeliveryZoneId("");
+      setDeliveryFee(0);
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
@@ -544,15 +740,6 @@ export function Pos() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function calcPress(key: string) {
-    if (key === "C") return setCalc("");
-    if (key === "⌫") return setCalc((value) => value.slice(0, -1));
-    if (key === "=") return setCalc((value) => safeCalc(value));
-    if (key === "خصم") return setDiscount(Number(calc || 0));
-    if (key === "دليفري") return setDeliveryFee(Number(calc || 0));
-    setCalc((value) => value + key);
   }
 
   const normalizedHistorySearch = historySearch.trim().replace(/^#/, "").toLocaleLowerCase("ar-EG");
@@ -663,8 +850,8 @@ export function Pos() {
                   onClick={() => {
                     setOrderType(type);
                     setSourceId("");
-                    // YKMS-02E: رسوم التوصيل الافتراضية من الإعدادات عند التحويل للدليفري
-                    if (type === "delivery" && !deliveryFee && settings?.default_delivery_fee) setDeliveryFee(settings.default_delivery_fee);
+                    setDeliveryZoneId("");
+                    setDeliveryFee(0);
                   }}
                 >
                   {t.orders.types[type]}
@@ -679,14 +866,92 @@ export function Pos() {
               </select>
             </label>
             {orderType === "delivery" && (
-              <>
-                <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); const customer = customers.find((item) => item.id === e.target.value); if (customer?.address) setDeliveryAddress(customer.address); }}>
-                  <option value="">{t.pos.customer}…</option>
-                  {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.phone ? ` — ${customer.phone}` : ""}</option>)}
-                </select>
-                <input placeholder={t.pos.deliveryAddress} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
-                <input type="number" min={0} placeholder={t.pos.deliveryFee} value={deliveryFee || ""} onChange={(e) => setDeliveryFee(Number(e.target.value))} />
-              </>
+              <div className="posx-delivery-fields">
+                <label className="posx-delivery-field posx-delivery-field-full">
+                  <span className="posx-delivery-label">
+                    <b>العميل</b>
+                    <button
+                      type="button"
+                      className="posx-quick-add"
+                      aria-label="إضافة عميل جديد"
+                      title={can("customers.manage") ? "إضافة عميل جديد" : "تحتاج صلاحية إدارة العملاء"}
+                      disabled={!can("customers.manage")}
+                      onClick={() => setCustomerModalOpen(true)}
+                    >+</button>
+                  </span>
+                  <select
+                    value={customerId}
+                    onChange={(event) => selectDeliveryCustomer(customers.find((item) => item.id === event.target.value) ?? null)}
+                  >
+                    <option value="">اختر العميل…</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}{customer.phone ? ` — ${customer.phone}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="posx-delivery-field posx-delivery-field-full">
+                  <span className="posx-delivery-label">
+                    <b>عنوان التوصيل</b>
+                    <button
+                      type="button"
+                      className="posx-quick-add"
+                      aria-label="إضافة عنوان للعميل"
+                      title={!selectedCustomer ? "اختر العميل أولًا" : "إضافة عنوان جديد"}
+                      disabled={!selectedCustomer || !can("customers.manage")}
+                      onClick={() => setAddressModalOpen(true)}
+                    >+</button>
+                  </span>
+                  <select value={deliveryAddress} disabled={!selectedCustomer} onChange={(event) => setDeliveryAddress(event.target.value)}>
+                    <option value="">اختر عنوان التوصيل…</option>
+                    {customerAddressOptions.map((address) => (
+                      <option key={address.value} value={address.value}>{address.label} — {address.value}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="posx-delivery-split posx-delivery-field-full">
+                  <label className="posx-delivery-field">
+                    <span className="posx-delivery-label"><b>زون التوصيل</b></span>
+                    <select
+                      value={deliveryZoneId}
+                      onChange={(event) => {
+                        const nextId = event.target.value;
+                        const zone = deliveryZones.find((item) => item.id === nextId);
+                        setDeliveryZoneId(nextId);
+                        setDeliveryFee(zone ? Number(zone.fee) : 0);
+                      }}
+                    >
+                      <option value="">اختر الزون…</option>
+                      {deliveryZones.map((zone) => (
+                        <option key={zone.id} value={zone.id}>{zone.name_ar} — {money(Number(zone.fee))}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="posx-delivery-field">
+                    <span className="posx-delivery-label">
+                      <b>رقم التليفون</b>
+                      <button
+                        type="button"
+                        className="posx-quick-add"
+                        aria-label="إضافة رقم تليفون"
+                        title={!selectedCustomer ? "اختر العميل أولًا" : "إضافة أو تحديث الرقم الإضافي"}
+                        disabled={!selectedCustomer || !can("customers.manage")}
+                        onClick={() => setPhoneModalOpen(true)}
+                      >+</button>
+                    </span>
+                    <select value={deliveryPhone} disabled={!selectedCustomer} onChange={(event) => setDeliveryPhone(event.target.value)}>
+                      <option value="">اختر رقم التليفون…</option>
+                      {customerPhoneOptions.map((phone, index) => (
+                        <option key={phone} value={phone}>{index === 0 ? "الأساسي" : "الإضافي"} — {phone}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
             )}
             {settings?.allow_discounts !== false && (
               <>
@@ -697,7 +962,7 @@ export function Pos() {
                 {discountOverLimit && <div className="posx-warn">{t.pos.discountNeedsManager}</div>}
               </>
             )}
-            {belowMinDelivery && <div className="posx-warn">{t.pos.belowMinDelivery} ({money(settings?.min_delivery_order ?? 0)})</div>}
+            {belowMinDelivery && <div className="posx-warn">{t.pos.belowMinDelivery} ({money(deliveryMinimum)})</div>}
             <input placeholder={t.pos.orderNotes} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
             <div className="seg dark wrap">
               {enabledMethods.map((method) => (
@@ -706,16 +971,6 @@ export function Pos() {
             </div>
             {cashBlocked && <div className="posx-warn">{t.shift.cashNeedsShift}</div>}
           </div>
-
-          <details className="posx-calc-box">
-            <summary>الآلة الحاسبة</summary>
-            <div className="posx-calc">
-              <div className="posx-calc-display" dir="ltr">{calc || "0"}</div>
-              {["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "-", "0", ".", "=", "+", "C", "⌫", "خصم", "دليفري"].map((key) => (
-                <button key={key} onClick={() => calcPress(key)}>{key}</button>
-              ))}
-            </div>
-          </details>
 
           <div className="posx-totals">
             <div className="receipt-row"><span>{t.pos.subtotal}</span><span>{money(subtotal)}</span></div>
@@ -731,7 +986,9 @@ export function Pos() {
             const deliveryIncomplete =
               orderType === "delivery" &&
               ((settings?.require_customer_for_delivery !== false && !customerId) ||
-                (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()));
+                (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()) ||
+                !deliveryZoneId ||
+                !deliveryPhone.trim());
             const fireReason = !cart.length
               ? "السلة فارغة"
               : !sourceId
@@ -898,6 +1155,48 @@ export function Pos() {
           </div>
         </div>
       )}
+      {customerModalOpen && (
+        <div className="modal-back" onClick={() => setCustomerModalOpen(false)}>
+          <div className="modal posx-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-customer-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="quick-customer-title">إضافة عميل جديد</h3>
+            <label className="field"><span>اسم العميل</span><input autoFocus value={quickName} onChange={(event) => setQuickName(event.target.value)} /></label>
+            <label className="field"><span>رقم التليفون</span><input dir="ltr" inputMode="tel" value={quickPhone} onChange={(event) => setQuickPhone(event.target.value)} /></label>
+            <label className="field"><span>العنوان الأول (اختياري)</span><textarea rows={3} value={quickAddress} onChange={(event) => setQuickAddress(event.target.value)} /></label>
+            <div className="pos-actions">
+              <button className="primary" disabled={quickBusy || !quickName.trim() || !quickPhone.trim()} onClick={() => void createQuickCustomer()}>{quickBusy ? "جارٍ الحفظ…" : "إضافة واختيار"}</button>
+              <button onClick={() => setCustomerModalOpen(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addressModalOpen && selectedCustomer && (
+        <div className="modal-back" onClick={() => setAddressModalOpen(false)}>
+          <div className="modal posx-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-address-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="quick-address-title">إضافة عنوان — {selectedCustomer.name}</h3>
+            <label className="field"><span>اسم العنوان</span><input value={quickAddressLabel} placeholder="المنزل / العمل" onChange={(event) => setQuickAddressLabel(event.target.value)} /></label>
+            <label className="field"><span>العنوان</span><textarea autoFocus rows={3} value={quickAddress} onChange={(event) => setQuickAddress(event.target.value)} /></label>
+            <div className="pos-actions">
+              <button className="primary" disabled={quickBusy || !quickAddress.trim()} onClick={() => void addQuickAddress()}>{quickBusy ? "جارٍ الحفظ…" : "حفظ واختيار"}</button>
+              <button onClick={() => setAddressModalOpen(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phoneModalOpen && selectedCustomer && (
+        <div className="modal-back" onClick={() => setPhoneModalOpen(false)}>
+          <div className="modal posx-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-phone-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="quick-phone-title">{selectedCustomer.alt_phone ? "تحديث الرقم الإضافي" : "إضافة رقم إضافي"} — {selectedCustomer.name}</h3>
+            <label className="field"><span>رقم التليفون</span><input autoFocus dir="ltr" inputMode="tel" value={quickExtraPhone} onChange={(event) => setQuickExtraPhone(event.target.value)} /></label>
+            <div className="pos-actions">
+              <button className="primary" disabled={quickBusy || !quickExtraPhone.trim()} onClick={() => void addQuickPhone()}>{quickBusy ? "جارٍ الحفظ…" : "حفظ واختيار"}</button>
+              <button onClick={() => setPhoneModalOpen(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {adminPanel === "shift" && (
         <div className="modal-back" onClick={() => setAdminPanel(null)}>
           <div className="modal posx-admin-modal" onClick={(e) => e.stopPropagation()}>

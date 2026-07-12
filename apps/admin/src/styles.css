@@ -246,20 +246,6 @@ button.wide { width: 100%; margin-top: 8px; }
 .mod-group { margin-top: 12px; }
 .mod-group-name { font-weight: 800; font-size: 13.5px; margin-bottom: 6px; }
 
-/* ---------- YKMS-02: KDS ---------- */
-.kds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.kds-col-head { font-weight: 800; padding: 9px 14px; border-radius: 9px; background: var(--card); border: 1px solid var(--line); margin-bottom: 10px; text-align: center; }
-.kds-col-head.st-submitted { border-color: var(--saffron); color: var(--saffron); }
-.kds-col-head.st-in_kitchen { border-color: #b5651d; color: #b5651d; }
-.kds-col-head.st-ready { border-color: var(--teal); color: var(--teal); }
-.kds-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 13px; margin-bottom: 10px; font-size: 15px; }
-.kds-card-head { display: flex; justify-content: space-between; font-weight: 800; margin-bottom: 8px; }
-.kds-timer { background: var(--ink); color: #fff; border-radius: 6px; padding: 2px 9px; font-size: 13px; }
-.kds-card ul { margin: 0; padding-inline-start: 18px; }
-.kds-card li { margin-bottom: 6px; }
-.kds-mods { color: var(--teal); font-size: 13px; }
-.kds-note { color: var(--danger); font-size: 13px; margin-top: 4px; }
-
 /* ---------- YKMS-02: tables ---------- */
 .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .table-card { background: #fff; border: 2px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
@@ -285,7 +271,6 @@ button.wide { width: 100%; margin-top: 8px; }
 
 @media (max-width: 900px) {
   .pos { grid-template-columns: 1fr; }
-  .kds { grid-template-columns: 1fr; }
 }
 
 /* ================== YKMS-02C: dark POS workspace ================== */
@@ -410,9 +395,3 @@ button.wide { width: 100%; margin-top: 8px; }
 .set-role { border-top: 1px dashed var(--line); padding: 10px 0; }
 .set-perms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 @media (max-width: 1000px) { .setx { grid-template-columns: 1fr; } .setx-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
-/* YKMS-02E: KDS SLA */
-.kds-stats { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.kds-card.kds-warn { border-color: #e9a13b; box-shadow: 0 0 0 1px #e9a13b; }
-.kds-card.kds-late { border-color: #d64541; box-shadow: 0 0 0 2px #d64541; }
-.kds-card.kds-late .kds-timer { background: #d64541; }
-.kds-station { color: #146C60; font-size: 12.5px; font-weight: 700; }

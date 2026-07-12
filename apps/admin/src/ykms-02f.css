@@ -299,17 +299,6 @@ html, body { overflow-x: hidden; }
 .set-perms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 
-/* ——— Kitchen running timer + timestamps ——— */
-.kds-timer { font-variant-numeric: tabular-nums; font-weight: 900; }
-.kds-received { font-size: 11.5px; color: var(--yk-muted); margin: 2px 0; }
-.kds-station { color: #7fd4c4; font-size: 12px; font-weight: 700; }
-/* YKMS-02G: SLA أهدأ — شريط جانبي بدل توهج البطاقة كاملة */
-.kds-card.kds-warn { border-color: var(--yk-line) !important; border-inline-start: 4px solid #e9a13b !important; box-shadow: none; }
-.kds-card.kds-late { border-color: var(--yk-line) !important; border-inline-start: 4px solid #d64541 !important; box-shadow: none; }
-.kds-card.kds-late .kds-timer { color: #ff6b60; }
-.kds-card.kds-warn .kds-timer { color: #f0b35f; }
-.kds-stat-late b { color: #ff6b60 !important; }
-
 /* ================================================================
    YKMS-02G — POS operational header + interactive product card
    ================================================================ */

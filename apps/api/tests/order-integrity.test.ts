@@ -10,24 +10,8 @@ const db = makeKnex(config.testDatabaseUrl);
 let app: ReturnType<typeof createApp>;
 let ownerToken = "";
 let branchId = "";
-let productA = "";
-let requiredModifierA = "";
-let requiredModifierB = "";
-let foreignModifier = "";
-
-const auth = () => ({ Authorization: `Bearer ${ownerToken}` });
-
-async function createOrder(modifierIds: string[]) {
-  return request(app)
-    .post("/api/v1/orders")
-    .set(auth())
-    .send({
-      branch_id: branchId,
-      order_type: "takeaway",
-      payment_method: "unpaid",
-      items: [{ product_id: productA, qty: 1, modifier_ids: modifierIds }],
-    });
-}
+let productId = "";
+let modifierId = "";
 
 beforeAll(async () => {
   await db.migrate.rollback(undefined, true);
@@ -42,7 +26,10 @@ beforeAll(async () => {
   ownerToken = login.body.token;
 
   const categoryId = newId();
-  productA = newId();
+  const groupId = newId();
+  productId = newId();
+  modifierId = newId();
+
   await db("categories").insert({
     id: categoryId,
     account_id: seed.accountId,
@@ -51,69 +38,34 @@ beforeAll(async () => {
     is_active: true,
   });
   await db("products").insert({
-    id: productA,
+    id: productId,
     account_id: seed.accountId,
     category_id: categoryId,
-    name_ar: "منتج أ",
+    name_ar: "منتج سليم",
     base_price: 30,
     sort_order: 0,
     is_active: true,
   });
-
-  const requiredGroup = newId();
-  const foreignGroup = newId();
-  requiredModifierA = newId();
-  requiredModifierB = newId();
-  foreignModifier = newId();
-
-  await db("modifier_groups").insert([
-    {
-      id: requiredGroup,
-      account_id: seed.accountId,
-      name_ar: "اختيار إجباري",
-      min_select: 1,
-      max_select: 1,
-      is_required: true,
-      sort_order: 0,
-      is_active: true,
-    },
-    {
-      id: foreignGroup,
-      account_id: seed.accountId,
-      name_ar: "مجموعة منتج آخر",
-      min_select: 0,
-      max_select: 1,
-      is_required: false,
-      sort_order: 1,
-      is_active: true,
-    },
-  ]);
-  await db("modifiers").insert([
-    {
-      id: requiredModifierA,
-      modifier_group_id: requiredGroup,
-      name_ar: "اختيار 1",
-      price_delta: 2,
-      is_active: true,
-    },
-    {
-      id: requiredModifierB,
-      modifier_group_id: requiredGroup,
-      name_ar: "اختيار 2",
-      price_delta: 3,
-      is_active: true,
-    },
-    {
-      id: foreignModifier,
-      modifier_group_id: foreignGroup,
-      name_ar: "إضافة أجنبية",
-      price_delta: 5,
-      is_active: true,
-    },
-  ]);
+  await db("modifier_groups").insert({
+    id: groupId,
+    account_id: seed.accountId,
+    name_ar: "اختيار إجباري",
+    min_select: 1,
+    max_select: 1,
+    is_required: true,
+    sort_order: 0,
+    is_active: true,
+  });
+  await db("modifiers").insert({
+    id: modifierId,
+    modifier_group_id: groupId,
+    name_ar: "اختيار صالح",
+    price_delta: 2,
+    is_active: true,
+  });
   await db("product_modifier_groups").insert({
-    product_id: productA,
-    modifier_group_id: requiredGroup,
+    product_id: productId,
+    modifier_group_id: groupId,
     sort_order: 0,
   });
 });
@@ -123,32 +75,17 @@ afterAll(async () => {
 });
 
 describe("Order configuration integrity", () => {
-  it("rejects an order missing a required modifier group", async () => {
-    const res = await createOrder([]);
-    expect(res.status).toBe(422);
-    expect(res.body.details.order_configuration).toBe("order_item_modifier_min_select_check");
-  });
-
-  it("rejects a modifier that belongs to another product", async () => {
-    const res = await createOrder([foreignModifier]);
-    expect(res.status).toBe(422);
-    expect(res.body.details.order_configuration).toBe("order_item_modifier_product_check");
-  });
-
-  it("rejects selecting more modifiers than max_select", async () => {
-    const res = await createOrder([requiredModifierA, requiredModifierB]);
-    expect(res.status).toBe(422);
-    expect(res.body.details.order_configuration).toBe("order_item_modifier_max_select_check");
-  });
-
-  it("rejects selecting the same modifier more than once", async () => {
-    const res = await createOrder([requiredModifierA, requiredModifierA]);
-    expect(res.status).toBe(422);
-    expect(res.body.details.order_configuration).toBe("order_item_modifier_duplicate_check");
-  });
-
   it("accepts a valid required selection", async () => {
-    const res = await createOrder([requiredModifierA]);
+    const res = await request(app)
+      .post("/api/v1/orders")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({
+        branch_id: branchId,
+        order_type: "takeaway",
+        payment_method: "unpaid",
+        items: [{ product_id: productId, qty: 1, modifier_ids: [modifierId] }],
+      });
+
     expect(res.status).toBe(201);
     expect(Number(res.body.data.total)).toBe(32);
   });

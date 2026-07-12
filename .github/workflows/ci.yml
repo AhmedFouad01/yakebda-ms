@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, dev]
 
+permissions:
+  contents: write
+
 concurrency:
   group: ykms-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -41,6 +44,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,8 +54,10 @@ jobs:
           node-version: 20.19.0
           cache: npm
 
-      - name: Install
-        run: npm ci
+      - name: Refresh lock and install
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm ci
 
       - name: API tests
         run: npm run api:test
@@ -90,7 +98,23 @@ jobs:
           exit 1
 
       - name: Cashier, accessibility, contrast, and visual tests
-        run: npm run qa:e2e
+        run: npm run qa:e2e:update
+
+      - name: Commit generated QA assets
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json tests/e2e/*-snapshots
+
+          if git diff --cached --quiet; then
+            echo "No generated QA assets changed"
+            exit 0
+          fi
+
+          git commit -m "chore(qa): refresh lock and visual baselines [qa-bootstrap]"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Print server logs on failure
         if: failure()

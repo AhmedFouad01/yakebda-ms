@@ -1,3 +1,4 @@
+# Triggered after workflow registration.
 name: Apply corrected POS shell and cart patch
 
 on:
@@ -167,7 +168,6 @@ jobs:
           if count != 1:
               raise SystemExit(f'quick-change panel: expected one match, found {count}')
 
-          # Remove any remaining tender reset line (post-order reset).
           text = re.sub(r'^\s*setCashTender\(null\);\n', '', text, flags=re.M)
 
           if any(token in text for token in ('cashTender', 'tenderSuggestions', 'selectedChange', 'posx-change-panel')):

@@ -9,6 +9,7 @@ import { newId } from "../src/lib/ids";
 const db = makeKnex(config.testDatabaseUrl);
 let app: ReturnType<typeof createApp>;
 let ownerToken = "";
+let accountId = "";
 let branchId = "";
 let branch2Id = "";
 let productId = "";
@@ -42,6 +43,7 @@ beforeAll(async () => {
   await db.migrate.rollback(undefined, true);
   await db.migrate.latest();
   const seed = await seedFoundation(db);
+  accountId = seed.accountId;
   branchId = seed.branchId;
   branch2Id = seed.branch2Id!;
   app = createApp(db);
@@ -82,6 +84,8 @@ describe("Atomic order numbering", () => {
     );
 
     expectUniqueSequentialNumbers(responses);
+    expect(new Set(responses.map((res) => res.body.data.numbering_key)).size).toBe(1);
+    expect(responses[0].body.data.numbering_key).toBe(`branch:${branchId}:continuous`);
   });
 
   it("assigns one account-wide sequence across concurrent orders in two branches", async () => {
@@ -97,5 +101,6 @@ describe("Atomic order numbering", () => {
 
     expectUniqueSequentialNumbers(responses);
     expect(new Set(responses.map((res) => res.body.data.numbering_key)).size).toBe(1);
+    expect(responses[0].body.data.numbering_key).toBe(`account:${accountId}:continuous`);
   });
 });

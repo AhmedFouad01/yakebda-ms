@@ -111,16 +111,38 @@ jobs:
         run: npm ci
 
       - name: API tests
-        run: npm run api:test
+        shell: bash
+        run: |
+          if ! npm run api:test > test-output.txt 2>&1; then
+            tail -n 160 test-output.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add test-output.txt
+            git commit -m "chore(debug): capture order sources test failure"
+            git push origin HEAD:feature/order-sources-price-lists
+            exit 1
+          fi
+          rm -f test-output.txt
 
       - name: Admin build
-        run: npm run admin:build
+        shell: bash
+        run: |
+          if ! npm run admin:build > build-output.txt 2>&1; then
+            tail -n 160 build-output.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add build-output.txt
+            git commit -m "chore(debug): capture order sources build failure"
+            git push origin HEAD:feature/order-sources-price-lists
+            exit 1
+          fi
+          rm -f build-output.txt
 
       - name: Persist tested feature and restore CI
         if: github.head_ref == 'feature/order-sources-price-lists'
         shell: bash
         run: |
-          rm -f patch-output.txt
+          rm -f patch-output.txt test-output.txt build-output.txt
           rm tools/qa/apply-order-sources.mjs
           rm .github/workflows/apply-order-sources.yml
           git checkout 3054e165a36487eae7cb99aff4e3bdf6682878a8 -- .github/workflows/ci.yml

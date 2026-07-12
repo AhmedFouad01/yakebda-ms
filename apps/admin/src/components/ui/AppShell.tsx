@@ -8,7 +8,7 @@ import { Toaster } from "./overlays";
 
 /**
  * YKMS-02F — AppShell: تنقّل نظامي موحد لكل الشاشات بما فيها POS.
- * - AppBar علوي ثابت: قائمة ☰ + الرئيسية + رجوع + عنوان القسم + المستخدم + خروج.
+ * - AppBar علوي ثابت: قائمة + الرئيسية + رجوع + عنوان القسم + المستخدم + خروج.
  * - NavDrawer بكل الأقسام المسموح بها (حالة نشِطة).
  * - Sidebar يبقى للشاشات الإدارية على الشاشات العريضة؛ POS يحصل على كامل المساحة.
  * - لا يعتمد المستخدم على زر المتصفح للرجوع أبدًا.
@@ -34,13 +34,37 @@ export const NAV_LINKS: Array<{ to: string; label: () => string; perms: string[]
 
 const TITLES: Record<string, () => string> = Object.fromEntries(NAV_LINKS.map((l) => [l.to, l.label]));
 
+function ShellIcon({ name }: { name: "menu" | "home" | "back" | "close" }) {
+  const common = {
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (name === "menu") {
+    return <svg {...common}><path d="M4 6h16M4 12h16M4 18h16" /></svg>;
+  }
+  if (name === "home") {
+    return <svg {...common}><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M9 20v-6h6v6" /></svg>;
+  }
+  if (name === "back") {
+    return <svg {...common}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>;
+  }
+  return <svg {...common}><path d="M6 6l12 12M18 6 6 18" /></svg>;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const location = useLocation();
   const { me, ready, can } = useMe();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // إغلاق قائمة التنقل تلقائيًا عند تغيّر المسار
   useEffect(() => {
     setDrawerOpen(false);
   }, [location.pathname]);
@@ -58,19 +82,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className={`app2${isPos ? " app2-pos" : ""}`} dir="rtl">
       <header className="app2-bar">
-        <button type="button" className="app2-menu" aria-label="القائمة الرئيسية" onClick={() => setDrawerOpen(true)}>☰</button>
+        <button type="button" className="app2-menu" aria-label="القائمة الرئيسية" onClick={() => setDrawerOpen(true)}>
+          <ShellIcon name="menu" />
+        </button>
         <Link to="/" className="app2-brand" title={t.nav.dashboard}>
           <img src={brand.logoPath} alt="" />
           <strong>{brand.nameAr}</strong>
         </Link>
-        <Link to="/" className="app2-home" title={t.nav.dashboard} aria-label={t.nav.dashboard}>⌂</Link>
+        <Link to="/" className="app2-home" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
+          <ShellIcon name="home" />
+        </Link>
         <button
           type="button"
           className="app2-back"
           aria-label="رجوع"
           onClick={() => (window.history.length > 2 ? nav(-1) : nav("/"))}
         >
-          ←
+          <ShellIcon name="back" />
         </button>
         {sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
         <span className="app2-spacer" />
@@ -106,7 +134,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <img src={brand.logoPath} alt="" width={26} height={26} style={{ verticalAlign: "middle", marginInlineEnd: 8 }} />
                 {brand.nameAr}
               </div>
-              <button type="button" className="uif-x" aria-label="إغلاق" onClick={() => setDrawerOpen(false)}>✕</button>
+              <button type="button" className="uif-x" aria-label="إغلاق" onClick={() => setDrawerOpen(false)}>
+                <ShellIcon name="close" />
+              </button>
             </header>
             <nav className="app2-navdrawer-links">
               {links.map((l) => (

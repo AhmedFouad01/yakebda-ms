@@ -43,6 +43,24 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
+      - name: Correct one-time runner
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("tools/qa/apply-approved-visual-review.mjs")
+          source = p.read_text(encoding="utf-8")
+          source = source.replace(
+              '  source = replaceOnce(source, \'<div className="cards">\', \'<div className="report-summary-grid">\', "reports summary grid");',
+              '  source = source.replace(\'<div className="cards">\', \'<div className="report-summary-grid">\');',
+          )
+          source = source.replace(
+              '  source = replaceOnce(source, \'<div className="cards">\', \'<div className="report-grid">\', "reports data grid");',
+              '  source = source.replace(\'<div className="cards">\', \'<div className="report-grid">\');',
+          )
+          p.write_text(source, encoding="utf-8")
+          PY
+
       - name: Apply approved visual review
         run: node tools/qa/apply-approved-visual-review.mjs
 

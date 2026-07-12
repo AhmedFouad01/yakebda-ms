@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/seed.ts",
+    "e2e:reset": "tsx src/db/resetE2e.ts",
     "test": "vitest run"
   },
   "dependencies": {

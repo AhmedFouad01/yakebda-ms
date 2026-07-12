@@ -22,16 +22,6 @@ export async function up(db: Knex): Promise<void> {
     "ALTER TABLE orders ADD CONSTRAINT orders_numbering_key_order_no_unique UNIQUE (numbering_key, order_no)"
   );
 
-  await db.schema.createTable("order_number_counters", (t) => {
-    t.string("numbering_key", 180).primary();
-    t.uuid("account_id").notNullable().references("accounts.id").onDelete("CASCADE");
-    t.uuid("branch_id").nullable().references("branches.id").onDelete("CASCADE");
-    t.integer("last_value").notNullable();
-    t.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
-    t.index(["account_id"]);
-    t.index(["branch_id"]);
-  });
-
   await db.raw(`
     CREATE OR REPLACE FUNCTION ykms_assign_order_number()
     RETURNS trigger
@@ -45,8 +35,7 @@ export async function up(db: Knex): Promise<void> {
       v_business_date date;
       v_scope_prefix text;
       v_numbering_key text;
-      v_existing_max integer;
-      v_next integer;
+      v_max integer;
     BEGIN
       SELECT COALESCE(
         (
@@ -102,10 +91,13 @@ export async function up(db: Knex): Promise<void> {
         ELSE ':continuous'
       END;
 
-      -- Seed a newly introduced scope from existing orders, then increment atomically.
+      -- Serialize one numbering scope. Under READ COMMITTED, the MAX query below
+      -- runs after lock acquisition and sees the latest committed order.
+      PERFORM pg_advisory_xact_lock(hashtextextended(v_numbering_key, 0));
+
       IF v_branch_specific THEN
         SELECT max(o.order_no)
-        INTO v_existing_max
+        INTO v_max
         FROM orders o
         WHERE o.branch_id = NEW.branch_id
           AND (
@@ -114,7 +106,7 @@ export async function up(db: Knex): Promise<void> {
           );
       ELSE
         SELECT max(o.order_no)
-        INTO v_existing_max
+        INTO v_max
         FROM orders o
         WHERE o.account_id = NEW.account_id
           AND (
@@ -123,28 +115,8 @@ export async function up(db: Knex): Promise<void> {
           );
       END IF;
 
-      INSERT INTO order_number_counters (
-        numbering_key,
-        account_id,
-        branch_id,
-        last_value,
-        updated_at
-      )
-      VALUES (
-        v_numbering_key,
-        NEW.account_id,
-        CASE WHEN v_branch_specific THEN NEW.branch_id ELSE NULL END,
-        GREATEST(COALESCE(v_existing_max + 1, v_starting_number), v_starting_number),
-        CURRENT_TIMESTAMP
-      )
-      ON CONFLICT (numbering_key) DO UPDATE
-      SET
-        last_value = GREATEST(order_number_counters.last_value + 1, v_starting_number),
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING last_value INTO v_next;
-
       NEW.numbering_key := v_numbering_key;
-      NEW.order_no := v_next;
+      NEW.order_no := GREATEST(COALESCE(v_max + 1, v_starting_number), v_starting_number);
       RETURN NEW;
     END;
     $$;
@@ -181,7 +153,6 @@ export async function up(db: Knex): Promise<void> {
       FROM order_items oi
       WHERE oi.id = v_item_id;
 
-      -- Item may have been removed by a cascading order deletion.
       IF v_product_id IS NULL THEN
         RETURN NULL;
       END IF;
@@ -294,14 +265,12 @@ export async function down(db: Knex): Promise<void> {
   await db.raw("DROP FUNCTION IF EXISTS ykms_validate_order_item_configuration()");
   await db.raw("DROP TRIGGER IF EXISTS orders_assign_number_before_insert ON orders");
   await db.raw("DROP FUNCTION IF EXISTS ykms_assign_order_number()");
-  await db.schema.dropTableIfExists("order_number_counters");
 
   await db.raw("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_numbering_key_order_no_unique");
   await db.schema.alterTable("orders", (t) => {
     t.dropColumn("numbering_key");
   });
 
-  // If daily numbering produced duplicates, preserve all rows by renumbering only duplicate tails.
   await db.raw(`
     WITH ranked AS (
       SELECT

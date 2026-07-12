@@ -4,6 +4,7 @@ import { brand } from "../../config/brand";
 import { t } from "../../lib/t";
 import { setToken } from "../../lib/api";
 import { useMe, clearMe } from "../../lib/me";
+import { applyTheme, getActiveTheme, type AppTheme } from "../../lib/theme";
 import { Toaster } from "./overlays";
 
 /**
@@ -34,7 +35,9 @@ export const NAV_LINKS: Array<{ to: string; label: () => string; perms: string[]
 
 const TITLES: Record<string, () => string> = Object.fromEntries(NAV_LINKS.map((l) => [l.to, l.label]));
 
-function ShellIcon({ name }: { name: "menu" | "home" | "back" | "close" }) {
+type ShellIconName = "menu" | "home" | "back" | "close" | "sun" | "moon";
+
+function ShellIcon({ name }: { name: ShellIconName }) {
   const common = {
     width: 20,
     height: 20,
@@ -56,6 +59,12 @@ function ShellIcon({ name }: { name: "menu" | "home" | "back" | "close" }) {
   if (name === "back") {
     return <svg {...common}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>;
   }
+  if (name === "sun") {
+    return <svg {...common}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.41M17.66 6.34l1.41-1.41" /></svg>;
+  }
+  if (name === "moon") {
+    return <svg {...common}><path d="M20.5 14.2A8.3 8.3 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" /></svg>;
+  }
   return <svg {...common}><path d="M6 6l12 12M18 6 6 18" /></svg>;
 }
 
@@ -64,6 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { me, ready, can } = useMe();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [theme, setTheme] = useState<AppTheme>(() => getActiveTheme());
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -78,6 +88,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     clearMe();
     nav("/login");
   }
+
+  function toggleTheme() {
+    const nextTheme: AppTheme = theme === "dark" ? "light" : "dark";
+    applyTheme(nextTheme);
+    setTheme(nextTheme);
+  }
+
+  const themeLabel = theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن";
 
   return (
     <div className={`app2${isPos ? " app2-pos" : ""}`} dir="rtl">
@@ -102,6 +120,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
         {sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
         <span className="app2-spacer" />
+        <button
+          type="button"
+          className="app2-theme"
+          aria-label={themeLabel}
+          title={themeLabel}
+          aria-pressed={theme === "dark"}
+          onClick={toggleTheme}
+        >
+          <ShellIcon name={theme === "dark" ? "sun" : "moon"} />
+        </button>
         {me && (
           <span className="app2-user" title={me.permissions.length + " صلاحية"}>
             <span className="app2-user-dot" aria-hidden />

@@ -12,6 +12,7 @@ let app: ReturnType<typeof createApp>;
 let ownerToken = "";
 let limitedToken = "";
 let cashierToken = "";
+let manageOnlyToken = "";
 let branchId = "";
 let branch2Id = "";
 let productId = "";
@@ -76,6 +77,32 @@ beforeAll(async () => {
     .post("/api/v1/auth/login")
     .send({ email: "order-only@ykms.local", password: "OrderOnly@123" });
   limitedToken = limitedLogin.body.token;
+
+  const manageRoleId = newId();
+  const manageUserId = newId();
+  await db("roles").insert({
+    id: manageRoleId,
+    account_id: seed.accountId,
+    key: "customer_manage_only_test",
+    name_ar: "اختبار إدارة العملاء فقط",
+    is_system: false,
+  });
+  await db("role_permissions").insert({ role_id: manageRoleId, permission_key: "customers.manage" });
+  await db("users").insert({
+    id: manageUserId,
+    account_id: seed.accountId,
+    branch_id: branchId,
+    name: "مدير عملاء فقط",
+    email: "customer-manager@ykms.local",
+    password_hash: bcrypt.hashSync("CustomerManager@123", 10),
+    is_active: true,
+  });
+  await db("user_roles").insert({ user_id: manageUserId, role_id: manageRoleId });
+
+  const manageLogin = await request(app)
+    .post("/api/v1/auth/login")
+    .send({ email: "customer-manager@ykms.local", password: "CustomerManager@123" });
+  manageOnlyToken = manageLogin.body.token;
 });
 
 afterAll(async () => {
@@ -95,6 +122,14 @@ describe("Security and branch scope stabilization", () => {
 
     const crm = await request(app).get("/api/v1/customers").set(auth(cashierToken));
     expect(crm.status).toBe(403);
+  });
+
+  it("allows customers.manage to satisfy the narrower lookup permission", async () => {
+    const lookup = await request(app).get("/api/v1/customers/lookup").set(auth(manageOnlyToken));
+    expect(lookup.status).toBe(200);
+
+    const crm = await request(app).get("/api/v1/customers").set(auth(manageOnlyToken));
+    expect(crm.status).toBe(200);
   });
 
   it("rejects payment capture when the user lacks payments.record", async () => {

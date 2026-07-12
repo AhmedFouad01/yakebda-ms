@@ -8,6 +8,7 @@ import {
   StickyActionBar,
   SaveButton,
   CancelButton,
+  Button,
   LoadingState,
   ErrorState,
 } from "../../components/ui/primitives";
@@ -58,14 +59,14 @@ export function SettingsLayout() {
   const isDoc = current[2];
 
   return (
-    <div>
+    <div className="settings-page">
       <PageHeader title="الإعدادات" subtitle="التهيئة التشغيلية — مصدر الحقيقة لـ POS والمطبخ والطلبات" />
       <div className="setx2">
         <aside className="setx2-nav">
           {SECTIONS.map(([key, label]) => (
-            <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}>
+            <Button key={key} variant="ghost" className={section === key ? "active" : ""} aria-current={section === key ? "page" : undefined} onClick={() => setSection(key)}>
               {label}
-            </button>
+            </Button>
           ))}
         </aside>
 

@@ -109,7 +109,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 export function Checkbox({ label, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode }) {
   return (
-    <label className={`uif-checkbox${props.disabled ? " disabled" : ""}${className ? ` ${className}` : ""}`}>
+    <label className={`uif-checkbox${props.checked ? " checked" : ""}${props.disabled ? " disabled" : ""}${className ? ` ${className}` : ""}`}>
       <input {...props} type="checkbox" />
       <span className="uif-checkbox-box" aria-hidden>✓</span>
       {label && <span className="uif-checkbox-label">{label}</span>}
@@ -118,10 +118,10 @@ export function Checkbox({ label, className, ...props }: React.InputHTMLAttribut
 }
 
 /** مفتاح حديث بدل checkbox — native input تحتيًا للوصولية. */
-export function ToggleSwitch({ checked, onChange, disabled, label, off }: { checked: boolean; onChange?: (v: boolean) => void; disabled?: boolean; label?: string; off?: boolean }) {
+export function ToggleSwitch({ checked, onChange, disabled, label, ariaLabel, off }: { checked: boolean; onChange?: (v: boolean) => void; disabled?: boolean; label?: string; ariaLabel?: string; off?: boolean }) {
   return (
     <label className={`uif-toggle${disabled ? " disabled" : ""}${off ? " uif-off" : ""}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange?.(e.target.checked)} />
+      <input type="checkbox" checked={checked} disabled={disabled} aria-label={ariaLabel ?? label} onChange={(e) => onChange?.(e.target.checked)} />
       <span className="uif-toggle-track" aria-hidden>
         <span className="uif-toggle-thumb" />
       </span>

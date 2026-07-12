@@ -167,6 +167,7 @@ export function RowToggle({ ctx, k, label, off }: { ctx: RowCtx; k: keyof Settin
       checked={!!doc.data?.[k]}
       disabled={!editable || off}
       off={off}
+      ariaLabel={label}
       label={off ? `${label} — سيتم توفيره في مرحلة لاحقة` : label}
       onChange={(v) => doc.set(k, v as never)}
     />

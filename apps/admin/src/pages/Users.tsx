@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { useList } from "./hooks";
 import { Drawer, toast } from "../components/ui/overlays";
-import { PageHeader, Tabs, FormField, TextInput, Select, ToggleSwitch, EmptyState } from "../components/ui/primitives";
+import { Badge, Button, Checkbox, PageHeader, Tabs, FormField, TextInput, Select, ToggleSwitch, EmptyState } from "../components/ui/primitives";
 import { useMe } from "../lib/me";
 
 interface Role { id: string; key: string; name_ar: string; is_system?: boolean; permissions: string[] }
@@ -18,11 +18,15 @@ const PERM_GROUP_AR: Record<string, string> = {
   hardware: "الهاردوير", api: "عملاء API", integrations: "التكاملات",
 };
 
+function permissionDescription(permission: Permission): string {
+  return `تمنح «${permission.name_ar}» ضمن قسم ${PERM_GROUP_AR[permission.group] ?? permission.group}.`;
+}
+
 export function Users() {
   const { can } = useMe();
   const [tab, setTab] = useState("users");
   return (
-    <div dir="rtl">
+    <div dir="rtl" className="users-page">
       <PageHeader title={t.users.title} subtitle="المستخدمون والأدوار والصلاحيات" />
       <Tabs tabs={[["users", "المستخدمون"], ["roles", "الأدوار والصلاحيات"]]} active={tab} onChange={setTab} />
       {tab === "users" && <UsersTab canManage={can("users.manage")} />}
@@ -41,7 +45,7 @@ function UsersTab({ canManage }: { canManage: boolean }) {
   return (
     <>
       {error && <div className="alert">{error}</div>}
-      {canManage && <div className="menu-toolbar-actions" style={{ marginBottom: 12 }}><button className="primary" onClick={() => setAdding(true)}>+ مستخدم جديد</button></div>}
+      {canManage && <div className="users-toolbar"><Button variant="primary" onClick={() => setAdding(true)}>+ مستخدم جديد</Button></div>}
       {!data.length ? <EmptyState message="لا مستخدمين" /> : (
         <div className="panel">
           <table className="crm-table">
@@ -53,8 +57,8 @@ function UsersTab({ canManage }: { canManage: boolean }) {
                   <td dir="ltr" className="mono">{u.email ?? "—"}</td>
                   <td>{(u.roles ?? []).map((r) => r.name_ar).join("، ") || "—"}</td>
                   <td className="muted">{branches.data.find((b) => b.id === u.branch_id)?.name ?? "—"}</td>
-                  <td><span className={`menu-status ${u.is_active ? "on" : "off"}`}>{u.is_active ? "نشط" : "متوقف"}</span></td>
-                  <td>{canManage && <button className="sm primary" onClick={() => setEditing(u)}>تعديل</button>}</td>
+                  <td><Badge tone={u.is_active ? "success" : "neutral"}>{u.is_active ? "نشط" : "متوقف"}</Badge></td>
+                  <td>{canManage && <Button variant="secondary" className="sm" onClick={() => setEditing(u)}>تعديل</Button>}</td>
                 </tr>
               ))}
             </tbody>
@@ -103,7 +107,7 @@ function UserEditor({ user, roles, branches, onClose, onSaved }: { user: User | 
 
   return (
     <Drawer open title={user ? `تعديل: ${user.name}` : "مستخدم جديد"} onClose={onClose}
-      footer={<><button className="primary" onClick={save} disabled={busy || !name || !roleKeys.length}>{user ? "حفظ" : "إضافة"}</button><button onClick={onClose}>إلغاء</button></>}>
+      footer={<><Button variant="primary" onClick={save} disabled={busy || !name || !roleKeys.length}>{user ? "حفظ" : "إضافة"}</Button><Button variant="ghost" onClick={onClose}>إلغاء</Button></>}>
       {err && <div className="alert">{err}</div>}
       <div className="stack">
         <FormField label="الاسم"><TextInput value={name} onChange={(e) => setName(e.target.value)} /></FormField>
@@ -117,7 +121,7 @@ function UserEditor({ user, roles, branches, onClose, onSaved }: { user: User | 
         <FormField label="الأدوار">
           <div className="perm-chips">
             {roles.map((r) => (
-              <button type="button" key={r.key} className={roleKeys.includes(r.key) ? "active" : ""} onClick={() => toggleRole(r.key)}>{r.name_ar}</button>
+              <Checkbox key={r.key} checked={roleKeys.includes(r.key)} label={r.name_ar} onChange={() => toggleRole(r.key)} />
             ))}
           </div>
         </FormField>
@@ -162,6 +166,12 @@ function RolesTab({ canManage }: { canManage: boolean }) {
     setDirty(true);
   }
 
+  function resetDraft() {
+    if (!role) return;
+    setDraft(new Set(role.permissions));
+    setDirty(false);
+  }
+
   async function save() {
     if (!role) return;
     setBusy(true);
@@ -178,13 +188,13 @@ function RolesTab({ canManage }: { canManage: boolean }) {
       {msg && <div className="ok">{msg}</div>}
       <div className="rbac-layout">
         <aside className="rbac-roles">
-          <div className="rbac-roles-head">الأدوار {canManage && <button className="sm" onClick={() => setDupOpen(true)} disabled={!role}>+ تكرار</button>}</div>
+          <div className="rbac-roles-head">الأدوار {canManage && <Button variant="secondary" className="sm" onClick={() => setDupOpen(true)} disabled={!role}>+ تكرار</Button>}</div>
           {roles.map((r) => (
-            <button key={r.id} className={`rbac-role${r.id === selected ? " active" : ""}`} onClick={() => setSelected(r.id)}>
+            <Button key={r.id} variant="ghost" className={`rbac-role${r.id === selected ? " active" : ""}`} aria-pressed={r.id === selected} onClick={() => setSelected(r.id)}>
               <span>{r.name_ar}</span>
               {r.is_system ? <span className="rbac-sys">نظام</span> : null}
               <span className="rbac-count">{r.permissions.length}</span>
-            </button>
+            </Button>
           ))}
         </aside>
 
@@ -202,14 +212,18 @@ function RolesTab({ canManage }: { canManage: boolean }) {
                   <div key={group} className="rbac-group">
                     <div className="rbac-group-head">
                       <span>{PERM_GROUP_AR[group] ?? group}</span>
-                      {canManage && <button className="sm" onClick={() => toggleGroup(keys, !allOn)}>{allOn ? "إلغاء الكل" : "تحديد الكل"}</button>}
+                      {canManage && <Button variant="secondary" className="rbac-group-toggle" onClick={() => toggleGroup(keys, !allOn)}>{allOn ? "إلغاء الكل" : "تحديد الكل"}</Button>}
                     </div>
                     <div className="rbac-perms">
                       {list.map((p) => (
-                        <label key={p.key} className={`rbac-perm${draft.has(p.key) ? " on" : ""}${!canManage ? " ro" : ""}`}>
-                          <ToggleSwitch checked={draft.has(p.key)} onChange={() => toggle(p.key)} disabled={!canManage} />
-                          <span>{p.name_ar}</span>
-                        </label>
+                        <div key={p.key} className={`rbac-perm${draft.has(p.key) ? " on" : ""}${!canManage ? " ro" : ""}`}>
+                          <div className="rbac-perm-copy">
+                            <strong>{p.name_ar}</strong>
+                            <span>{permissionDescription(p)}</span>
+                            <code dir="ltr">{p.key}</code>
+                          </div>
+                          <ToggleSwitch checked={draft.has(p.key)} ariaLabel={`صلاحية ${p.name_ar}`} onChange={() => toggle(p.key)} disabled={!canManage} />
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -217,7 +231,8 @@ function RolesTab({ canManage }: { canManage: boolean }) {
               })}
               {canManage && (
                 <div className="rbac-save">
-                  <button className="primary" onClick={save} disabled={busy || !dirty}>حفظ الصلاحيات</button>
+                  <Button variant="ghost" onClick={resetDraft} disabled={!dirty}>إلغاء التغييرات</Button>
+                  <Button variant="primary" onClick={save} disabled={busy || !dirty}>حفظ الصلاحيات</Button>
                   {dirty && <span className="muted">تغييرات غير محفوظة</span>}
                 </div>
               )}
@@ -243,7 +258,7 @@ function DuplicateRole({ role, onClose, onDone }: { role: Role; onClose: () => v
   }
   return (
     <Drawer open title="تكرار الدور" onClose={onClose}
-      footer={<><button className="primary" onClick={run} disabled={busy || !key || !nameAr}>تكرار</button><button onClick={onClose}>إلغاء</button></>}>
+      footer={<><Button variant="primary" onClick={run} disabled={busy || !key || !nameAr}>تكرار</Button><Button variant="ghost" onClick={onClose}>إلغاء</Button></>}>
       {err && <div className="alert">{err}</div>}
       <div className="stack">
         <FormField label="مفتاح الدور (إنجليزي)"><TextInput dir="ltr" value={key} onChange={(e) => setKey(e.target.value)} /></FormField>

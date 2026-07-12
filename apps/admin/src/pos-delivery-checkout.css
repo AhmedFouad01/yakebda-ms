@@ -54,10 +54,16 @@
   font-size: 20px !important;
   font-weight: 950 !important;
   line-height: 1 !important;
+  cursor: pointer;
 }
 
 .app2-pos .posx-quick-add:hover:not(:disabled) {
   filter: brightness(1.05);
+}
+
+.app2-pos .posx-quick-add:focus-visible {
+  outline: 3px solid rgba(246, 192, 38, 0.42) !important;
+  outline-offset: 2px;
 }
 
 .app2-pos .posx-quick-add:disabled {

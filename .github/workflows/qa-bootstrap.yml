@@ -1,0 +1,108 @@
+name: Bootstrap QA Assets
+
+on:
+  push:
+    branches: [audit/system-wide-ui-consistency]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ykms-qa-bootstrap
+  cancel-in-progress: true
+
+jobs:
+  bootstrap:
+    if: ${{ !contains(github.event.head_commit.message, '[qa-bootstrap]') }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ykms
+          POSTGRES_PASSWORD: ykms
+          POSTGRES_DB: ykms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ykms -d ykms_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      JWT_SECRET: bootstrap-only-change-me
+      API_PORT: 3001
+      CORS_ORIGIN: http://127.0.0.1:5173
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/system-wide-ui-consistency
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Refresh workspace lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit and CSS preflight
+        run: |
+          npm run admin:test
+          npm run qa:css
+          npm run admin:build
+
+      - name: Reset deterministic E2E database
+        run: npm run api:e2e:reset
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start API and Admin
+        shell: bash
+        run: |
+          npm --workspace @ykms/api run start > api.log 2>&1 &
+          npm run admin:dev -- --host 127.0.0.1 > admin.log 2>&1 &
+
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:3001/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:5173/login >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat api.log || true
+          cat admin.log || true
+          exit 1
+
+      - name: Generate missing POS and KDS baselines
+        run: npx playwright test tests/e2e/visual-regression.spec.ts --project=chromium --update-snapshots
+
+      - name: Commit generated QA assets
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json tests/e2e/*-snapshots
+
+          if git diff --cached --quiet; then
+            echo "No generated QA assets changed"
+            exit 0
+          fi
+
+          git commit -m "chore(qa): refresh lock and visual baselines [qa-bootstrap]"
+          git push origin HEAD:audit/system-wide-ui-consistency

@@ -14,6 +14,7 @@ import { auditRoutes } from "./modules/auditLogs";
 import { categoryRoutes, productRoutes, modifierGroupRoutes, branchMenuRoutes } from "./modules/menu";
 import { productDeleteRoutes } from "./modules/productDelete";
 import { orderIntegrityRoutes } from "./modules/orderIntegrity";
+import { orderPricingRoutes } from "./modules/orderPricing";
 import { orderRoutes, kitchenRoutes } from "./modules/orders";
 import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant";
 import { shiftRoutes } from "./modules/shifts";
@@ -67,6 +68,7 @@ export function createApp(db: Knex) {
   v1.use("/products", productDeleteRoutes(db));
   v1.use("/products", productRoutes(db));
   v1.use("/modifier-groups", modifierGroupRoutes(db));
+  v1.use("/orders", orderPricingRoutes(db));
   v1.use("/orders", orderIntegrityRoutes(db));
   v1.use("/orders", orderRoutes(db));
   v1.use("/kitchen", kitchenRoutes(db));

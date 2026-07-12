@@ -117,6 +117,15 @@ interface Settings {
   require_customer_for_delivery: boolean;
   require_address_for_delivery: boolean;
 }
+interface OrderQuoteSummary {
+  subtotal: number;
+  discount: number;
+  delivery_fee: number;
+  service_fee: number;
+  vat_amount: number;
+  rounding_adjustment: number;
+  total: number;
+}
 interface CartLine {
   key: string;
   product: MenuProduct;
@@ -205,6 +214,9 @@ export function Pos() {
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const [quoteState, setQuoteState] = useState<{ key: string; data: OrderQuoteSummary } | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
   const [historyError, setHistoryError] = useState("");
@@ -224,6 +236,53 @@ export function Pos() {
     portion_note_ar: "",
   });
 
+  const quotePayload = useMemo(() => ({
+    branch_id: branchId,
+    order_type: orderType,
+    delivery_fee: orderType === "delivery" ? deliveryFee : 0,
+    discount: settings?.allow_discounts ? discount : 0,
+    discount_reason: discount > 0 ? discountReason || null : null,
+    items: cart.map((line) => ({
+      product_id: line.product.id,
+      variant_id: line.variant?.id ?? null,
+      qty: line.qty,
+      notes: line.notes || null,
+      modifier_ids: line.modifiers.map((modifier) => modifier.id),
+    })),
+  }), [branchId, orderType, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
+  const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
+  const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
+
+  useEffect(() => {
+    if (!branchId || !cart.length) {
+      setQuoteState(null);
+      setQuoteBusy(false);
+      setQuoteError("");
+      return;
+    }
+    let cancelled = false;
+    setQuoteBusy(true);
+    setQuoteError("");
+    const timer = window.setTimeout(() => {
+      api<{ data: OrderQuoteSummary }>("/orders/quote", { method: "POST", body: quotePayload })
+        .then((response) => {
+          if (!cancelled) setQuoteState({ key: quoteKey, data: response.data });
+        })
+        .catch((e: Error) => {
+          if (!cancelled) {
+            setQuoteState(null);
+            setQuoteError(e.message);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setQuoteBusy(false);
+        });
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [branchId, cart.length, quoteKey, quotePayload]);
   useEffect(() => {
     api<{ data: Branch[] }>("/branches").then((response) => {
       setBranches(response.data);
@@ -327,34 +386,16 @@ export function Pos() {
     return (categories.find((category) => category.name_ar === activeCat)?.products ?? []).filter((p) => p.pos_visible !== false);
   }, [categories, allProducts, activeCat, search]);
 
-  const subtotal = cart.reduce((sum, line) => sum + unitPrice(line) * line.qty, 0);
-  // YKMS-02E: أنواع الطلب المفعّلة (الصالة تبقى مخفية) + تقدير الرسوم/الضريبة مطابق للخادم
+  const localSubtotal = cart.reduce((sum, line) => sum + unitPrice(line) * line.qty, 0);
+  const subtotal = currentQuote?.subtotal ?? localSubtotal;
+  // أنواع الطلب من الإعدادات، بينما كل القيم المالية النهائية تأتي من server quote.
   const enabledOrderTypes = (["takeaway", "delivery"] as const).filter((type) =>
     type === "takeaway" ? settings?.order_type_takeaway_enabled !== false : settings?.order_type_delivery_enabled !== false
   );
-  const afterDiscount = Math.max(0, subtotal - discount);
-  const activeDeliveryFee = orderType === "delivery" ? deliveryFee : 0;
-  const serviceFeeEstimate = settings?.service_fee_enabled
-    ? settings.service_fee_type === "percent"
-      ? Math.round(afterDiscount * (settings.service_fee_value / 100) * 100) / 100
-      : settings.service_fee_value
-    : 0;
-  let vatEstimate = 0;
-  let total = afterDiscount + serviceFeeEstimate + activeDeliveryFee;
-  if (settings?.vat_enabled && settings.vat_percentage > 0) {
-    const rate = settings.vat_percentage / 100;
-    if (settings.prices_include_vat) {
-      vatEstimate = Math.round((total - total / (1 + rate)) * 100) / 100;
-    } else {
-      vatEstimate = Math.round((afterDiscount + serviceFeeEstimate) * rate * 100) / 100;
-      total += vatEstimate;
-    }
-  }
-  if (settings && settings.rounding_rule !== "none") {
-    const step = settings.rounding_rule === "nearest_050" ? 0.5 : 1;
-    total = Math.round(total / step) * step;
-  }
-  total = Math.round(total * 100) / 100;
+  const activeDeliveryFee = currentQuote?.delivery_fee ?? (orderType === "delivery" ? deliveryFee : 0);
+  const serviceFeeEstimate = currentQuote?.service_fee ?? 0;
+  const vatEstimate = currentQuote?.vat_amount ?? 0;
+  const total = currentQuote?.total ?? 0;
   const belowMinDelivery = orderType === "delivery" && (settings?.min_delivery_order ?? 0) > 0 && subtotal < (settings?.min_delivery_order ?? 0);
   const discountOverLimit =
     discount > 0 &&
@@ -418,7 +459,7 @@ export function Pos() {
   async function fireOrder() {
     setError("");
     setMsg("");
-    if (!cart.length || busy) return;
+    if (!cart.length || busy || !currentQuote) return;
     setBusy(true);
     try {
       const response = await api<{ data: FullOrder }>("/orders", {
@@ -690,11 +731,11 @@ export function Pos() {
 
           <div className="posx-totals">
             <div className="receipt-row"><span>{t.pos.subtotal}</span><span>{money(subtotal)}</span></div>
-            {discount > 0 && <div className="receipt-row"><span>{t.pos.discount}</span><span>{money(discount)}</span></div>}
+            {(currentQuote?.discount ?? discount) > 0 && <div className="receipt-row"><span>{t.pos.discount}</span><span>{money(currentQuote?.discount ?? discount)}</span></div>}
             {serviceFeeEstimate > 0 && <div className="receipt-row"><span>{t.pos.serviceFee}</span><span>{money(serviceFeeEstimate)}</span></div>}
-            {orderType === "delivery" && deliveryFee > 0 && <div className="receipt-row"><span>{t.pos.deliveryFee}</span><span>{money(deliveryFee)}</span></div>}
+            {orderType === "delivery" && activeDeliveryFee > 0 && <div className="receipt-row"><span>{t.pos.deliveryFee}</span><span>{money(activeDeliveryFee)}</span></div>}
             {vatEstimate > 0 && <div className="receipt-row"><span>{t.pos.vat} ({settings?.vat_percentage}%)</span><span>{money(vatEstimate)}</span></div>}
-            <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{money(total)}</span></div>
+            <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{quoteBusy && !currentQuote ? "…" : money(total)}</span></div>
           </div>
 
           {(() => {
@@ -705,7 +746,11 @@ export function Pos() {
                 (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()));
             const fireReason = !cart.length
               ? "السلة فارغة"
-              : deliveryIncomplete
+              : quoteError
+                ? quoteError
+                : quoteBusy || !currentQuote
+                  ? "جاري حساب الإجمالي"
+                  : deliveryIncomplete
                 ? "بيانات الدليفري ناقصة"
                 : belowMinDelivery
                   ? "أقل من الحد الأدنى للتوصيل"

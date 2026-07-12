@@ -1,0 +1,66 @@
+const SANDWICH_ADDONS = {
+  name_ar: "إضافات داخل الساندوتش",
+  min_select: 0,
+  max_select: 4,
+  is_required: false,
+  modifiers: [
+    { name_ar: "طحينة", price_delta: 3 },
+    { name_ar: "باربيكيو", price_delta: 3 },
+    { name_ar: "شيدر", price_delta: 3 },
+    { name_ar: "بطاطس", price_delta: 3 },
+  ],
+};
+
+const sandwichVariants = (vino: number, hVino: number, siyahi: number, hSiyahi: number) => [
+  { name_ar: "لقمة فينو", price_delta: 0 },
+  { name_ar: "هامر فينو", price_delta: hVino - vino },
+  { name_ar: "لقمة سياحي", price_delta: siyahi - vino },
+  { name_ar: "هامر سياحي", price_delta: hSiyahi - vino },
+];
+
+const hawawshiVariants = (capsule: number, loaf: number) => [
+  { name_ar: "كبسولة", price_delta: 0 },
+  { name_ar: "رغيف", price_delta: loaf - capsule },
+];
+
+export const YAKEBDA_TEMPLATE = [
+  { category: "ساندوتشات", name_ar: "كبدة إسكندراني", sku: "SAN-KBD-ISK", base_price: 15, ingredients_ar: "كبدة إسكندراني", portion_note_ar: "لقمة / هامر — فينو أو سياحي", variants: sandwichVariants(15, 25, 15, 30), modifier_groups: [SANDWICH_ADDONS] },
+  { category: "ساندوتشات", name_ar: "كبدة مشوية", sku: "SAN-KBD-GRL", base_price: 20, ingredients_ar: "كبدة مشوية", portion_note_ar: "لقمة / هامر — فينو أو سياحي", variants: sandwichVariants(20, 40, 20, 40), modifier_groups: [SANDWICH_ADDONS] },
+  { category: "ساندوتشات", name_ar: "سجق إسكندراني", sku: "SAN-SGG-ISK", base_price: 15, ingredients_ar: "سجق إسكندراني", portion_note_ar: "لقمة / هامر — فينو أو سياحي", variants: sandwichVariants(15, 25, 15, 30), modifier_groups: [SANDWICH_ADDONS] },
+  { category: "ساندوتشات", name_ar: "سجق مشوي", sku: "SAN-SGG-GRL", base_price: 15, ingredients_ar: "سجق مشوي", portion_note_ar: "لقمة / هامر — فينو أو سياحي", variants: sandwichVariants(15, 25, 15, 30), modifier_groups: [SANDWICH_ADDONS] },
+  { category: "ساندوتشات", name_ar: "كفتة جريل", sku: "SAN-KFTA-GRL", base_price: 25, ingredients_ar: "كفتة جريل", portion_note_ar: "لقمة / هامر — فينو أو سياحي", variants: sandwichVariants(25, 40, 25, 40), modifier_groups: [SANDWICH_ADDONS] },
+  { category: "ساندوتشات", name_ar: "بطاطس ساندوتش", sku: "SAN-FRIES", base_price: 10, ingredients_ar: "بطاطس", portion_note_ar: "لقمة / هامر — فينو أو سياحي", variants: sandwichVariants(10, 20, 10, 20), modifier_groups: [SANDWICH_ADDONS] },
+  { category: "أطباق", name_ar: "أرز بسمتي سادة", sku: "DISH-RICE-PLAIN", base_price: 30, ingredients_ar: "أرز بسمتي", portion_note_ar: "طبق" },
+  { category: "أطباق", name_ar: "أرز بكبدة إسكندراني", sku: "DISH-RICE-KBD-ISK", base_price: 50, ingredients_ar: "أرز بسمتي + كبدة إسكندراني", portion_note_ar: "يقدم مع طحينة أو طماطم متبلة" },
+  { category: "أطباق", name_ar: "أرز بسجق إسكندراني أو مشوي", sku: "DISH-RICE-SGG", base_price: 50, ingredients_ar: "أرز بسمتي + سجق", portion_note_ar: "يقدم مع طحينة أو طماطم متبلة" },
+  { category: "أطباق", name_ar: "أرز بكبدة مشوية", sku: "DISH-RICE-KBD-GRL", base_price: 60, ingredients_ar: "أرز بسمتي + كبدة مشوية", portion_note_ar: "يقدم مع طحينة أو طماطم متبلة" },
+  { category: "أطباق", name_ar: "أرز بكفتة", sku: "DISH-RICE-KFTA", base_price: 60, ingredients_ar: "أرز بسمتي + كفتة", portion_note_ar: "يقدم مع طحينة أو طماطم متبلة" },
+  { category: "أطباق", name_ar: "أرز كبدة وسجق ميكس", sku: "DISH-RICE-MIX", base_price: 55, ingredients_ar: "أرز بسمتي + كبدة وسجق", portion_note_ar: "يقدم مع طحينة أو طماطم متبلة" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو كبدة إسكندراني", sku: "MEAL-KBD-ISK-250", base_price: 120, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو كبدة ردة", sku: "MEAL-KBD-RDA-250", base_price: 130, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو كبدة مشوية", sku: "MEAL-KBD-GRL-250", base_price: 140, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو سجق إسكندراني", sku: "MEAL-SGG-ISK-250", base_price: 120, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو سجق مشوي", sku: "MEAL-SGG-GRL-250", base_price: 120, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو كفتة جريل", sku: "MEAL-KFTA-GRL-250", base_price: 140, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "وجبات", name_ar: "وجبة ربع كيلو كبدة وسجق ميكس", sku: "MEAL-MIX-250", base_price: 120, ingredients_ar: "عيش + أرز + طحينة + طماطم متبلة + 80 جم بطاطس", portion_note_ar: "ربع كيلو" },
+  { category: "الحواوشي", name_ar: "حواوشي لحمة سادة", sku: "HAW-MEAT", base_price: 25, ingredients_ar: "حواوشي لحمة", portion_note_ar: "كبسولة / رغيف", variants: hawawshiVariants(25, 50) },
+  { category: "الحواوشي", name_ar: "حواوشي ميكس جبن", sku: "HAW-MIX-CHEESE", base_price: 30, ingredients_ar: "حواوشي ميكس جبن", portion_note_ar: "كبسولة / رغيف", variants: hawawshiVariants(30, 60) },
+  { category: "الحواوشي", name_ar: "حواوشي سجق", sku: "HAW-SGG", base_price: 35, ingredients_ar: "حواوشي سجق", portion_note_ar: "كبسولة / رغيف", variants: hawawshiVariants(35, 65) },
+  { category: "البطاطس", name_ar: "بطاطس سادة", sku: "FRY-PLAIN", base_price: 15 },
+  { category: "البطاطس", name_ar: "بطاطس شيدر", sku: "FRY-CHEDDAR", base_price: 30 },
+  { category: "البطاطس", name_ar: "بطاطس بسجق مشوي", sku: "FRY-SGG", base_price: 30 },
+  { category: "البطاطس", name_ar: "بطاطس بكفتة", sku: "FRY-KFTA", base_price: 35 },
+  { category: "فواتح الشهية", name_ar: "طحينة", sku: "APP-TAHINA", base_price: 10 },
+  { category: "فواتح الشهية", name_ar: "مخلل", sku: "APP-PICKLES", base_price: 5 },
+  { category: "فواتح الشهية", name_ar: "صوص شيدر", sku: "APP-CHEDDAR", base_price: 15 },
+  { category: "فواتح الشهية", name_ar: "باربيكيو", sku: "APP-BBQ", base_price: 10 },
+  { category: "فواتح الشهية", name_ar: "طماطم متبلة", sku: "APP-TOMATO", base_price: 5 },
+  { category: "فواتح الشهية", name_ar: "كول سلو", sku: "APP-COLESLAW", base_price: 15 },
+  { category: "إضافات", name_ar: "إضافة طحينة داخل الساندوتش", sku: "ADD-TAHINA", base_price: 3 },
+  { category: "إضافات", name_ar: "إضافة باربيكيو داخل الساندوتش", sku: "ADD-BBQ", base_price: 3 },
+  { category: "إضافات", name_ar: "إضافة شيدر داخل الساندوتش", sku: "ADD-CHEDDAR", base_price: 3 },
+  { category: "إضافات", name_ar: "إضافة بطاطس داخل الساندوتش", sku: "ADD-FRIES", base_price: 3 },
+  { category: "مشروبات", name_ar: "مياه صغيرة", sku: "DRK-WATER-S", base_price: 5 },
+  { category: "مشروبات", name_ar: "ماكسي كول", sku: "DRK-MAXI-COLA", base_price: 10 },
+  { category: "مشروبات", name_ar: "لا كول", sku: "DRK-LA-COLA", base_price: 20 },
+];

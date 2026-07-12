@@ -1,0 +1,199 @@
+/* YAKEBDA POS Fast Rail — final visual lock, loaded after all POS layers. */
+
+/* POS shell: compact, no back/title, icon rhythm locked. */
+.app2-pos .app2-bar {
+  min-height: 50px !important;
+  padding-block: 4px !important;
+  gap: 6px !important;
+}
+
+.app2-pos .app2-back,
+.app2-pos .app2-crumb {
+  display: none !important;
+}
+
+.app2-pos .app2-pos-controls-slot {
+  min-width: 0;
+  overflow: visible !important;
+  justify-content: flex-start !important;
+}
+
+.app2-pos .posx-shell-operation-controls {
+  width: min(760px, 100%) !important;
+  min-width: 0;
+  display: grid !important;
+  grid-template-columns: 40px 40px minmax(260px, 1fr) !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.app2-pos .posx-shell-icon {
+  box-sizing: border-box !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
+  border-radius: 9px !important;
+}
+
+.app2-pos .posx-shell-icon svg,
+.app2-pos .posx-history-btn svg {
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+.app2-pos .posx-history-btn {
+  display: grid !important;
+  place-items: center !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+}
+
+.app2-pos .posx-shell-operation-controls .posx-search {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+}
+
+/* Exact shift cluster: user name + shift action only. */
+.app2-pos .app2-account-cluster {
+  min-height: 42px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 3px 4px !important;
+  border: 1px solid #31b66b !important;
+  border-radius: 10px !important;
+  background: rgba(49, 182, 107, 0.12) !important;
+  overflow: hidden;
+}
+
+.app2-pos .app2-account-cluster .app2-user {
+  order: 0;
+  min-width: 0;
+  padding-inline: 8px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #83e8a7 !important;
+  font-weight: 900 !important;
+  white-space: nowrap;
+}
+
+.app2-pos .app2-account-cluster .app2-pos-session-slot {
+  order: 1;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.app2-pos .posx-shift-action {
+  min-height: 34px !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding-inline: 11px !important;
+  border: 1px solid var(--yk-line) !important;
+  border-radius: 7px !important;
+  background: #20292d !important;
+  color: var(--yk-text) !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-shift-action.is-open {
+  border-color: #587169 !important;
+  color: var(--yk-text) !important;
+}
+
+/* Defensive fallback if an older shift markup appears during hot reload. */
+.app2-pos .posx-shift > span:nth-child(2) {
+  display: none !important;
+}
+
+/* Source field: select only, no visible label. */
+.app2-pos .posx-source-field > span {
+  display: none !important;
+}
+
+.app2-pos .posx-source-field {
+  align-self: center !important;
+  gap: 0 !important;
+}
+
+/* Cart lines: square media and themed compact delete action. */
+.app2-pos .posx-fast-line {
+  grid-template-columns: 72px minmax(0, 1fr) 112px !important;
+  align-items: center !important;
+}
+
+.app2-pos .posx-fast-line-thumb {
+  width: 72px !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  aspect-ratio: 1 / 1 !important;
+  align-self: center !important;
+}
+
+.app2-pos .posx-fast-line-thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.app2-pos .posx-fast-line-actions {
+  grid-template-rows: 44px 40px !important;
+  align-content: center !important;
+}
+
+.app2-pos .posx-fast-remove {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  justify-self: end !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  border: 1px solid #c95149 !important;
+  border-radius: 9px !important;
+  background: rgba(201, 81, 73, 0.12) !important;
+  color: #ff8c83 !important;
+  line-height: 0 !important;
+}
+
+.app2-pos .posx-fast-remove:hover,
+.app2-pos .posx-fast-remove:focus-visible {
+  background: rgba(201, 81, 73, 0.22) !important;
+  border-color: #ff8c83 !important;
+}
+
+.app2-pos .posx-fast-remove svg {
+  display: block !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 1280px) {
+  .app2-pos .posx-shell-operation-controls {
+    width: 100% !important;
+    grid-template-columns: 40px 40px minmax(180px, 1fr) !important;
+  }
+
+  .app2-pos .app2-account-cluster .app2-user {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

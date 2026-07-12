@@ -7,6 +7,7 @@ import "./ykms-02f.css";
 import "./pos-operational.css";
 import "./pos-final.css";
 import "./pos-card-layout-fix.css";
+import "./ui-cleanup.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

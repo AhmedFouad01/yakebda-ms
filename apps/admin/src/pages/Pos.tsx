@@ -206,6 +206,7 @@ export function Pos() {
   const [historyOrderError, setHistoryOrderError] = useState("");
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   const quotePayload = useMemo(() => ({
     branch_id: branchId,
@@ -223,6 +224,15 @@ export function Pos() {
   }), [branchId, orderType, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
   const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
   const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
+
+  useEffect(() => {
+    if (!cartDrawerOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCartDrawerOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [cartDrawerOpen]);
 
   useEffect(() => {
     if (!branchId || !cart.length) {
@@ -487,6 +497,7 @@ export function Pos() {
       setDiscount(0);
       setDiscountReason("");
       setOrderNotes("");
+      setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
       if (historyOpen) await loadHistory(true);
@@ -525,6 +536,15 @@ export function Pos() {
             </span>
             <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
             <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
+            <button
+              type="button"
+              className="posx-cart-toggle"
+              aria-controls="posx-cart-drawer"
+              aria-expanded={cartDrawerOpen}
+              onClick={() => setCartDrawerOpen(true)}
+            >
+              السلة <span>{itemCount}</span>
+            </button>
             <details className="posx-adminmenu">
               <summary>الإدارة ▾</summary>
               <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
@@ -558,8 +578,16 @@ export function Pos() {
           </div>
         </section>
 
-        <aside className="posx-cart">
-          <div className="posx-cart-head"><h3>{t.pos.cart}</h3><strong>{itemCount} صنف</strong></div>
+        <aside id="posx-cart-drawer" className={`posx-cart${cartDrawerOpen ? " is-open" : ""}`}>
+          <div className="posx-cart-head">
+            <h3>{t.pos.cart}</h3>
+            <strong>{itemCount} صنف</strong>
+            <button type="button" className="posx-cart-close" aria-label="إغلاق السلة" onClick={() => setCartDrawerOpen(false)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
           {/* YKMS-02F: إحصائيات الشيفت انتقلت لشاشة «إدارة الشيفت» — السلة للتشغيل فقط */}
           {error && <div className="alert dark-alert">{error}</div>}
           {msg && <div className="ok dark-ok">{msg}</div>}
@@ -687,6 +715,14 @@ export function Pos() {
             );
           })()}
         </aside>
+        {cartDrawerOpen && (
+          <button
+            type="button"
+            className="posx-cart-backdrop"
+            aria-label="إغلاق السلة"
+            onClick={() => setCartDrawerOpen(false)}
+          />
+        )}
       </div>
 
       <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="سجل طلبات الشيفت" wide>

@@ -44,7 +44,18 @@ jobs:
 
       - name: Apply order sources feature
         if: github.head_ref == 'feature/order-sources-price-lists'
-        run: node tools/qa/apply-order-sources.mjs
+        shell: bash
+        run: |
+          if ! node tools/qa/apply-order-sources.mjs > patch-output.txt 2>&1; then
+            cat patch-output.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add patch-output.txt
+            git commit -m "chore(debug): capture order sources patch failure"
+            git push origin HEAD:feature/order-sources-price-lists
+            exit 1
+          fi
+          rm -f patch-output.txt
 
       - name: Guard accepted POS cards and KDS
         if: github.head_ref == 'feature/order-sources-price-lists'

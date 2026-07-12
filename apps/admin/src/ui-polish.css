@@ -1,0 +1,499 @@
+/*
+ * Final layout and control consistency pass.
+ * theme.css remains the color authority; this file owns spacing, sizing,
+ * density, alignment, and cross-screen presentation only.
+ */
+
+:root {
+  --control-h: 40px;
+  --control-h-sm: 34px;
+  --content-box: 860px;
+}
+
+/* ---------- Shared control geometry ---------- */
+.app2 :is(button, input, select, textarea),
+.uif-drawer :is(button, input, select, textarea),
+.modal :is(button, input, select, textarea) {
+  font-family: var(--font);
+}
+
+.app2 :is(input:not([type="checkbox"]):not([type="radio"]), select),
+.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select),
+.modal :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  min-height: var(--control-h);
+  text-align: right;
+}
+
+.app2 select,
+.uif-drawer select,
+.modal select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-inline: 12px 38px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b9892' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: left 12px center !important;
+  background-size: 16px 16px !important;
+}
+
+.app2 select option,
+.uif-drawer select option,
+.modal select option {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.app2 [dir="ltr"],
+.uif-drawer [dir="ltr"],
+.modal [dir="ltr"] {
+  text-align: right !important;
+}
+
+.uif-btn,
+.btn,
+button.primary,
+button.secondary,
+button.ghost,
+button.danger {
+  min-height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+button.sm,
+.uif-btn.sm,
+.menu-row-actions button,
+.panel td > button:not(.menu-status) {
+  min-width: 64px;
+  min-height: var(--control-h-sm) !important;
+  height: var(--control-h-sm) !important;
+  padding-inline: 12px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+}
+
+/* ---------- App shell icon controls ---------- */
+.app2-menu,
+.app2-home,
+.app2-back,
+.app2-theme,
+.uif-x,
+.od-modal-x,
+.posx-cart-close {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.app2-menu svg,
+.app2-home svg,
+.app2-back svg,
+.app2-theme svg,
+.uif-x svg,
+.od-modal-x svg,
+.posx-cart-close svg {
+  width: 21px;
+  height: 21px;
+}
+
+.uif-drawer-head {
+  min-height: 58px;
+  padding: 9px 12px;
+}
+
+/* ---------- Menu management ---------- */
+.menu-toolbar {
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-toolbar :is(input, select, button, .menu-import-btn),
+.menu-toolbar-actions :is(button, .menu-import-btn) {
+  min-height: var(--control-h) !important;
+  height: var(--control-h) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+}
+
+.menu-toolbar-actions {
+  align-items: center;
+  gap: 7px;
+}
+
+.menu-import-btn {
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+
+.menu-row-actions {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(64px, 1fr));
+  align-items: center;
+  gap: 6px !important;
+  width: max-content;
+}
+
+.menu-status {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Generic inline forms / API clients ---------- */
+.form-row {
+  align-items: end !important;
+  gap: 10px !important;
+}
+
+.form-row > .field {
+  flex: 1 1 220px;
+  min-width: 180px;
+  margin: 0;
+}
+
+.form-row > :is(.btn, .uif-btn, button) {
+  min-height: 44px !important;
+  align-self: end;
+}
+
+/* ---------- Settings: boxed, readable, compact ---------- */
+.settings-page {
+  width: min(1220px, 100%);
+  margin-inline: auto;
+}
+
+.settings-page .setx2 {
+  grid-template-columns: 220px minmax(0, var(--content-box));
+  justify-content: center;
+  gap: 18px;
+}
+
+.settings-page .setx2-body {
+  width: 100%;
+  max-width: var(--content-box);
+}
+
+.settings-page .uif-card {
+  width: 100%;
+  border-radius: 14px;
+}
+
+.settings-page .uif-card-body {
+  padding: 16px;
+}
+
+.settings-page .uif-field:not(.inline) {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.settings-page .uif-field:not(.inline) > .uif-input,
+.settings-page .uif-field:not(.inline) > select {
+  width: 100%;
+}
+
+.settings-page .uif-sticky {
+  width: 100%;
+  max-width: var(--content-box);
+  margin-top: 14px;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 12px;
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 10px 28px var(--theme-shadow);
+}
+
+.settings-page .set-img {
+  display: grid !important;
+  grid-template-columns: 44px minmax(160px, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 230px;
+}
+
+.settings-page .set-img > :is(img, span) {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.settings-page .set-img input {
+  width: 100%;
+  min-width: 160px;
+  text-align: right !important;
+}
+
+/* Permission summary: compact count instead of rows of empty-looking pills. */
+.settings-page .set-role {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) auto minmax(120px, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding-block: 9px;
+}
+
+.settings-page .set-role > .muted {
+  margin: 0;
+  padding: 0;
+}
+
+.settings-page .set-perms {
+  counter-reset: permission-count;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 34px;
+  margin: 0;
+}
+
+.settings-page .set-perms > .stub {
+  counter-increment: permission-count;
+  display: none !important;
+}
+
+.settings-page .set-perms::before {
+  content: counter(permission-count) " صلاحيات";
+  min-height: 28px;
+  padding: 4px 11px;
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  background: var(--theme-danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.settings-page .set-perms:has(> .stub:nth-child(n + 5))::before {
+  border-color: var(--warning);
+  background: var(--theme-warning-soft);
+  color: var(--warning);
+}
+
+.settings-page .set-perms:has(> .stub:nth-child(n + 10))::before {
+  border-color: var(--success);
+  background: var(--theme-success-soft);
+  color: var(--success);
+}
+
+.settings-page .set-perms:has(> .stub:only-child)::before {
+  display: none;
+}
+
+.settings-page .set-perms > .stub:only-child {
+  display: inline-flex !important;
+  min-height: 28px;
+  align-items: center;
+  border-color: var(--success) !important;
+  background: var(--theme-success-soft) !important;
+  color: var(--success) !important;
+}
+
+/* ---------- KDS density and hierarchy ---------- */
+.kitchen-page .page-head {
+  margin-bottom: 8px;
+}
+
+.kds-stats {
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)) !important;
+  gap: 6px !important;
+  margin-bottom: 10px !important;
+}
+
+.kds-stat {
+  gap: 2px !important;
+  padding: 7px 9px !important;
+  border-radius: 8px !important;
+}
+
+.kds-stat b {
+  font-size: 17px !important;
+}
+
+.kds-stat span {
+  font-size: 10.5px !important;
+}
+
+.kds {
+  gap: 10px !important;
+}
+
+.kds-col-head {
+  min-height: 40px;
+  margin-bottom: 6px !important;
+  padding: 7px 9px !important;
+  border-radius: 8px !important;
+}
+
+.kds-col-list {
+  gap: 8px !important;
+}
+
+.kds-card {
+  padding: 9px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px var(--theme-shadow) !important;
+}
+
+.kds-card-head {
+  gap: 7px !important;
+  margin-bottom: 7px !important;
+}
+
+.kds-order-identity > strong {
+  font-size: 15px !important;
+  line-height: 1.25 !important;
+}
+
+.kds-sla {
+  min-width: 98px !important;
+  padding: 4px 6px !important;
+  border-radius: 8px !important;
+}
+
+.kds-sla-label {
+  font-size: 9.5px !important;
+}
+
+.kds-timer {
+  min-width: 66px !important;
+  font-size: 12.5px !important;
+}
+
+.kds-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  margin-bottom: 7px !important;
+  padding: 6px 7px !important;
+}
+
+.kds-meta > span {
+  font-size: 10.5px !important;
+  line-height: 1.3 !important;
+}
+
+.kds-meta > span > b {
+  font-size: 9.5px !important;
+}
+
+.kds-meta .kds-received {
+  grid-column: auto !important;
+}
+
+.kds-items > li {
+  padding: 6px 0 !important;
+}
+
+.kds-item-main strong {
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+
+.kds-variant,
+.kds-mods {
+  margin-top: 3px !important;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+/* Current modifier data represents the bread choice in KDS. */
+.kds-mods b {
+  font-size: 0 !important;
+}
+
+.kds-mods b::after {
+  content: "نوع العيش:";
+  font-size: 11px;
+}
+
+.kds-station {
+  gap: 4px !important;
+  margin-top: 4px !important;
+}
+
+.kds-station > span {
+  padding: 3px 6px !important;
+  font-size: 10px !important;
+}
+
+.kds-note {
+  margin-top: 5px !important;
+  padding: 6px 8px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.kds-card-actions {
+  margin-top: 7px !important;
+  padding-top: 7px !important;
+}
+
+.kds-card .kds-action {
+  min-width: 120px !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  padding-inline: 16px !important;
+}
+
+@media (max-width: 1000px) {
+  .settings-page .setx2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-page .setx2-body {
+    max-width: 100%;
+  }
+
+  .settings-page .setx2-nav {
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .settings-page .set-role {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .settings-page .set-perms {
+    grid-column: 1 / -1;
+  }
+
+  .menu-row-actions {
+    grid-template-columns: repeat(3, minmax(58px, 1fr));
+    width: 100%;
+  }
+
+  .kds-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .kds-meta {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .kds-card .kds-action,
+  .kds-card-actions {
+    width: 100%;
+  }
+}

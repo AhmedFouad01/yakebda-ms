@@ -277,38 +277,10 @@ html, body { overflow-x: hidden; }
 .pedit-branches { width: 100%; border-collapse: collapse; }
 .pedit-branches th, .pedit-branches td { text-align: start; padding: var(--sp-2); border-bottom: 1px solid var(--yk-line); font-size: 13px; }
 
-/* ——— Settings layout ——— */
-.setx2 { display: grid; grid-template-columns: 210px 1fr; gap: var(--sp-4); align-items: start; }
-.setx2-nav { position: sticky; top: var(--sp-3); display: flex; flex-direction: column; gap: 3px; background: var(--yk-panel); border: 1px solid var(--yk-line); border-radius: 12px; padding: var(--sp-2); }
-.setx2-nav button { text-align: start; background: transparent; border: 0; border-radius: 8px; padding: 10px 12px; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--yk-text); }
-.setx2-nav button.active { background: var(--yk-yellow); color: #111; }
-.setx2-body { min-width: 0; display: flex; flex-direction: column; }
-.set-sub { font-weight: 800; font-size: 12.5px; color: var(--yk-yellow); margin: var(--sp-3) 0 var(--sp-2); border-top: 1px dashed var(--yk-line); padding-top: var(--sp-2); }
-.app2-main:not(.full) .setx2-nav { background: #fff; border-color: #e2e5df; }
-.app2-main:not(.full) .setx2-nav button { color: #23261f; }
-.app2-main:not(.full) .setx2-nav button.active { background: var(--yk-yellow); color: #111; }
-.app2-main:not(.full) .set-sub { color: #8a5b00; }
-@media (max-width: 1000px) { .setx2 { grid-template-columns: 1fr; } .setx2-nav { position: static; flex-direction: row; flex-wrap: wrap; } }
-
 /* جداول الإعدادات المنقولة */
-.set-card table, .uif-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.set-card th, .set-card td, .uif-card th, .uif-card td { text-align: start; padding: 8px; border-bottom: 1px solid var(--yk-line); }
-.set-img { display: flex; align-items: center; gap: 8px; }
-.set-img img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; aspect-ratio: 1; }
-.set-role { border-top: 1px dashed var(--yk-line); padding: 10px 0; }
-.set-perms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.uif-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.uif-card th, .uif-card td { text-align: start; padding: 8px; border-bottom: 1px solid var(--yk-line); }
 .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-
-/* ——— Kitchen running timer + timestamps ——— */
-.kds-timer { font-variant-numeric: tabular-nums; font-weight: 900; }
-.kds-received { font-size: 11.5px; color: var(--yk-muted); margin: 2px 0; }
-.kds-station { color: #7fd4c4; font-size: 12px; font-weight: 700; }
-/* YKMS-02G: SLA أهدأ — شريط جانبي بدل توهج البطاقة كاملة */
-.kds-card.kds-warn { border-color: var(--yk-line) !important; border-inline-start: 4px solid #e9a13b !important; box-shadow: none; }
-.kds-card.kds-late { border-color: var(--yk-line) !important; border-inline-start: 4px solid #d64541 !important; box-shadow: none; }
-.kds-card.kds-late .kds-timer { color: #ff6b60; }
-.kds-card.kds-warn .kds-timer { color: #f0b35f; }
-.kds-stat-late b { color: #ff6b60 !important; }
 
 /* ================================================================
    YKMS-02G — POS operational header + interactive product card
@@ -352,42 +324,13 @@ html, body { overflow-x: hidden; }
 .posx-card2-detail { background: transparent; border: 1px dashed #5d4b14; color: var(--yk-yellow); border-radius: 8px; padding: 5px 10px; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .posx-card2-detail:hover { background: rgba(246,192,38,0.08); }
 
-/* ================================================================
-   YKMS-02G — Order Detail (مراجعة تشغيلية كاملة)
-   ================================================================ */
-.od-modal { max-width: min(920px, 96vw); display: flex; flex-direction: column; max-height: 92dvh; }
-.od-modal-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--yk-line); }
-.od-modal-head h3 { margin: 0; font-size: 15px; }
-.od-modal-tabs { display: flex; gap: 4px; margin-inline-start: auto; }
-.od-modal-tabs button { height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--yk-line); background: var(--yk-black-2); color: var(--yk-text); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-.od-modal-tabs button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.od-modal-x { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--yk-line); background: transparent; color: var(--yk-muted); cursor: pointer; }
-.od-modal-x:hover { color: #ff9c8a; border-color: #ff9c8a; }
-.od { padding: var(--sp-4); overflow-y: auto; }
-.od-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3); }
-.od-section { background: var(--yk-black-2); border: 1px solid var(--yk-line); border-radius: 10px; padding: var(--sp-3); margin-bottom: var(--sp-3); }
-.od-section h4 { margin: 0 0 var(--sp-2); font-size: 12.5px; color: var(--yk-yellow); }
+/* Legacy key/value rows are also used by the customer profile drawer. */
 .od-row { display: flex; justify-content: space-between; gap: var(--sp-2); padding: 4px 0; border-bottom: 1px dashed var(--yk-line); font-size: 12.5px; }
 .od-row:last-child { border-bottom: 0; }
 .od-row-label { color: var(--yk-muted); }
 .od-row-value { font-weight: 700; text-align: end; }
 .od-row-value.mono, .od .mono { font-variant-numeric: tabular-nums; }
 .od-row-value.na { color: #6d746c; font-weight: 400; }
-.od-uuid { font-size: 10.5px; direction: ltr; word-break: break-all; }
-.od-items { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.od-items th, .od-items td { text-align: start; padding: 6px 8px; border-bottom: 1px solid var(--yk-line); }
-.od-items th { color: var(--yk-muted); font-size: 11.5px; }
-.od-mods { color: #7fd4c4; font-size: 11px; margin-top: 2px; }
-.od-inote { color: var(--yk-muted); font-size: 11px; margin-top: 3px; }
-.od-timeline { display: flex; flex-direction: column; gap: 2px; }
-.od-tl-item { display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0; font-size: 12.5px; opacity: 0.5; }
-.od-tl-item.done { opacity: 1; }
-.od-tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--yk-line); flex: 0 0 9px; }
-.od-tl-item.done .od-tl-dot { background: var(--yk-yellow); }
-.od-tl-label { font-weight: 700; min-width: 90px; }
-.od-tl-time { color: var(--yk-muted); font-variant-numeric: tabular-nums; }
-.od-tl-time.na { color: #565c53; }
-.app2-main:not(.full) .od-section { background: #fafbf9; }
 
 /* ================================================================
    YKMS-02G — Menu Management (toolbar, table, image upload, import)
@@ -471,38 +414,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .crm-recent-item { background: var(--yk-black-2); border: 1px solid var(--yk-line); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
 .app2-main:not(.full) .crm-recent-item { background: #f2f4f1; }
 .crm-loyalty-note { font-size: 11.5px; padding: 8px 12px; border: 1px dashed var(--yk-line); border-radius: 8px; }
-
-/* ================================================================
-   YKMS-02G-D — Users / Roles / Permissions (RBAC matrix)
-   ================================================================ */
-.perm-chips, .rbac-perms { display: flex; flex-wrap: wrap; gap: 6px; }
-.perm-chips button { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--yk-line); background: var(--yk-black-2); color: var(--yk-text); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-.perm-chips button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.app2-main:not(.full) .perm-chips button { background: #fff; color: #1a1d1a; }
-.app2-main:not(.full) .perm-chips button.active { background: var(--yk-yellow); color: #111; }
-
-.rbac-layout { display: grid; grid-template-columns: 220px 1fr; gap: var(--sp-3); align-items: start; }
-.rbac-roles { border: 1px solid var(--yk-line); border-radius: 12px; overflow: hidden; background: var(--yk-panel); }
-.app2-main:not(.full) .rbac-roles { background: #fff; }
-.rbac-roles-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--yk-line); font-weight: 800; font-size: 13px; }
-.rbac-role { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--yk-line); padding: 11px 12px; font-family: inherit; font-size: 13px; font-weight: 700; color: inherit; cursor: pointer; text-align: start; }
-.rbac-role:hover { background: rgba(246,192,38,0.06); }
-.rbac-role.active { background: rgba(246,192,38,0.12); box-shadow: inset 3px 0 0 var(--yk-yellow); }
-.rbac-role span:first-child { flex: 1; }
-.rbac-sys { font-size: 10px; background: #eef0ee; color: #666; border-radius: 999px; padding: 1px 7px; }
-.rbac-count { font-size: 11px; color: var(--yk-muted); font-variant-numeric: tabular-nums; }
-.rbac-matrix { border: 1px solid var(--yk-line); border-radius: 12px; padding: var(--sp-3); background: var(--yk-panel); }
-.app2-main:not(.full) .rbac-matrix { background: #fff; }
-.rbac-matrix-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: var(--sp-2); }
-.rbac-matrix-head h3 { margin: 0; font-size: 15px; }
-.rbac-group { border: 1px solid var(--yk-line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
-.rbac-group-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: 800; font-size: 12.5px; color: var(--yk-yellow-2); }
-.app2-main:not(.full) .rbac-group-head { color: #8a6d10; }
-.rbac-perm { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--yk-line); border-radius: 999px; padding: 4px 12px 4px 8px; font-size: 12px; font-weight: 700; }
-.rbac-perm.on { border-color: var(--yk-yellow); background: rgba(246,192,38,0.08); }
-.rbac-perm.ro { opacity: 0.75; }
-.rbac-save { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
-@media (max-width: 1100px) { .rbac-layout { grid-template-columns: 1fr; } }
 
 /* ================================================================
    YKMS-02G — Visual QA: back-office polish + table overflow safety
@@ -654,10 +565,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .posx-history-status.kitchen-ready { color: #b7ff8a; border-color: #4d7c2f; }
 .posx-history-status.kitchen-cancelled { color: #ff9c8a; border-color: #7a2a2a; }
 .posx-history-empty { padding: 24px; color: var(--yk-muted); text-align: center; }
-
-.od-item-main { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: center; }
-.od-item-image { width: 54px; height: 54px; object-fit: cover; border-radius: 9px; }
-.od-item-image.ph { display: grid; place-items: center; background: #2d260d; color: var(--yk-yellow); font-weight: 900; }
 
 @media (max-width: 1450px) {
   .posx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

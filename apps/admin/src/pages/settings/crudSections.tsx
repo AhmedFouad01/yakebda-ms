@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { toast } from "../../components/ui/overlays";
-import { SectionCard, ToggleSwitch, TextInput, NumberInput, Select, EmptyState } from "../../components/ui/primitives";
+import { Button, SectionCard, ToggleSwitch, TextInput, NumberInput, Select } from "../../components/ui/primitives";
 import { useMe } from "../../lib/me";
 
 /**
@@ -43,7 +43,7 @@ export function BranchesSection({ editable }: { editable: boolean }) {
             <tr key={b.id}>
               <td>{b.name}<div className="muted">{b.address}</div></td>
               <td>
-                <input disabled={!editable} dir="ltr" defaultValue={b.phone ?? ""} style={{ width: 120 }}
+                <TextInput disabled={!editable} dir="ltr" defaultValue={b.phone ?? ""} style={{ width: 140 }}
                   onBlur={(e) => e.target.value !== (b.phone ?? "") && patch(b.id, { phone: e.target.value || null })} />
               </td>
               {(["is_active", "accepts_takeaway", "accepts_delivery"] as const).map((k) => (
@@ -153,19 +153,19 @@ export function StationsSection({ editable }: { editable: boolean }) {
       {error && <div className="alert">{error}</div>}
       {editable && (
         <div className="form-row">
-          <input placeholder="اسم المحطة" value={name} onChange={(e) => setName(e.target.value)} />
-          <button className="primary" disabled={!name}
+          <TextInput placeholder="اسم المحطة" value={name} onChange={(e) => setName(e.target.value)} />
+          <Button variant="primary" disabled={!name}
             onClick={async () => { try { await api("/prep-stations", { method: "POST", body: { name_ar: name, sort_order: rows.length } }); setName(""); load(); } catch (e: any) { setError(e.message); } }}>
             إضافة محطة
-          </button>
+          </Button>
         </div>
       )}
       <div className="seg wrap">
         {rows.map((st) => (
-          <button key={st.id} className={st.is_active ? "active" : ""} disabled={!editable}
+          <Button key={st.id} variant={st.is_active ? "primary" : "secondary"} disabled={!editable}
             onClick={async () => { await api(`/prep-stations/${st.id}`, { method: "PATCH", body: { is_active: !st.is_active } }); load(); }}>
             {st.name_ar}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="muted">توجيه الأقسام للمحطات من «أوقات التحضير» أدناه، وتخصيص صنف بعينه من قسم «المنيو».</div>
@@ -198,13 +198,13 @@ export function PrepTimesSection({ editable }: { editable: boolean }) {
             <tr key={c.id}>
               <td>{c.name_ar}</td>
               <td>
-                <select disabled={!editable} value={c.default_prep_station_id ?? ""} onChange={(e) => patch(c.id, { default_prep_station_id: e.target.value || null })}>
+                <Select disabled={!editable} value={c.default_prep_station_id ?? ""} onChange={(e) => patch(c.id, { default_prep_station_id: e.target.value || null })}>
                   <option value="">—</option>
                   {stations.map((st) => <option key={st.id} value={st.id}>{st.name_ar}</option>)}
-                </select>
+                </Select>
               </td>
               <td>
-                <input type="number" min={0} disabled={!editable} defaultValue={c.default_prep_time_minutes} style={{ width: 60 }}
+                <NumberInput min={0} disabled={!editable} defaultValue={c.default_prep_time_minutes} style={{ width: 80 }}
                   onBlur={(e) => Number(e.target.value) !== c.default_prep_time_minutes && patch(c.id, { default_prep_time_minutes: Number(e.target.value) })} />
               </td>
             </tr>
@@ -227,13 +227,13 @@ export function ZonesSection({ editable }: { editable: boolean }) {
       {error && <div className="alert">{error}</div>}
       {editable && (
         <div className="form-row">
-          <input placeholder="اسم المنطقة" value={form.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} />
-          <input type="number" min={0} placeholder="رسوم" value={form.fee || ""} onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })} />
-          <input type="number" min={0} placeholder="حد أدنى" value={form.min_order || ""} onChange={(e) => setForm({ ...form, min_order: Number(e.target.value) })} />
-          <button className="primary" disabled={!form.name_ar}
+          <TextInput placeholder="اسم المنطقة" value={form.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} />
+          <NumberInput min={0} placeholder="رسوم" value={form.fee || ""} onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })} />
+          <NumberInput min={0} placeholder="حد أدنى" value={form.min_order || ""} onChange={(e) => setForm({ ...form, min_order: Number(e.target.value) })} />
+          <Button variant="primary" disabled={!form.name_ar}
             onClick={async () => { try { await api("/delivery-zones", { method: "POST", body: form }); setForm({ name_ar: "", fee: 0, min_order: 0 }); load(); } catch (e: any) { setError(e.message); } }}>
             إضافة منطقة
-          </button>
+          </Button>
         </div>
       )}
       <table>
@@ -270,12 +270,12 @@ export function DriversSection({ editable }: { editable: boolean }) {
       {error && <div className="alert">{error}</div>}
       {manage && (
         <div className="form-row">
-          <input placeholder="اسم السائق" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input placeholder="الهاتف" dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <button className="primary" disabled={!form.name}
+          <TextInput placeholder="اسم السائق" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <TextInput placeholder="الهاتف" dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Button variant="primary" disabled={!form.name}
             onClick={async () => { try { await api("/drivers", { method: "POST", body: { name: form.name, phone: form.phone || null } }); setForm({ name: "", phone: "" }); load(); } catch (e: any) { setError(e.message); } }}>
             إضافة سائق
-          </button>
+          </Button>
         </div>
       )}
       <table>

@@ -111,31 +111,36 @@ export function Orders() {
 
       {current && (
         <div className="modal-back" onClick={() => setCurrent(null)}>
-          <div className="modal wide od-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="od-modal-head">
-              <h3>{t.orders.details} — {current.order_prefix ?? ""}{current.order_no}</h3>
-              <div className="od-modal-tabs">
-                <button className={detailView === "detail" ? "active" : ""} onClick={() => setDetailView("detail")}>المراجعة</button>
-                <button className={detailView === "receipt" ? "active" : ""} onClick={() => setDetailView("receipt")}>الفاتورة</button>
+          <div className="modal wide od-modal" role="dialog" aria-modal="true" aria-labelledby="orders-detail-title" onClick={(e) => e.stopPropagation()}>
+            <header className="od-modal-head">
+              <div className="od-modal-title">
+                <h3 id="orders-detail-title">{t.orders.details} #{current.order_prefix ?? ""}{current.order_no}</h3>
+                <span className="od-modal-meta">{new Date(current.created_at).toLocaleString("ar-EG")}</span>
               </div>
-              <button className="od-modal-x" onClick={() => setCurrent(null)} aria-label="إغلاق">✕</button>
-            </div>
-            <div className="order-detail">
-              {detailView === "detail" ? <OrderDetail order={current} /> : <Receipt order={current} />}
-              <div className="order-actions">
-                <div className="stub-row">
-                  <span className={`stub st-${current.status}`}>{t.orders.statuses[current.status]}</span>
-                </div>
-                {["submitted", "in_kitchen"].includes(current.status) && (
-                  <button onClick={() => act(() => api(`/orders/${current.id}/status`, { method: "PATCH", body: { status: "ready" } }))}>
-                    {t.orders.statuses.ready}
-                  </button>
-                )}
-                {current.status === "ready" && (
-                  <button onClick={() => act(() => api(`/orders/${current.id}/status`, { method: "PATCH", body: { status: "completed" } }))}>
-                    {t.orders.statuses.completed}
-                  </button>
-                )}
+              <div className="od-modal-tabs" role="tablist" aria-label="عرض تفاصيل الطلب">
+                <button type="button" role="tab" aria-selected={detailView === "detail"} className={detailView === "detail" ? "active" : ""} onClick={() => setDetailView("detail")}>المراجعة</button>
+                <button type="button" role="tab" aria-selected={detailView === "receipt"} className={detailView === "receipt" ? "active" : ""} onClick={() => setDetailView("receipt")}>الفاتورة</button>
+              </div>
+              <button type="button" className="od-modal-x" onClick={() => setCurrent(null)} aria-label="إغلاق تفاصيل الطلب">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </header>
+            <div className="od-modal-body">
+              <div className="order-detail">
+                {detailView === "detail" ? <OrderDetail order={current} /> : <Receipt order={current} />}
+                <aside className="order-actions" aria-label="إجراءات الطلب">
+                  {["submitted", "in_kitchen"].includes(current.status) && (
+                    <button onClick={() => act(() => api(`/orders/${current.id}/status`, { method: "PATCH", body: { status: "ready" } }))}>
+                      {t.orders.statuses.ready}
+                    </button>
+                  )}
+                  {current.status === "ready" && (
+                    <button onClick={() => act(() => api(`/orders/${current.id}/status`, { method: "PATCH", body: { status: "completed" } }))}>
+                      {t.orders.statuses.completed}
+                    </button>
+                  )}
                 {/* YKMS-02E: تعيين سائق لطلب دليفري */}
                 {current.order_type === "delivery" && can("delivery.assign") && current.status !== "cancelled" && (
                   <div className="cancel-box">
@@ -201,6 +206,7 @@ export function Orders() {
                   {t.pos.printReceipt}
                 </button>
                 <button onClick={() => setCurrent(null)}>{t.pos.close}</button>
+                </aside>
               </div>
             </div>
           </div>

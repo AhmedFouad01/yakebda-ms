@@ -167,18 +167,81 @@ export function RowToggle({ ctx, k, label, off }: { ctx: RowCtx; k: keyof Settin
       checked={!!doc.data?.[k]}
       disabled={!editable || off}
       off={off}
+      ariaLabel={label}
       label={off ? `${label} — سيتم توفيره في مرحلة لاحقة` : label}
       onChange={(v) => doc.set(k, v as never)}
     />
   );
 }
 
-export function RowNum({ ctx, k, label, min = 0, hint }: { ctx: RowCtx; k: keyof SettingsData; label: string; min?: number; hint?: string }) {
-  const { doc, editable } = ctx;
+function StepperIcon({ kind }: { kind: "minus" | "plus" }) {
   return (
-    <FormField label={label} inline hint={hint}>
-      <NumberInput min={min} disabled={!editable} value={Number(doc.data?.[k] ?? 0)} onChange={(e) => doc.set(k, Number(e.target.value) as never)} />
-    </FormField>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+      <path d="M5 12h14" />
+      {kind === "plus" && <path d="M12 5v14" />}
+    </svg>
+  );
+}
+
+export function RowNum({
+  ctx,
+  k,
+  label,
+  min = 0,
+  max,
+  step = 1,
+  hint,
+}: {
+  ctx: RowCtx;
+  k: keyof SettingsData;
+  label: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  hint?: string;
+}) {
+  const { doc, editable } = ctx;
+  const value = Number(doc.data?.[k] ?? 0);
+
+  function setValue(next: number) {
+    const bounded = Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, next));
+    doc.set(k, Number(bounded.toFixed(6)) as never);
+  }
+
+  return (
+    <div className="uif-field inline uif-number-field">
+      <span className="uif-label">{label}</span>
+      <div className="uif-number-stepper" role="group" aria-label={label}>
+        <button
+          type="button"
+          className="uif-stepper-btn"
+          aria-label={`تقليل ${label}`}
+          disabled={!editable || value <= min}
+          onClick={() => setValue(value - step)}
+        >
+          <StepperIcon kind="minus" />
+        </button>
+        <NumberInput
+          aria-label={label}
+          min={min}
+          max={max}
+          step={step}
+          disabled={!editable}
+          value={value}
+          onChange={(e) => setValue(Number(e.target.value))}
+        />
+        <button
+          type="button"
+          className="uif-stepper-btn"
+          aria-label={`زيادة ${label}`}
+          disabled={!editable || (max != null && value >= max)}
+          onClick={() => setValue(value + step)}
+        >
+          <StepperIcon kind="plus" />
+        </button>
+      </div>
+      {hint && <span className="uif-hint">{hint}</span>}
+    </div>
   );
 }
 

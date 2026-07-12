@@ -120,16 +120,6 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .image-rec { background: #fff7d8; border: 1px solid #e8c456; border-radius: 10px; padding: 8px; margin-bottom: 10px; font-weight: 800; }
 .posx-edit-preview { width: 120px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 10px; }
 
-.kitchen-page .page-head h1 { margin-bottom: 8px; }
-.kds-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.kds-stats div { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 4px; }
-.kds-stats b { font-size: 22px; color: #111; }
-.kds-stats span { color: var(--ink-soft); font-size: 12px; }
-.kds-col-head { display: flex; justify-content: space-between; align-items: center; }
-.kds-col-head span { background: #111; color: #fff; border-radius: 999px; padding: 1px 9px; font-size: 12px; }
-.kds-card { box-shadow: 0 8px 20px rgba(20, 38, 43, 0.05); }
-.kds-meta { display: flex; justify-content: space-between; color: var(--ink-soft); font-size: 12px; margin: 4px 0 8px; }
-
 @media (max-width: 1200px) {
   .posx-head { grid-template-columns: auto minmax(120px, 150px) auto auto auto; }
   .posx-search { grid-column: 1 / -1; }

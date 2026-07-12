@@ -8,7 +8,7 @@
 - Arabic-first and RTL-first.
 - AppShell owns global navigation and identity.
 - Active areas include POS, kitchen, orders, menu, customers, users, roles, reports, settings, devices, printing, and audit.
-- The global light/dark UI foundation is currently being finalized in Draft PR #14 and is not part of main until merged.
+- The global Light/Dark UI foundation and legacy cleanup were merged through PR #14 and are part of the current `main` baseline.
 
 ### API
 
@@ -78,9 +78,11 @@ The following are approved planning targets only:
 
 ## Required Reading for Next Core Work
 
-- `docs/YAKEBDA_MS_Project_Master_v1.2_AR_RTL.md`
-- `docs/YAKEBDA_MS_Execution_Roadmap_v2_AR_RTL.md`
+- `docs/YAKEBDA_MS_Project_Master_v1.3_AR_RTL.md`
+- `docs/YAKEBDA_MS_Project_Instructions_v1.3_AR_RTL.md`
+- `docs/YAKEBDA_MS_Execution_Roadmap_v2.1_AR_RTL.md`
 - `docs/YAKEBDA_MS_SRS_v2_AR_RTL.md`
+- `docs/YAKEBDA_MS_Diagrams_Roadmap_v2.1_AR_RTL.md`
 - `docs/adr/ADR-002-order-sources-channel-menus-pricelists.md`
 - `docs/adr/ADR-003-sequencing-inventory-drivers-finance.md`
 

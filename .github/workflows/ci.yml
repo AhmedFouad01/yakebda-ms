@@ -37,7 +37,7 @@ jobs:
       DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
       TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
       JWT_SECRET: ci-only-change-me
-      API_PORT: 3001
+      PORT: 3001
       CORS_ORIGIN: http://127.0.0.1:5173
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
 
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           npm --workspace @ykms/api run start > api.log 2>&1 &
-          npm run admin:dev -- --host 127.0.0.1 > admin.log 2>&1 &
+          npm --workspace @ykms/admin run dev -- --host 0.0.0.0 > admin.log 2>&1 &
 
           for attempt in {1..60}; do
             if curl --fail --silent http://127.0.0.1:3001/api/v1/health >/dev/null \
@@ -130,5 +130,7 @@ jobs:
           path: |
             playwright-report
             test-results/playwright
+            api.log
+            admin.log
           if-no-files-found: ignore
           retention-days: 14

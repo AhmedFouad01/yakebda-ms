@@ -1,0 +1,85 @@
+name: Apply Security Scope Stabilization
+
+on:
+  push:
+    branches:
+      - fix/security-scope-stabilization
+    paths:
+      - .github/workflows/apply-security-scope-stabilization.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.event.head_commit.message == 'chore: run security scope stabilization'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ykms
+          POSTGRES_PASSWORD: ykms
+          POSTGRES_DB: ykms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ykms -d ykms_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      JWT_SECRET: ci-only-change-me
+      API_PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/security-scope-stabilization
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply readable source patches
+        run: |
+          python3 tools/patch_security_core.py
+          python3 tools/patch_orders_security.py
+          python3 tools/add_security_scope_regression.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: API tests
+        run: npm run api:test
+
+      - name: Admin build
+        run: npm run admin:build
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Remove temporary patch automation
+        run: |
+          rm tools/patch_security_core.py
+          rm tools/patch_orders_security.py
+          rm tools/add_security_scope_regression.py
+          rm .github/workflows/apply-security-scope-stabilization.yml
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(security): enforce permissions and branch scope"
+          git push origin HEAD:fix/security-scope-stabilization

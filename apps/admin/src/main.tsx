@@ -14,6 +14,7 @@ import "./theme-interactions.css";
 import "./ui-polish.css";
 import "./ui-polish-final.css";
 import "./final-closure.css";
+import "./select-rendering-fix.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

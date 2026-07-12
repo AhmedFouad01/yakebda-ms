@@ -45,7 +45,13 @@ jobs:
 
       - name: Apply security core patch
         if: github.head_ref == 'fix/security-scope-stabilization'
-        run: python3 tools/patch_security_core.py
+        run: |
+          sed -i '/edit("apps\/api\/src\/modules\/restaurant.ts", patch_customers)/d' tools/patch_security_core.py
+          python3 tools/patch_security_core.py
+
+      - name: Apply customer security patch
+        if: github.head_ref == 'fix/security-scope-stabilization'
+        run: python3 tools/patch_customer_security.py
 
       - name: Apply order security patch
         if: github.head_ref == 'fix/security-scope-stabilization'
@@ -79,6 +85,7 @@ jobs:
         run: |
           git checkout origin/main -- .github/workflows/ci.yml
           rm -f tools/patch_security_core.py
+          rm -f tools/patch_customer_security.py
           rm -f tools/patch_orders_security.py
           rm -f tools/add_security_scope_regression.py
           rm -f .github/workflows/apply-security-scope-stabilization.yml

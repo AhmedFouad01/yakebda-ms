@@ -18,6 +18,20 @@ import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant"
 import { shiftRoutes } from "./modules/shifts";
 import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } from "./modules/settings";
 
+type DatabaseError = Error & {
+  code?: string;
+  constraint?: string;
+  detail?: string;
+};
+
+const ORDER_CONFIGURATION_CONSTRAINTS = new Set([
+  "order_item_variant_product_check",
+  "order_item_modifier_duplicate_check",
+  "order_item_modifier_product_check",
+  "order_item_modifier_min_select_check",
+  "order_item_modifier_max_select_check",
+]);
+
 export function createApp(db: Knex) {
   const app = express();
   app.use(cors());
@@ -62,6 +76,23 @@ export function createApp(db: Knex) {
     if (e instanceof ApiError) {
       return res.status(e.status).json({ code: e.code, message: e.message, details: e.details });
     }
+
+    const dbError = e as DatabaseError;
+    if (dbError.code === "23514" && dbError.constraint && ORDER_CONFIGURATION_CONSTRAINTS.has(dbError.constraint)) {
+      return res.status(422).json({
+        code: "validation",
+        message: ar.errors.validation,
+        details: {
+          order_configuration: dbError.constraint,
+          reason: dbError.message,
+        },
+      });
+    }
+
+    if (dbError.code === "23505" && dbError.constraint === "orders_numbering_key_order_no_unique") {
+      return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
+    }
+
     console.error(e);
     return res.status(500).json({ code: "server", message: ar.errors.server });
   });

@@ -78,7 +78,7 @@ The legacy files are not deleted in this patch because they still contain screen
 
 ## Acceptance gate
 
-The PR remains Draft until the strict CI run passes on its final head and the final visual review is accepted explicitly. No merge is implied by automated success alone.
+The PR remains Draft until the strict CI run passes on its final head and the final visual review is accepted explicitly. Automated success alone never implies merge approval.
 
 ## Non-goals
 

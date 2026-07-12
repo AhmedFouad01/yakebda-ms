@@ -22,6 +22,16 @@ export async function up(db: Knex): Promise<void> {
     "ALTER TABLE orders ADD CONSTRAINT orders_numbering_key_order_no_unique UNIQUE (numbering_key, order_no)"
   );
 
+  await db.schema.createTable("order_number_counters", (t) => {
+    t.string("numbering_key", 180).primary();
+    t.uuid("account_id").notNullable().references("accounts.id").onDelete("CASCADE");
+    t.uuid("branch_id").nullable().references("branches.id").onDelete("CASCADE");
+    t.integer("last_value").notNullable();
+    t.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
+    t.index(["account_id"]);
+    t.index(["branch_id"]);
+  });
+
   await db.raw(`
     CREATE OR REPLACE FUNCTION ykms_assign_order_number()
     RETURNS trigger
@@ -35,7 +45,8 @@ export async function up(db: Knex): Promise<void> {
       v_business_date date;
       v_scope_prefix text;
       v_numbering_key text;
-      v_max integer;
+      v_existing_max integer;
+      v_next integer;
     BEGIN
       SELECT COALESCE(
         (
@@ -91,12 +102,10 @@ export async function up(db: Knex): Promise<void> {
         ELSE ':continuous'
       END;
 
-      -- Serialize number assignment for the active scope without locking the full orders table.
-      PERFORM pg_advisory_xact_lock(hashtextextended(v_numbering_key, 0));
-
+      -- Seed a newly introduced scope from existing orders, then increment atomically.
       IF v_branch_specific THEN
         SELECT max(o.order_no)
-        INTO v_max
+        INTO v_existing_max
         FROM orders o
         WHERE o.branch_id = NEW.branch_id
           AND (
@@ -105,7 +114,7 @@ export async function up(db: Knex): Promise<void> {
           );
       ELSE
         SELECT max(o.order_no)
-        INTO v_max
+        INTO v_existing_max
         FROM orders o
         WHERE o.account_id = NEW.account_id
           AND (
@@ -114,8 +123,28 @@ export async function up(db: Knex): Promise<void> {
           );
       END IF;
 
+      INSERT INTO order_number_counters (
+        numbering_key,
+        account_id,
+        branch_id,
+        last_value,
+        updated_at
+      )
+      VALUES (
+        v_numbering_key,
+        NEW.account_id,
+        CASE WHEN v_branch_specific THEN NEW.branch_id ELSE NULL END,
+        GREATEST(COALESCE(v_existing_max + 1, v_starting_number), v_starting_number),
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (numbering_key) DO UPDATE
+      SET
+        last_value = GREATEST(order_number_counters.last_value + 1, v_starting_number),
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING last_value INTO v_next;
+
       NEW.numbering_key := v_numbering_key;
-      NEW.order_no := GREATEST(COALESCE(v_max + 1, v_starting_number), v_starting_number);
+      NEW.order_no := v_next;
       RETURN NEW;
     END;
     $$;
@@ -265,10 +294,48 @@ export async function down(db: Knex): Promise<void> {
   await db.raw("DROP FUNCTION IF EXISTS ykms_validate_order_item_configuration()");
   await db.raw("DROP TRIGGER IF EXISTS orders_assign_number_before_insert ON orders");
   await db.raw("DROP FUNCTION IF EXISTS ykms_assign_order_number()");
+  await db.schema.dropTableIfExists("order_number_counters");
 
   await db.raw("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_numbering_key_order_no_unique");
   await db.schema.alterTable("orders", (t) => {
     t.dropColumn("numbering_key");
   });
+
+  // If daily numbering produced duplicates, preserve all rows by renumbering only duplicate tails.
+  await db.raw(`
+    WITH ranked AS (
+      SELECT
+        id,
+        branch_id,
+        created_at,
+        row_number() OVER (
+          PARTITION BY branch_id, order_no
+          ORDER BY created_at, id
+        ) AS duplicate_rank
+      FROM orders
+    ),
+    duplicates AS (
+      SELECT
+        r.id,
+        r.branch_id,
+        row_number() OVER (
+          PARTITION BY r.branch_id
+          ORDER BY r.created_at, r.id
+        ) AS sequence_no
+      FROM ranked r
+      WHERE r.duplicate_rank > 1
+    ),
+    branch_max AS (
+      SELECT branch_id, max(order_no) AS max_order_no
+      FROM orders
+      GROUP BY branch_id
+    )
+    UPDATE orders o
+    SET order_no = bm.max_order_no + d.sequence_no
+    FROM duplicates d
+    JOIN branch_max bm ON bm.branch_id = d.branch_id
+    WHERE o.id = d.id;
+  `);
+
   await db.raw("ALTER TABLE orders ADD CONSTRAINT orders_branch_id_order_no_unique UNIQUE (branch_id, order_no)");
 }

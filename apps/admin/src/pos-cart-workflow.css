@@ -99,6 +99,11 @@
   background: var(--yk-black-2);
 }
 
+/* The quick cash/change experiment is cancelled. */
+.app2-pos .posx-change-panel {
+  display: none !important;
+}
+
 /* ---------- Order type + source stay in cart ---------- */
 .app2-pos .posx-opts > .posx-order-context {
   display: grid;
@@ -251,5 +256,3 @@
   .app2-pos .posx-shell-operation-controls { min-width: 620px; }
   .app2-pos .posx-opts > .posx-order-context { grid-template-columns: 1fr; }
 }
-
-/* synchronize temporary patch runner */

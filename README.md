@@ -7,7 +7,7 @@ YAKEBDA MS is an Arabic-first, RTL-first restaurant operations platform covering
 ## Current State
 
 - Foundation, hardware contracts, menu, POS orders, KDS, payments, shifts, CRM, reporting, and administration are implemented.
-- The active UI cleanup remains isolated in Draft PR #14 until manual visual acceptance.
+- PR #14 has been merged into `main`, establishing the validated global Light/Dark UI and legacy-cleanup baseline.
 - The next core program is **YKMS-11 — Order Sources & Pricing Context**.
 - Full accounting is not the next implementation step. The approved sequence is:
 
@@ -52,16 +52,17 @@ Order Sources
 
 ## Canonical Documentation
 
-- `docs/YAKEBDA_MS_Project_Master_v1.2_AR_RTL.md`
-- `docs/YAKEBDA_MS_Project_Instructions_v1.2_AR_RTL.md`
+- `docs/YAKEBDA_MS_Project_Master_v1.3_AR_RTL.md`
+- `docs/YAKEBDA_MS_Project_Instructions_v1.3_AR_RTL.md`
 - `docs/YAKEBDA_MS_SRS_v2_AR_RTL.md`
-- `docs/YAKEBDA_MS_Execution_Roadmap_v2_AR_RTL.md`
-- `docs/YAKEBDA_MS_Diagrams_Roadmap_v2_AR_RTL.md`
+- `docs/YAKEBDA_MS_Execution_Roadmap_v2.1_AR_RTL.md`
+- `docs/YAKEBDA_MS_Diagrams_Roadmap_v2.1_AR_RTL.md`
 - `docs/engineering/CURRENT_IMPLEMENTATION.md`
 - `docs/adr/ADR-002-order-sources-channel-menus-pricelists.md`
 - `docs/adr/ADR-003-sequencing-inventory-drivers-finance.md`
+- `docs/YAKEBDA_MS_Planning_Decision_Log_v1.1.md`
 
-Historical Restaurant MS SRS/diagram files remain reference-only.
+Historical Restaurant MS files and the superseded v1.2/v2.0 planning drafts remain reference-only.
 
 ## Repository Structure
 

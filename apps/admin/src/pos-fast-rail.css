@@ -1,0 +1,357 @@
+/* YAKEBDA Fast Rail — structural POS layout, loaded last. */
+
+.app2-pos .app2-pos-controls-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app2-pos .app2-spacer { flex: 0 0 0; }
+
+.app2-pos .posx-shell-operation-controls {
+  width: min(900px, 100%);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(280px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.app2-pos .posx-shell-operation-controls .posx-shift,
+.app2-pos .posx-shell-operation-controls .posx-search,
+.app2-pos .posx-shell-operation-controls .posx-history-btn {
+  min-height: 40px !important;
+  height: 40px !important;
+  margin: 0 !important;
+}
+
+.app2-pos .posx-shell-operation-controls .posx-search {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app2-pos .posx-shell-operation-controls .posx-history-btn {
+  padding-inline: 16px !important;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-cart {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.app2-pos .posx-cart-head,
+.app2-pos .posx-cart > .alert,
+.app2-pos .posx-cart > .ok,
+.app2-pos .posx-order-rail,
+.app2-pos .posx-totals,
+.app2-pos .posx-fire-wrap {
+  flex: 0 0 auto;
+}
+
+.app2-pos .posx-order-rail {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
+  gap: 8px;
+  padding: 9px;
+  margin: 0 8px 8px;
+  border: 1px solid var(--yk-line);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(246, 192, 38, 0.08), rgba(17, 23, 26, 0.96));
+}
+
+.app2-pos .posx-order-rail .seg {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px !important;
+}
+
+.app2-pos .posx-order-rail button,
+.app2-pos .posx-order-rail select {
+  min-height: 44px !important;
+  height: 44px !important;
+}
+
+.app2-pos .posx-source-field {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.app2-pos .posx-source-field > span {
+  color: var(--yk-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app2-pos .posx-source-field select {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app2-pos .posx-cart-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0 8px 10px;
+}
+
+.app2-pos .posx-cart-lines {
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  display: grid;
+  gap: 8px;
+}
+
+.app2-pos .posx-fast-line {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 122px;
+  gap: 10px;
+  align-items: stretch;
+  min-height: 96px;
+  padding: 9px;
+  border: 1px solid var(--yk-line);
+  border-radius: 12px;
+  background: #11181c;
+}
+
+.app2-pos .posx-fast-line-thumb {
+  min-height: 78px;
+  border-radius: 9px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(246, 192, 38, 0.18), transparent 55%),
+    repeating-linear-gradient(45deg, #1b2327 0 8px, #151c20 8px 16px);
+  color: var(--yk-yellow);
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.app2-pos .posx-fast-line-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.app2-pos .posx-fast-line-main {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 6px;
+}
+
+.app2-pos .posx-fast-line-head {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.app2-pos .posx-fast-line-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.app2-pos .posx-fast-line-head b {
+  flex: 0 0 auto;
+  color: var(--yk-text);
+  font-size: 16px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-fast-line-choices {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.app2-pos .posx-fast-line-choices span {
+  max-width: 100%;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #202a2f;
+  color: #d8e0e3;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.app2-pos .posx-fast-line-choices .muted { color: var(--yk-muted); }
+
+.app2-pos .posx-fast-line-note-button {
+  justify-self: start;
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 0 9px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--yk-muted) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 11px !important;
+}
+
+.app2-pos .posx-fast-line-note-input {
+  width: min(100%, 250px) !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  margin: 0 !important;
+}
+
+.app2-pos .posx-fast-line-actions {
+  display: grid;
+  grid-template-rows: 44px 36px;
+  gap: 7px;
+  align-content: center;
+}
+
+.app2-pos .posx-fast-qty {
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--yk-line);
+  border-radius: 9px;
+  overflow: hidden;
+  background: #0d1316;
+}
+
+.app2-pos .posx-fast-qty button {
+  min-width: 38px !important;
+  width: 38px !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #1b252a !important;
+  color: var(--yk-text) !important;
+  font-size: 19px !important;
+}
+
+.app2-pos .posx-fast-qty output {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 44px;
+  color: #111;
+  background: var(--yk-yellow);
+  font-size: 16px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-fast-remove {
+  min-height: 36px !important;
+  height: 36px !important;
+  border-color: #c95149 !important;
+  background: rgba(201, 81, 73, 0.12) !important;
+  color: #ff8c83 !important;
+  font-size: 12px !important;
+}
+
+.app2-pos .posx-opts {
+  overflow: visible !important;
+  padding-top: 10px;
+}
+
+.app2-pos .posx-totals,
+.app2-pos .posx-fire-wrap {
+  background: var(--yk-black-2);
+}
+
+.app2-pos .posx-totals {
+  margin-top: 0;
+  padding: 10px 12px 4px;
+  border-top: 1px solid var(--yk-line);
+}
+
+.app2-pos .posx-total {
+  font-size: 18px !important;
+  font-weight: 950;
+}
+
+.app2-pos .posx-total > span:last-child {
+  color: var(--yk-yellow);
+  font-size: 20px;
+}
+
+.app2-pos .posx-total-helper {
+  display: block;
+  margin-top: 4px;
+  color: var(--yk-yellow);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.app2-pos .posx-fire-wrap { padding: 6px 12px 10px; }
+
+.app2-pos .posx-change-panel { display: none !important; }
+
+.app2-pos .posx-card2-img.ph {
+  position: relative;
+  background:
+    radial-gradient(circle at 72% 20%, rgba(246, 192, 38, 0.22), transparent 28%),
+    repeating-linear-gradient(135deg, #23291d 0 12px, #1b2118 12px 24px) !important;
+}
+
+.app2-pos .posx-card2-img.ph::after {
+  content: "يا كبدة";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(246, 192, 38, 0.72);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: 1px;
+}
+
+@media (min-width: 1600px) {
+  .app2-pos .posx-grid { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 1280px) {
+  .app2-pos .app2-crumb { display: none; }
+  .app2-pos .posx-shell-operation-controls {
+    width: 100%;
+    grid-template-columns: auto minmax(180px, 1fr) auto;
+  }
+  .app2-pos .posx-fast-line { grid-template-columns: 60px minmax(0, 1fr) 112px; }
+}
+
+@media (max-width: 900px) {
+  .app2-pos .app2-pos-controls-slot {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+  .app2-pos .posx-shell-operation-controls { min-width: 620px; }
+  .app2-pos .posx-order-rail { grid-template-columns: 1fr; }
+  .app2-pos .posx-fast-line { grid-template-columns: 56px minmax(0, 1fr); }
+  .app2-pos .posx-fast-line-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: 44px;
+  }
+}

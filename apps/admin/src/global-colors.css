@@ -1,0 +1,292 @@
+/*
+ * YAKEBDA MS — Global semantic color layer.
+ *
+ * This file is the final CSS import. Screens own layout; this file owns color.
+ * Never add raw HEX/RGB/HSL values here or in new feature styles.
+ */
+
+:root,
+.app2-pos {
+  --control-surface: var(--surface-2);
+  --control-surface-hover: var(--surface-raised);
+  --control-border: var(--border-strong);
+  --selection-surface: var(--brand);
+  --selection-text: var(--on-brand);
+  --success-surface: var(--theme-success-soft);
+  --warning-surface: var(--theme-warning-soft);
+  --danger-surface: var(--theme-danger-soft);
+  --info-surface: var(--theme-info-soft);
+}
+
+/* Shared application surfaces */
+html,
+body,
+#root,
+.app2,
+.app2-main,
+.app2-body,
+.login-wrap {
+  background: var(--surface-page) !important;
+  color: var(--text-primary) !important;
+}
+
+.card,
+.panel,
+.form-row,
+.modal,
+.option-modal,
+.receipt-modal,
+.uif-card,
+.uif-modal,
+.uif-drawer,
+.set-card,
+.kds-card,
+.od-section,
+.order-actions {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+.modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: var(--control-border) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+/* AppShell */
+.app2-bar {
+  border-bottom-color: var(--brand) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 2px 10px var(--theme-shadow) !important;
+}
+
+.app2-menu,
+.app2-home,
+.app2-back,
+.app2-theme,
+.app2-logout,
+.app2-pos .posx-shell-icon,
+.app2-pos .posx-history-btn,
+.app2-pos .posx-shift-action {
+  border-color: var(--control-border) !important;
+  background: var(--control-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-shell-icon:hover,
+.app2-pos .posx-shell-icon:focus-within,
+.app2-pos .posx-history-btn:hover,
+.app2-pos .posx-history-btn:focus-visible {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+}
+
+.app2-brand {
+  color: var(--brand) !important;
+}
+
+.app2-user,
+.app2-logout {
+  color: var(--text-secondary) !important;
+}
+
+.app2-pos .app2-account-cluster {
+  border-color: var(--success) !important;
+  background: var(--success-surface) !important;
+}
+
+.app2-pos .app2-account-cluster .app2-user {
+  color: var(--success) !important;
+}
+
+.app2-pos .posx-shift-action.is-open {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+/* POS workspace */
+.app2-pos .app2-body,
+.app2-pos .posx,
+.app2-pos .posx-body,
+.app2-pos .posx-menu,
+.app2-pos .posx-opts,
+.app2-pos .posx-totals,
+.app2-pos .posx-fire-wrap {
+  background: var(--surface-page) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-menu-top,
+.app2-pos .posx-menu-tools,
+.app2-pos .posx-cart,
+.app2-pos .posx-order-rail,
+.app2-pos .posx-fast-line,
+.app2-pos .posx-fast-qty,
+.app2-pos .posx-fast-line-note-input,
+.app2-pos .posx-source-field select {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-order-rail {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
+    var(--surface-1)
+  ) !important;
+}
+
+.app2-pos .posx-cats button,
+.app2-pos .seg.dark button,
+.app2-pos .posx-chips button,
+.app2-pos .posx-fast-qty button {
+  border-color: var(--control-border) !important;
+  background: var(--control-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-cats button.active,
+.app2-pos .seg.dark button.active,
+.app2-pos .posx-chips button.active,
+.app2-pos .posx-fast-qty output,
+.app2-pos .posx-card2-price,
+.app2-pos .posx-order-now {
+  border-color: var(--brand) !important;
+  background: var(--selection-surface) !important;
+  color: var(--selection-text) !important;
+}
+
+/* Product cards */
+.app2-pos .posx-card2 {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 8px 24px var(--theme-shadow) !important;
+}
+
+.app2-pos .posx-card2:hover {
+  border-color: var(--brand) !important;
+}
+
+.app2-pos .posx-card2-media,
+.app2-pos .posx-card2-info,
+.app2-pos .posx-card2-options {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-card2-name {
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-card2-opt-label,
+.app2-pos .posx-card2-direct {
+  color: var(--text-secondary) !important;
+}
+
+.app2-pos .posx-card2-img.ph {
+  background:
+    radial-gradient(circle at 72% 20%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 28%),
+    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px) !important;
+}
+
+.app2-pos .posx-card2-img.ph::before {
+  border-color: var(--brand) !important;
+  background: var(--theme-brand-soft) !important;
+  color: var(--brand) !important;
+}
+
+.app2-pos .posx-card2-img.ph::after {
+  color: var(--brand) !important;
+}
+
+/* Fast Rail cart lines */
+.app2-pos .posx-fast-line-thumb {
+  border-color: var(--border-subtle) !important;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), transparent 55%),
+    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px) !important;
+  color: var(--brand) !important;
+}
+
+.app2-pos .posx-fast-line-head strong,
+.app2-pos .posx-fast-line-head b,
+.app2-pos .posx-total {
+  color: var(--text-primary) !important;
+}
+
+.app2-pos .posx-fast-line-choices span {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+}
+
+.app2-pos .posx-fast-line-note-button {
+  color: var(--text-secondary) !important;
+}
+
+.app2-pos .posx-fast-remove {
+  border-color: var(--danger) !important;
+  background: var(--danger-surface) !important;
+  color: var(--danger) !important;
+}
+
+.app2-pos .posx-fast-remove:hover,
+.app2-pos .posx-fast-remove:focus-visible {
+  border-color: var(--danger) !important;
+  background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface)) !important;
+  color: var(--danger) !important;
+}
+
+.app2-pos .posx-total > span:last-child,
+.app2-pos .posx-total-helper {
+  color: var(--brand) !important;
+}
+
+/* Semantic feedback */
+.alert,
+.error-note,
+.dark-alert {
+  border-color: var(--danger) !important;
+  background: var(--danger-surface) !important;
+  color: var(--danger) !important;
+}
+
+.ok,
+.ok-note,
+.dark-ok {
+  border-color: var(--success) !important;
+  background: var(--success-surface) !important;
+  color: var(--success) !important;
+}
+
+.stub.printing,
+.stub.st-submitted,
+.stub.st-in_kitchen {
+  border-color: var(--warning) !important;
+  background: var(--warning-surface) !important;
+  color: var(--warning) !important;
+}
+
+.stub.printed,
+.stub.on,
+.stub.st-ready,
+.stub.st-completed {
+  border-color: var(--success) !important;
+  background: var(--success-surface) !important;
+  color: var(--success) !important;
+}
+
+.stub.failed,
+.stub.st-cancelled {
+  border-color: var(--danger) !important;
+  background: var(--danger-surface) !important;
+  color: var(--danger) !important;
+}

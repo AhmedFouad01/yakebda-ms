@@ -7,20 +7,17 @@ import { useMe } from "../../lib/me";
 import type {
   AdminPanel,
   Branch,
-  CustomerAddress,
-  DeliveryZone,
   OrderQuoteSummary,
   OrderSource,
   OrderType,
   PaymentMethod,
-  PosCustomer,
   Settings,
 } from "./types";
-import { addressText, parseAddresses } from "./utils";
 import { usePosCart } from "./usePosCart";
 import { usePosCatalog } from "./usePosCatalog";
 import { usePosShift } from "./usePosShift";
 import { usePosHistory } from "./usePosHistory";
+import { usePosDelivery } from "./usePosDelivery";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -60,22 +57,6 @@ export function usePosController() {
     onError: setError,
   });
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
-  const [customers, setCustomers] = useState<PosCustomer[]>([]);
-  const [customerId, setCustomerId] = useState("");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [deliveryPhone, setDeliveryPhone] = useState("");
-  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
-  const [deliveryZoneId, setDeliveryZoneId] = useState("");
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [customerModalOpen, setCustomerModalOpen] = useState(false);
-  const [addressModalOpen, setAddressModalOpen] = useState(false);
-  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
-  const [quickName, setQuickName] = useState("");
-  const [quickPhone, setQuickPhone] = useState("");
-  const [quickAddress, setQuickAddress] = useState("");
-  const [quickAddressLabel, setQuickAddressLabel] = useState("الرئيسي");
-  const [quickExtraPhone, setQuickExtraPhone] = useState("");
-  const [quickBusy, setQuickBusy] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
@@ -85,6 +66,51 @@ export function usePosController() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sourceSelectRef = useRef<HTMLSelectElement>(null);
   const [msg, setMsg] = useState("");
+  const {
+    customers,
+    customerId,
+    deliveryAddress,
+    setDeliveryAddress,
+    deliveryPhone,
+    setDeliveryPhone,
+    deliveryZones,
+    deliveryZoneId,
+    setDeliveryZoneId,
+    deliveryFee,
+    setDeliveryFee,
+    customerModalOpen,
+    setCustomerModalOpen,
+    addressModalOpen,
+    setAddressModalOpen,
+    phoneModalOpen,
+    setPhoneModalOpen,
+    quickName,
+    setQuickName,
+    quickPhone,
+    setQuickPhone,
+    quickAddress,
+    setQuickAddress,
+    quickAddressLabel,
+    setQuickAddressLabel,
+    quickExtraPhone,
+    setQuickExtraPhone,
+    quickBusy,
+    selectedCustomer,
+    selectedZone,
+    customerAddressOptions,
+    customerPhoneOptions,
+    selectDeliveryCustomer,
+    createQuickCustomer,
+    addQuickAddress,
+    addQuickPhone,
+    resetDeliveryDraft,
+  } = usePosDelivery({
+    branchId,
+    orderType,
+    can,
+    onError: setError,
+    onMessage: setMsg,
+  });
   const [done, setDone] = useState<FullOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [quoteState, setQuoteState] = useState<{ key: string; data: OrderQuoteSummary } | null>(null);
@@ -215,71 +241,6 @@ export function usePosController() {
     };
   }, []);
 
-  async function loadCustomers(preferredId?: string) {
-    if (!can("customers.lookup") && !can("customers.manage")) {
-      setCustomers([]);
-      return;
-    }
-    const response = await api<{ data: PosCustomer[] }>("/customers/lookup");
-    setCustomers(response.data);
-    if (preferredId) {
-      const customer = response.data.find((item) => item.id === preferredId);
-      if (customer) selectDeliveryCustomer(customer, response.data);
-    }
-  }
-
-  function selectDeliveryCustomer(customer: PosCustomer | null, rows = customers) {
-    if (!customer) {
-      setCustomerId("");
-      setDeliveryAddress("");
-      setDeliveryPhone("");
-      return;
-    }
-    const current = rows.find((item) => item.id === customer.id) ?? customer;
-    setCustomerId(current.id);
-    const savedAddresses = parseAddresses(current);
-    const preferredAddress = savedAddresses.find((item) => item.is_default) ?? savedAddresses[0];
-    setDeliveryAddress(current.address?.trim() || (preferredAddress ? addressText(preferredAddress) : ""));
-    setDeliveryPhone(current.phone?.trim() || current.alt_phone?.trim() || "");
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!can("customers.lookup") && !can("customers.manage")) {
-      setCustomers([]);
-      return;
-    }
-    api<{ data: PosCustomer[] }>("/customers/lookup")
-      .then((response) => {
-        if (!cancelled) setCustomers(response.data);
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
-      });
-    return () => { cancelled = true; };
-  }, [can]);
-
-  useEffect(() => {
-    if (orderType !== "delivery") {
-      setDeliveryZones([]);
-      setDeliveryZoneId("");
-      setDeliveryFee(0);
-      return;
-    }
-    let cancelled = false;
-    api<{ data: DeliveryZone[] }>("/delivery-zones")
-      .then((response) => {
-        if (cancelled) return;
-        const active = response.data.filter((zone) => zone.is_active !== false);
-        setDeliveryZones(active);
-        setDeliveryZoneId((current) => active.some((zone) => zone.id === current) ? current : "");
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
-      });
-    return () => { cancelled = true; };
-  }, [orderType, branchId]);
-
   useEffect(() => {
     if (!branchId) return;
     setSourceId("");
@@ -315,25 +276,6 @@ export function usePosController() {
   }, [branchId, orderType]);
 
 
-  const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
-  const selectedZone = deliveryZones.find((zone) => zone.id === deliveryZoneId) ?? null;
-  const customerAddressOptions = (() => {
-    const options: Array<{ label: string; value: string }> = [];
-    const add = (label: string, value?: string | null) => {
-      const clean = value?.trim();
-      if (clean && !options.some((item) => item.value === clean)) options.push({ label, value: clean });
-    };
-    add("العنوان الرئيسي", selectedCustomer?.address);
-    for (const address of parseAddresses(selectedCustomer)) {
-      const value = addressText(address);
-      add(address.label?.trim() || "عنوان محفوظ", value);
-    }
-    return options;
-  })();
-  const customerPhoneOptions = Array.from(new Set(
-    [selectedCustomer?.phone?.trim(), selectedCustomer?.alt_phone?.trim()].filter(Boolean) as string[]
-  ));
-
   const subtotal = currentQuote?.subtotal ?? localSubtotal;
   // أنواع الطلب من الإعدادات، بينما كل القيم المالية النهائية تأتي من server quote.
   const enabledOrderTypes = (["takeaway", "delivery"] as const).filter((type) =>
@@ -353,86 +295,6 @@ export function usePosController() {
   const discountReasonMissing = discount > 0 && !!settings?.discount_reason_required && !discountReason.trim();
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
-  async function createQuickCustomer() {
-    if (!quickName.trim() || !quickPhone.trim() || quickBusy) return;
-    setQuickBusy(true);
-    setError("");
-    try {
-      const initialAddress = quickAddress.trim();
-      const response = await api<{ data: PosCustomer }>("/customers", {
-        method: "POST",
-        body: {
-          name: quickName.trim(),
-          phone: quickPhone.trim(),
-          address: initialAddress || null,
-          addresses: initialAddress ? [{ label: "الرئيسي", area: initialAddress, is_default: true }] : [],
-        },
-      });
-      await loadCustomers(response.data.id);
-      setQuickName("");
-      setQuickPhone("");
-      setQuickAddress("");
-      setCustomerModalOpen(false);
-      setMsg("تمت إضافة العميل واختياره");
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setQuickBusy(false);
-    }
-  }
-
-  async function addQuickAddress() {
-    if (!selectedCustomer || !quickAddress.trim() || quickBusy) return;
-    setQuickBusy(true);
-    setError("");
-    try {
-      const existing = parseAddresses(selectedCustomer);
-      const nextAddress: CustomerAddress = {
-        label: quickAddressLabel.trim() || "عنوان إضافي",
-        area: quickAddress.trim(),
-        is_default: existing.length === 0 && !selectedCustomer.address,
-      };
-      await api("/customers/" + selectedCustomer.id, {
-        method: "PATCH",
-        body: {
-          address: selectedCustomer.address || (nextAddress.is_default ? quickAddress.trim() : null),
-          addresses: [...existing, nextAddress],
-        },
-      });
-      await loadCustomers(selectedCustomer.id);
-      setDeliveryAddress(quickAddress.trim());
-      setQuickAddress("");
-      setQuickAddressLabel("الرئيسي");
-      setAddressModalOpen(false);
-      setMsg("تم حفظ عنوان التوصيل");
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setQuickBusy(false);
-    }
-  }
-
-  async function addQuickPhone() {
-    if (!selectedCustomer || !quickExtraPhone.trim() || quickBusy) return;
-    setQuickBusy(true);
-    setError("");
-    try {
-      const body = selectedCustomer.phone?.trim()
-        ? { alt_phone: quickExtraPhone.trim() }
-        : { phone: quickExtraPhone.trim() };
-      await api("/customers/" + selectedCustomer.id, { method: "PATCH", body });
-      await loadCustomers(selectedCustomer.id);
-      setDeliveryPhone(quickExtraPhone.trim());
-      setQuickExtraPhone("");
-      setPhoneModalOpen(false);
-      setMsg(selectedCustomer.alt_phone ? "تم تحديث الرقم الإضافي" : "تم حفظ الرقم الإضافي");
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setQuickBusy(false);
-    }
-  }
-
   async function fireOrder() {
     setError("");
     setMsg("");
@@ -471,11 +333,7 @@ export function usePosController() {
       setDiscount(0);
       setDiscountReason("");
       setOrderNotes("");
-      setCustomerId("");
-      setDeliveryAddress("");
-      setDeliveryPhone("");
-      setDeliveryZoneId("");
-      setDeliveryFee(0);
+      resetDeliveryDraft();
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await refreshShift(branchId);

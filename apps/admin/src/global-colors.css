@@ -1,3 +1,4 @@
+@layer p2_normal {
 /*
  * YAKEBDA MS — Global semantic color layer.
  *
@@ -26,8 +27,8 @@ body,
 .app2-main,
 .app2-body,
 .login-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 .card,
@@ -43,25 +44,25 @@ body,
 .kds-card,
 .od-section,
 .order-actions {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-  border-color: var(--control-border) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 /* AppShell */
 .app2-bar {
-  border-bottom-color: var(--brand) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 2px 10px var(--theme-shadow) !important;
+  border-bottom-color: var(--brand);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 2px 10px var(--theme-shadow);
 }
 
 .app2-menu,
@@ -72,41 +73,41 @@ body,
 .app2-pos .posx-shell-icon,
 .app2-pos .posx-history-btn,
 .app2-pos .posx-shift-action {
-  border-color: var(--control-border) !important;
-  background: var(--control-surface) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-shell-icon:hover,
 .app2-pos .posx-shell-icon:focus-within,
 .app2-pos .posx-history-btn:hover,
 .app2-pos .posx-history-btn:focus-visible {
-  border-color: var(--brand) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 .app2-brand {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 .app2-user,
 .app2-logout {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app2-pos .app2-account-cluster {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
 }
 
 .app2-pos .app2-account-cluster .app2-user {
-  color: var(--success) !important;
+  color: var(--success);
 }
 
 .app2-pos .posx-shift-action.is-open {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 /* POS workspace */
@@ -117,8 +118,8 @@ body,
 .app2-pos .posx-opts,
 .app2-pos .posx-totals,
 .app2-pos .posx-fire-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-menu-top,
@@ -129,9 +130,9 @@ body,
 .app2-pos .posx-fast-qty,
 .app2-pos .posx-fast-line-note-input,
 .app2-pos .posx-source-field select {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-order-rail {
@@ -139,21 +140,21 @@ body,
     135deg,
     color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
     var(--surface-1)
-  ) !important;
-  box-shadow: 0 8px 22px var(--theme-shadow) !important;
+  );
+  box-shadow: 0 8px 22px var(--theme-shadow);
 }
 
 .app2-pos .posx-source-field {
-  background: transparent !important;
+  background: transparent;
 }
 
 .app2-pos .posx-cats button,
 .app2-pos .seg.dark button,
 .app2-pos .posx-chips button,
 .app2-pos .posx-fast-qty button {
-  border-color: var(--control-border) !important;
-  background: var(--control-surface) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-cats button.active,
@@ -162,173 +163,481 @@ body,
 .app2-pos .posx-fast-qty output,
 .app2-pos .posx-card2-price,
 .app2-pos .posx-order-now {
-  border-color: var(--brand) !important;
-  background: var(--selection-surface) !important;
-  color: var(--selection-text) !important;
+  border-color: var(--brand);
+  background: var(--selection-surface);
+  color: var(--selection-text);
 }
 
 /* Product cards */
 .app2-pos .posx-card2 {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 8px 24px var(--theme-shadow) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px var(--theme-shadow);
 }
 
 .app2-pos .posx-card2:hover {
-  border-color: var(--brand) !important;
+  border-color: var(--brand);
 }
 
 .app2-pos .posx-card2-media,
 .app2-pos .posx-card2-info,
 .app2-pos .posx-card2-options {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-card2-name {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-card2-opt-label,
 .app2-pos .posx-card2-direct {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-card2-img.ph {
   background:
     radial-gradient(circle at 72% 20%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 28%),
-    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px) !important;
+    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px);
 }
 
 .app2-pos .posx-card2-img.ph::before {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
 }
 
 .app2-pos .posx-card2-img.ph::after {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 /* Fast Rail cart lines */
 .app2-pos .posx-fast-line {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  box-shadow: 0 7px 20px var(--theme-shadow) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  box-shadow: 0 7px 20px var(--theme-shadow);
 }
 
 .app2-pos .posx-fast-line:hover {
-  border-color: color-mix(in srgb, var(--brand) 38%, var(--border-strong)) !important;
-  background: var(--surface-raised) !important;
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--border-strong));
+  background: var(--surface-raised);
 }
 
 .app2-pos .posx-fast-line-thumb {
-  border-color: var(--border-subtle) !important;
+  border-color: var(--border-subtle);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), transparent 55%),
-    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px) !important;
-  color: var(--brand) !important;
+    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px);
+  color: var(--brand);
 }
 
 .app2-pos .posx-fast-line-actions {
-  border-inline-start-color: var(--border-subtle) !important;
+  border-inline-start-color: var(--border-subtle);
 }
 
 .app2-pos .posx-fast-line-head strong,
 .app2-pos .posx-total {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-fast-line-head b {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 .app2-pos .posx-fast-line-choices span {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-fast-line-note-button {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-fast-line-note-button:hover,
 .app2-pos .posx-fast-line-note-button:focus-visible {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
 }
 
 .app2-pos .posx-fast-remove {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
 }
 
 .app2-pos .posx-fast-remove:hover,
 .app2-pos .posx-fast-remove:focus-visible {
-  border-color: var(--danger) !important;
-  background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface)) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface));
+  color: var(--danger);
 }
 
 .app2-pos .posx-totals {
-  border-top-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  box-shadow: 0 -10px 24px var(--theme-shadow) !important;
+  border-top-color: var(--border-strong);
+  background: var(--surface-1);
+  box-shadow: 0 -10px 24px var(--theme-shadow);
 }
 
 .app2-pos .posx-fire-wrap {
-  background: var(--surface-1) !important;
+  background: var(--surface-1);
 }
 
 .app2-pos .posx-total > span:last-child,
 .app2-pos .posx-total-helper {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 /* Semantic feedback */
 .alert,
 .error-note,
 .dark-alert {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
 }
 
 .ok,
 .ok-note,
 .dark-ok {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
 }
 
 .stub.printing,
 .stub.st-submitted,
 .stub.st-in_kitchen {
-  border-color: var(--warning) !important;
-  background: var(--warning-surface) !important;
-  color: var(--warning) !important;
+  border-color: var(--warning);
+  background: var(--warning-surface);
+  color: var(--warning);
 }
 
 .stub.printed,
 .stub.on,
 .stub.st-ready,
 .stub.st-completed {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
 }
 
 .stub.failed,
 .stub.st-cancelled {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+}
+@layer p2_priority {
+html,
+body,
+#root,
+.app2,
+.app2-main,
+.app2-body,
+.login-wrap {
+  background: var(--surface-page);
+  color: var(--text-primary);
+}
+
+.card,
+.panel,
+.form-row,
+.modal,
+.option-modal,
+.receipt-modal,
+.uif-card,
+.uif-modal,
+.uif-drawer,
+.set-card,
+.kds-card,
+.od-section,
+.order-actions {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+.modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: var(--control-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+.app2-bar {
+  border-bottom-color: var(--brand);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 2px 10px var(--theme-shadow);
+}
+
+.app2-menu,
+.app2-home,
+.app2-back,
+.app2-theme,
+.app2-logout,
+.app2-pos .posx-shell-icon,
+.app2-pos .posx-history-btn,
+.app2-pos .posx-shift-action {
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-shell-icon:hover,
+.app2-pos .posx-shell-icon:focus-within,
+.app2-pos .posx-history-btn:hover,
+.app2-pos .posx-history-btn:focus-visible {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.app2-brand {
+  color: var(--brand);
+}
+
+.app2-user,
+.app2-logout {
+  color: var(--text-secondary);
+}
+
+.app2-pos .app2-account-cluster {
+  border-color: var(--success);
+  background: var(--success-surface);
+}
+
+.app2-pos .app2-account-cluster .app2-user {
+  color: var(--success);
+}
+
+.app2-pos .posx-shift-action.is-open {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.app2-pos .app2-body,
+.app2-pos .posx,
+.app2-pos .posx-body,
+.app2-pos .posx-menu,
+.app2-pos .posx-opts,
+.app2-pos .posx-totals,
+.app2-pos .posx-fire-wrap {
+  background: var(--surface-page);
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-menu-top,
+.app2-pos .posx-menu-tools,
+.app2-pos .posx-cart,
+.app2-pos .posx-order-rail,
+.app2-pos .posx-fast-line,
+.app2-pos .posx-fast-qty,
+.app2-pos .posx-fast-line-note-input,
+.app2-pos .posx-source-field select {
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-order-rail {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
+    var(--surface-1)
+  );
+  box-shadow: 0 8px 22px var(--theme-shadow);
+}
+
+.app2-pos .posx-source-field {
+  background: transparent;
+}
+
+.app2-pos .posx-cats button,
+.app2-pos .seg.dark button,
+.app2-pos .posx-chips button,
+.app2-pos .posx-fast-qty button {
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-cats button.active,
+.app2-pos .seg.dark button.active,
+.app2-pos .posx-chips button.active,
+.app2-pos .posx-fast-qty output,
+.app2-pos .posx-card2-price,
+.app2-pos .posx-order-now {
+  border-color: var(--brand);
+  background: var(--selection-surface);
+  color: var(--selection-text);
+}
+.app2-pos .posx-card2 {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px var(--theme-shadow);
+}
+
+.app2-pos .posx-card2:hover {
+  border-color: var(--brand);
+}
+
+.app2-pos .posx-card2-media,
+.app2-pos .posx-card2-info,
+.app2-pos .posx-card2-options {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-card2-name {
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-card2-opt-label,
+.app2-pos .posx-card2-direct {
+  color: var(--text-secondary);
+}
+
+.app2-pos .posx-card2-img.ph {
+  background:
+    radial-gradient(circle at 72% 20%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 28%),
+    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px);
+}
+
+.app2-pos .posx-card2-img.ph::before {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
+}
+
+.app2-pos .posx-card2-img.ph::after {
+  color: var(--brand);
+}
+.app2-pos .posx-fast-line {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  box-shadow: 0 7px 20px var(--theme-shadow);
+}
+
+.app2-pos .posx-fast-line:hover {
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--border-strong));
+  background: var(--surface-raised);
+}
+
+.app2-pos .posx-fast-line-thumb {
+  border-color: var(--border-subtle);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), transparent 55%),
+    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px);
+  color: var(--brand);
+}
+
+.app2-pos .posx-fast-line-actions {
+  border-inline-start-color: var(--border-subtle);
+}
+
+.app2-pos .posx-fast-line-head strong,
+.app2-pos .posx-total {
+  color: var(--text-primary);
+}
+
+.app2-pos .posx-fast-line-head b {
+  color: var(--brand);
+}
+
+.app2-pos .posx-fast-line-choices span {
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.app2-pos .posx-fast-line-note-button {
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.app2-pos .posx-fast-line-note-button:hover,
+.app2-pos .posx-fast-line-note-button:focus-visible {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
+}
+
+.app2-pos .posx-fast-remove {
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.app2-pos .posx-fast-remove:hover,
+.app2-pos .posx-fast-remove:focus-visible {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface));
+  color: var(--danger);
+}
+
+.app2-pos .posx-totals {
+  border-top-color: var(--border-strong);
+  background: var(--surface-1);
+  box-shadow: 0 -10px 24px var(--theme-shadow);
+}
+
+.app2-pos .posx-fire-wrap {
+  background: var(--surface-1);
+}
+
+.app2-pos .posx-total > span:last-child,
+.app2-pos .posx-total-helper {
+  color: var(--brand);
+}
+.alert,
+.error-note,
+.dark-alert {
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.ok,
+.ok-note,
+.dark-ok {
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.stub.printing,
+.stub.st-submitted,
+.stub.st-in_kitchen {
+  border-color: var(--warning);
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+.stub.printed,
+.stub.on,
+.stub.st-ready,
+.stub.st-completed {
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.stub.failed,
+.stub.st-cancelled {
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
 }

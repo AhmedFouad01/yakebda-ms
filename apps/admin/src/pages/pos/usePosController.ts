@@ -21,6 +21,7 @@ import type {
 import { addressText, parseAddresses } from "./utils";
 import { usePosCart } from "./usePosCart";
 import { usePosCatalog } from "./usePosCatalog";
+import { usePosShift } from "./usePosShift";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -30,8 +31,11 @@ export function usePosController() {
   const [sources, setSources] = useState<OrderSource[]>([]);
   const [sourceId, setSourceId] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [shift, setShift] = useState<Shift | null>(null);
   const [error, setError] = useState("");
+  const { shift, refreshShift, applyShiftSnapshot, openShift, closeShift } = usePosShift({
+    branchId,
+    onError: setError,
+  });
   const {
     cart,
     setCart,
@@ -263,15 +267,6 @@ export function usePosController() {
     return () => { cancelled = true; };
   }, [orderType, branchId]);
 
-  async function loadShift(currentBranchId: string) {
-    try {
-      const response = await api<{ data: Shift | null }>(`/shifts/current?branch_id=${currentBranchId}`);
-      setShift(response.data);
-    } catch {
-      setShift(null);
-    }
-  }
-
   async function loadHistory(silent = false) {
     if (!branchId) return;
     if (!silent) setHistoryBusy(true);
@@ -280,7 +275,7 @@ export function usePosController() {
       const response = await api<{ data: { shift: Shift | null; orders: ShiftOrderSummary[] } }>(
         `/orders/current-shift?branch_id=${branchId}`
       );
-      setShift(response.data.shift);
+      applyShiftSnapshot(response.data.shift);
       setHistory(response.data.orders);
     } catch (e: any) {
       setHistoryError(e.message);
@@ -320,7 +315,7 @@ export function usePosController() {
         return current;
       });
     });
-    loadShift(branchId);
+    refreshShift(branchId);
   }, [branchId]);
 
   useEffect(() => {
@@ -385,32 +380,6 @@ export function usePosController() {
   const discountReasonMissing = discount > 0 && !!settings?.discount_reason_required && !discountReason.trim();
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
-  async function openShift(openingCash: number): Promise<boolean> {
-    if (!branchId) return false;
-    try {
-      await api("/shifts/open", { method: "POST", body: { branch_id: branchId, opening_cash: openingCash } });
-      await loadShift(branchId);
-      setError("");
-      return true;
-    } catch (e: any) {
-      setError(e.message);
-      return false;
-    }
-  }
-
-  async function closeShift(actualCash: number): Promise<boolean> {
-    if (!shift) return false;
-    try {
-      await api(`/shifts/${shift.id}/close`, { method: "POST", body: { actual_cash: actualCash } });
-      await loadShift(branchId);
-      setError("");
-      return true;
-    } catch (e: any) {
-      setError(e.message);
-      return false;
-    }
-  }
-
   async function createQuickCustomer() {
     if (!quickName.trim() || !quickPhone.trim() || quickBusy) return;
     setQuickBusy(true);
@@ -536,7 +505,7 @@ export function usePosController() {
       setDeliveryFee(0);
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
-      await loadShift(branchId);
+      await refreshShift(branchId);
       if (historyOpen) await loadHistory(true);
     } catch (e: any) {
       setError(e.message);

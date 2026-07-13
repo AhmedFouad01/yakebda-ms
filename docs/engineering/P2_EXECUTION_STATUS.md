@@ -39,6 +39,42 @@
 - Internal checkpoint PR #37 was squash-merged into P2 as `9e85fd18b8a75f3624314b3b38109616dc341244`.
 - Temporary capture workflow removed after the pack was verified.
 
+## Recovered tree audit - 2026-07-13
+
+Verified on exact recovered HEAD `2ddf9a5d6d090b4d64cb4012c1898154f08b5894` before further P2 edits.
+
+### Current metrics
+
+- Direct CSS imports: **2**.
+  1. `apps/admin/src/theme.css`
+  2. `apps/admin/src/global-colors.css` (final color authority)
+- Imported CSS lines: **9,492** (`theme.css`: 9,157; `global-colors.css`: 335).
+- `!important` occurrences: **1,455** (28 fewer than baseline; 1.9% reduction).
+- Exact `.posx-head` definitions: **0**.
+- Exact `.posx-grid` definitions: **10**.
+- Exact `.posx-card` definitions: **0**.
+- Physical directional declarations: **23**.
+  - `left`: 6
+  - `right`: 5
+  - `text-align: left/right`: 12
+  - physical margin, padding, and border declarations: 0
+- `apps/admin/src/pages/Pos.tsx`: **1,503 lines**.
+- Existing `apps/admin/src/pages/pos/` files: `logic.ts`, `logic.test.ts`.
+- Admin tests: **10**, all passing.
+
+### Recovery integrity
+
+- No repeated or nested `@layer p2_normal` wrappers.
+- No malformed `---16px` or `--16px` values.
+- No `.github/p2-temp/`, temporary P2 apply/enable workflows, or hidden after-capture script.
+- Normal CI retains the legitimate Admin test step and does not grant `contents: write`.
+
+### Audit conclusion
+
+- CSS import collapse is complete at two files.
+- Exact `.posx-head` and `.posx-card` definitions are eliminated; `.posx-grid` remains in responsive contexts and needs controlled review.
+- The 90% `!important` reduction, remaining logical-property conversion, RTL drawer verification, and POS component split are not complete in this recovered tree.
+
 ## Current gate
 
 The visual freeze is complete. The next permitted code change is the incremental `.posx-head` consolidation.

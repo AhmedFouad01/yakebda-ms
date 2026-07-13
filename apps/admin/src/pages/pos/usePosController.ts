@@ -7,13 +7,9 @@ import { useMe } from "../../lib/me";
 import type {
   AdminPanel,
   Branch,
-  CartLine,
   CustomerAddress,
   DeliveryZone,
   MenuCategory,
-  MenuModifier,
-  MenuProduct,
-  MenuVariant,
   OrderQuoteSummary,
   OrderSource,
   OrderType,
@@ -23,7 +19,8 @@ import type {
   Shift,
   ShiftOrderSummary,
 } from "./types";
-import { addressText, cartLineKey, catRank, parseAddresses, unitPrice } from "./utils";
+import { addressText, catRank, parseAddresses } from "./utils";
+import { usePosCart } from "./usePosCart";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -37,7 +34,16 @@ export function usePosController() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [activeCat, setActiveCat] = useState("الكل");
   const [search, setSearch] = useState("");
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const {
+    cart,
+    setCart,
+    addProduct,
+    quickRemove,
+    refreshProducts,
+    resetCart,
+    itemCount,
+    localSubtotal,
+  } = usePosCart();
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const [customers, setCustomers] = useState<PosCustomer[]>([]);
   const [customerId, setCustomerId] = useState("");
@@ -294,7 +300,7 @@ export function usePosController() {
     const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
     const refreshed = new Map(sorted.flatMap((category) => category.products).map((product) => [product.id, product]));
     setCategories(sorted);
-    setCart((rows) => rows.map((line) => ({ ...line, product: refreshed.get(line.product.id) ?? line.product })));
+    refreshProducts(refreshed);
     setActiveCat("الكل");
   }
 
@@ -383,7 +389,6 @@ export function usePosController() {
     [selectedCustomer?.phone?.trim(), selectedCustomer?.alt_phone?.trim()].filter(Boolean) as string[]
   ));
 
-  const localSubtotal = cart.reduce((sum, line) => sum + unitPrice(line) * line.qty, 0);
   const subtotal = currentQuote?.subtotal ?? localSubtotal;
   // أنواع الطلب من الإعدادات، بينما كل القيم المالية النهائية تأتي من server quote.
   const enabledOrderTypes = (["takeaway", "delivery"] as const).filter((type) =>
@@ -403,32 +408,6 @@ export function usePosController() {
   const discountReasonMissing = discount > 0 && !!settings?.discount_reason_required && !discountReason.trim();
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
-  const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
-
-  function addProduct(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
-    const key = cartLineKey(product, variant, modifiers);
-    setCart((current) => {
-      const found = current.find((line) => line.key === key && !line.notes);
-      if (found) {
-        return current.map((line) => (line === found ? { ...line, qty: line.qty + 1 } : line));
-      }
-      return [...current, { key, product, variant, modifiers, qty: 1, notes: "" }];
-    });
-  }
-
-  function quickRemove(product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) {
-    const key = cartLineKey(product, variant, modifiers);
-    setCart((rows) => {
-      const exactIndex = rows.findIndex((line) => line.key === key && !line.notes);
-      const fallbackIndex = exactIndex === -1 ? rows.findIndex((line) => line.key === key) : exactIndex;
-      if (fallbackIndex === -1) return rows;
-      return rows.flatMap((line, index) => {
-        if (index !== fallbackIndex) return [line];
-        return line.qty > 1 ? [{ ...line, qty: line.qty - 1 }] : [];
-      });
-    });
-  }
-
   async function openShift(openingCash: number): Promise<boolean> {
     if (!branchId) return false;
     try {
@@ -569,7 +548,7 @@ export function usePosController() {
       });
       const order = response.data;
       setDone(order);
-      setCart([]);
+      resetCart();
       setDiscount(0);
       setDiscountReason("");
       setOrderNotes("");

@@ -117,6 +117,13 @@ jobs:
           git commit -m "docs(p2): capture visual baseline screenshots"
           git push origin HEAD:work/p2-visual-baseline
 
+      - name: Upload baseline pack artifact
+        if: ${{ always() && hashFiles('docs/engineering/visual-baseline/p2-before/*.png') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-visual-baseline-pack
+          path: docs/engineering/visual-baseline/p2-before
+
       - name: Upload diagnostics on failure
         if: failure() && steps.gate.outputs.capture == 'true'
         uses: actions/upload-artifact@v4

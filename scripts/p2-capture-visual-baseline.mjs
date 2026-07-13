@@ -4,7 +4,7 @@ import path from "node:path";
 
 const WEB_ORIGIN = process.env.P2_WEB_ORIGIN ?? "http://127.0.0.1:5173";
 const API_ORIGIN = process.env.P2_API_ORIGIN ?? "http://127.0.0.1:3001";
-const OUTPUT_DIR = path.resolve("docs/engineering/visual-baseline/p2-before");
+const OUTPUT_DIR = path.resolve(process.env.P2_OUTPUT_DIR ?? "docs/engineering/visual-baseline/p2-before");
 const EMAIL = process.env.P2_OWNER_EMAIL;
 const PASSWORD = process.env.P2_OWNER_PASSWORD;
 const THEME_KEY = "yakebda-ms.theme";

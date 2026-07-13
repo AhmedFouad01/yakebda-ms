@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Knex } from "knex";
+import { config } from "../config";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
@@ -26,6 +27,78 @@ export function printJobRoutes(db: Knex): Router {
         .orderBy("p.created_at", "desc")
         .limit(200);
       res.json({ data: rows });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  /**
+   * Explicit recovery sweep for bridge crashes.
+   * Jobs below the retry cap return to pending; exhausted jobs become terminal `dead`.
+   */
+  r.post("/requeue-stuck", requirePermission("print_jobs.manage"), async (req, res, next) => {
+    try {
+      const result = await db.transaction(async (trx) => {
+        const requeued = await trx.raw(
+          `
+            update print_jobs p
+               set status = 'pending',
+                   updated_at = now()
+             where p.status = 'printing'
+               and p.attempts < ?
+               and p.updated_at < now() - (? * interval '1 minute')
+               and p.branch_id in (
+                 select b.id from branches b where b.account_id = ?
+               )
+            returning p.id;
+          `,
+          [config.maxPrintAttempts, config.printStuckMinutes, req.user!.accountId]
+        );
+
+        const dead = await trx.raw(
+          `
+            update print_jobs p
+               set status = 'dead',
+                   updated_at = now()
+             where p.status = 'printing'
+               and p.attempts >= ?
+               and p.updated_at < now() - (? * interval '1 minute')
+               and p.branch_id in (
+                 select b.id from branches b where b.account_id = ?
+               )
+            returning p.id;
+          `,
+          [config.maxPrintAttempts, config.printStuckMinutes, req.user!.accountId]
+        );
+
+        return {
+          requeuedIds: (requeued.rows as Array<{ id: string }>).map((row) => row.id),
+          deadIds: (dead.rows as Array<{ id: string }>).map((row) => row.id),
+        };
+      });
+
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        userId: req.user!.id,
+        action: "print_job.requeue_stuck",
+        entityType: "print_job",
+        meta: {
+          threshold_minutes: config.printStuckMinutes,
+          max_attempts: config.maxPrintAttempts,
+          requeued_count: result.requeuedIds.length,
+          dead_count: result.deadIds.length,
+        },
+        ip: req.ip,
+      });
+
+      res.json({
+        data: {
+          requeued_count: result.requeuedIds.length,
+          dead_count: result.deadIds.length,
+          requeued_ids: result.requeuedIds,
+          dead_ids: result.deadIds,
+        },
+      });
     } catch (e) {
       next(e);
     }

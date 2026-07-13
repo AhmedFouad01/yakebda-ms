@@ -7,8 +7,18 @@ import { writeAudit } from "../lib/audit";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 
-function cashAmount(v: unknown): number {
-  return Number(v ?? 0);
+function toMinorUnits(value: unknown): number {
+  const normalized = typeof value === "string" ? value.trim() : String(value ?? 0);
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return 0;
+  const negative = normalized.startsWith("-");
+  const unsigned = negative ? normalized.slice(1) : normalized;
+  const [whole, fraction = ""] = unsigned.split(".");
+  const minor = Number(whole) * 100 + Number((fraction + "00").slice(0, 2));
+  return negative ? -minor : minor;
+}
+
+function money(value: unknown): number {
+  return toMinorUnits(value) / 100;
 }
 
 async function summarizeShift(db: Knex, shiftId: string) {
@@ -20,18 +30,69 @@ async function summarizeShift(db: Knex, shiftId: string) {
   const [cashIn] = await db("shift_cash_movements").where({ shift_id: shiftId, type: "cash_in" }).sum("amount as total");
   const [cashOut] = await db("shift_cash_movements").where({ shift_id: shiftId, type: "cash_out" }).sum("amount as total");
   const [orders] = await db("payments").where({ shift_id: shiftId }).countDistinct("order_id as c");
-  const expectedCash = cashAmount(shift.opening_cash) + cashAmount(cashPayments.total) + cashAmount(cashIn.total) - cashAmount(cashOut.total);
+
+  const expectedMinor =
+    toMinorUnits(shift.opening_cash) +
+    toMinorUnits(cashPayments.total) +
+    toMinorUnits(cashIn.total) -
+    toMinorUnits(cashOut.total);
+
+  const shiftOrders = await db("orders as o")
+    .where({
+      "o.account_id": shift.account_id,
+      "o.branch_id": shift.branch_id,
+      "o.created_by": shift.cashier_user_id,
+    })
+    .where("o.created_at", ">=", shift.opened_at)
+    .modify((query) => {
+      if (shift.closed_at) query.where("o.created_at", "<=", shift.closed_at);
+    })
+    .select(
+      "o.id",
+      "o.order_no",
+      "o.order_prefix",
+      "o.status",
+      "o.total",
+      "o.created_at",
+      db.raw("(select coalesce(sum(p.amount), 0) from payments p where p.order_id = o.id and p.method <> 'unpaid') as paid_amount")
+    )
+    .orderBy("o.created_at", "asc");
+
+  const unsettledOrders = shiftOrders
+    .filter((order) => {
+      if (order.status === "cancelled") return false;
+      const nonTerminal = order.status !== "completed";
+      const unpaid = toMinorUnits(order.paid_amount) < toMinorUnits(order.total);
+      return nonTerminal || unpaid;
+    })
+    .map((order) => ({
+      id: order.id,
+      order_no: order.order_no,
+      order_prefix: order.order_prefix,
+      status: order.status,
+      total: money(order.total),
+      paid_amount: money(order.paid_amount),
+      remaining_amount: Math.max(0, money(toMinorUnits(order.total) - toMinorUnits(order.paid_amount))),
+      created_at: order.created_at,
+    }));
+
   return {
     ...shift,
+    variance: shift.variance == null ? null : money(shift.variance),
+    over_short: shift.over_short ?? null,
     totals: {
-      cash_sales: cashAmount(cashPayments.total),
-      card_sales: cashAmount(cardPayments.total),
-      wallet_sales: cashAmount(walletPayments.total),
-      cash_in: cashAmount(cashIn.total),
-      cash_out: cashAmount(cashOut.total),
-      expected_cash: expectedCash,
+      cash_sales: money(cashPayments.total),
+      card_sales: money(cardPayments.total),
+      wallet_sales: money(walletPayments.total),
+      cash_in: money(cashIn.total),
+      cash_out: money(cashOut.total),
+      expected_cash: expectedMinor / 100,
       orders_count: Number(orders.c ?? 0),
     },
+    unsettled_orders: unsettledOrders,
+    warnings: unsettledOrders.length
+      ? [{ code: "unsettled_orders", message: ar.warnings.unsettled_orders, count: unsettledOrders.length }]
+      : [],
   };
 }
 
@@ -113,8 +174,39 @@ export function shiftRoutes(db: Knex): Router {
       const summary = await summarizeShift(db, req.params.id);
       if (!summary || summary.account_id !== req.user!.accountId || summary.status !== "open") throw err.notFound();
       if (!canAccessBranch(req.user!, summary.branch_id)) throw err.forbidden();
-      await db("shifts").where({ id: summary.id }).update({ status: "closed", closed_at: db.fn.now(), actual_cash: body.data.actual_cash, closing_cash: body.data.actual_cash, expected_cash: summary.totals.expected_cash, notes: body.data.notes ?? summary.notes, updated_at: db.fn.now() });
-      await writeAudit(db, { accountId: req.user!.accountId, branchId: summary.branch_id, userId: req.user!.id, action: "shift.close", entityType: "shift", entityId: summary.id, meta: { actual_cash: body.data.actual_cash, expected_cash: summary.totals.expected_cash }, ip: req.ip });
+
+      const actualMinor = toMinorUnits(body.data.actual_cash);
+      const expectedMinor = toMinorUnits(summary.totals.expected_cash);
+      const varianceMinor = actualMinor - expectedMinor;
+      const overShort = varianceMinor > 0 ? "over" : varianceMinor < 0 ? "short" : "even";
+
+      await db("shifts").where({ id: summary.id }).update({
+        status: "closed",
+        closed_at: db.fn.now(),
+        actual_cash: actualMinor / 100,
+        closing_cash: actualMinor / 100,
+        expected_cash: expectedMinor / 100,
+        variance: varianceMinor / 100,
+        over_short: overShort,
+        notes: body.data.notes ?? summary.notes,
+        updated_at: db.fn.now(),
+      });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        branchId: summary.branch_id,
+        userId: req.user!.id,
+        action: "shift.close",
+        entityType: "shift",
+        entityId: summary.id,
+        meta: {
+          actual_cash: actualMinor / 100,
+          expected_cash: expectedMinor / 100,
+          variance: varianceMinor / 100,
+          over_short: overShort,
+          unsettled_order_ids: summary.unsettled_orders.map((order: { id: string }) => order.id),
+        },
+        ip: req.ip,
+      });
       res.json({ data: await summarizeShift(db, summary.id), message: ar.messages.updated });
     } catch (e) {
       next(e);

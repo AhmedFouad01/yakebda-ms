@@ -21,6 +21,7 @@ import { shiftRoutes } from "./modules/shifts";
 import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } from "./modules/settings";
 import { orderSourceRoutes } from "./modules/orderSources";
 import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
+import { financialReliabilityRoutes } from "./modules/financialReliability";
 
 type DatabaseError = Error & {
   code?: string;
@@ -41,6 +42,9 @@ const PAYMENT_INTEGRITY_MESSAGES: Record<string, string> = {
   payments_already_paid_guard: ar.errors.payment_already_paid,
   payments_over_remaining_guard: ar.errors.payment_over_remaining,
   payments_unpaid_zero_guard: ar.errors.unpaid_amount_zero,
+  payments_refund_amount_negative_guard: ar.errors.refund_amount_positive,
+  payments_refund_reference_guard: ar.errors.refund_reference_required,
+  payments_refund_over_paid_guard: ar.errors.refund_exceeds_paid,
 };
 
 function isOrderIntegrityError(error: DatabaseError): boolean {
@@ -80,6 +84,7 @@ export function createApp(db: Knex) {
   v1.use("/order-sources", orderSourceRoutes(db));
   v1.use("/orders", orderPricingRoutes(db));
   v1.use("/orders", orderIntegrityRoutes(db));
+  v1.use("/orders", financialReliabilityRoutes(db));
   v1.use("/orders", orderRoutes(db));
   v1.use("/kitchen", kitchenRoutes(db));
   v1.use("/tables", tableRoutes(db));

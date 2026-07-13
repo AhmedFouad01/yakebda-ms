@@ -74,5 +74,15 @@ jobs:
       - name: Global color contract
         run: npm run ui:colors:check
 
+      - name: Admin tests
+        run: npm run admin:test 2>&1 | tee admin-tests.log
+
+      - name: Upload Admin test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-test-diagnostics
+          path: admin-tests.log
+
       - name: Admin build
         run: npm run admin:build

@@ -11,7 +11,8 @@
     "api:test": "npm --workspace @ykms/api run test",
     "admin:dev": "npm --workspace @ykms/admin run dev",
     "admin:build": "npm --workspace @ykms/admin run build",
-    "check": "npm run api:test && npm run admin:build",
+    "ui:colors:check": "node scripts/check-theme-contract.mjs",
+    "check": "npm run ui:colors:check && npm run api:test && npm run admin:build",
     "audit:deps": "npm audit",
     "audit:deps:prod": "npm audit --omit=dev"
   }

@@ -15,13 +15,13 @@ import {
 import { useSettingsDoc, RowToggle, RowNum, RowText, RowSelect, SubHead, RowCtx } from "./shared";
 import {
   BranchesSection,
-  MenuSection,
   StationsSection,
   PrepTimesSection,
   ZonesSection,
   DriversSection,
   RolesSection,
 } from "./crudSections";
+import { SourcesSection } from "./SourcesSection";
 
 /**
  * YKMS-02F — الإعدادات: 12 قسمًا مطابقة للوثيقة، مبنية على نظام uif.
@@ -36,7 +36,7 @@ const SECTIONS: Array<[string, string, boolean]> = [
   ["branches", "الفروع", false],
   ["taxes", "الضرائب والرسوم", true],
   ["orders", "الطلبات", true],
-  ["menu", "المنيو", false],
+  ["sources", "المصادر", false],
   ["offers", "العروض والخصومات", true],
   ["kitchen", "المطبخ", true],
   ["printing", "الطباعة والأجهزة", true],
@@ -215,7 +215,7 @@ export function SettingsLayout() {
 
           {/* أقسام CRUD (حفظ فوري لكل عنصر) */}
           {section === "branches" && <BranchesSection editable={editable} />}
-          {section === "menu" && <MenuSection editable={editable} />}
+          {section === "sources" && <SourcesSection editable={editable} />}
           {section === "users" && <RolesSection />}
           {section === "reports" && (
             <SectionCard title="التقارير">

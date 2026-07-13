@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import { api, resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
 import { OrderDetail } from "../components/OrderDetail";
 import { useMe } from "../lib/me";
 import { Drawer } from "../components/ui/overlays";
+import { PosCartLine } from "../components/pos/PosCartLine";
 
 interface MenuModifier {
   id: string;
@@ -47,6 +49,36 @@ interface Branch {
   id: string;
   name: string;
 }
+interface OrderSource {
+  id: string;
+  code: string;
+  name_ar: string;
+  supports_takeaway: boolean;
+  supports_delivery: boolean;
+}
+interface DeliveryZone {
+  id: string;
+  name_ar: string;
+  fee: string | number;
+  min_order: string | number;
+  is_active: boolean;
+}
+interface CustomerAddress {
+  label?: string | null;
+  area?: string | null;
+  landmark?: string | null;
+  floor?: string | null;
+  notes?: string | null;
+  is_default?: boolean;
+}
+interface PosCustomer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  alt_phone?: string | null;
+  address?: string | null;
+  addresses?: CustomerAddress[] | string | null;
+}
 interface Shift {
   id: string;
   opened_at: string;
@@ -71,6 +103,7 @@ interface ShiftOrderSummary {
   order_no: number;
   order_prefix?: string | null;
   order_type: string;
+  source_name?: string | null;
   status: string;
   kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
   payment_status: "unpaid" | "partial" | "paid";
@@ -157,23 +190,31 @@ const catRank = (name: string) => {
   return index === -1 ? 99 : index;
 };
 
-function safeCalc(expression: string): string {
-  const cleaned = expression.replace(/[×]/g, "*").replace(/[÷]/g, "/");
-  if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) return "خطأ";
+function parseAddresses(customer: PosCustomer | null): CustomerAddress[] {
+  if (!customer?.addresses) return [];
+  if (Array.isArray(customer.addresses)) return customer.addresses;
   try {
-    const result = Function(`"use strict"; return (${cleaned || 0})`)();
-    return Number.isFinite(result) ? String(Number(result.toFixed(2))) : "خطأ";
+    const parsed = JSON.parse(customer.addresses);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return "خطأ";
+    return [];
   }
+}
+
+function addressText(address: CustomerAddress): string {
+  return [address.area, address.landmark, address.floor, address.notes]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" — ");
 }
 
 export function Pos() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
-  const { can, me } = useMe();
+  const { can } = useMe();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState(params.get("branch") ?? "");
+  const [sources, setSources] = useState<OrderSource[]>([]);
+  const [sourceId, setSourceId] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [shift, setShift] = useState<Shift | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -181,15 +222,30 @@ export function Pos() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
-  const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone?: string; address?: string }>>([]);
+  const [customers, setCustomers] = useState<PosCustomer[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+  const [deliveryZoneId, setDeliveryZoneId] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const [quickPhone, setQuickPhone] = useState("");
+  const [quickAddress, setQuickAddress] = useState("");
+  const [quickAddressLabel, setQuickAddressLabel] = useState("الرئيسي");
+  const [quickExtraPhone, setQuickExtraPhone] = useState("");
+  const [quickBusy, setQuickBusy] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
-  const [calc, setCalc] = useState("");
+  const [shellControlsRoot, setShellControlsRoot] = useState<HTMLElement | null>(null);
+  const [shellSessionRoot, setShellSessionRoot] = useState<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const sourceSelectRef = useRef<HTMLSelectElement>(null);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
@@ -204,13 +260,17 @@ export function Pos() {
   const [historyOrder, setHistoryOrder] = useState<FullOrder | null>(null);
   const [historyOrderBusy, setHistoryOrderBusy] = useState(false);
   const [historyOrderError, setHistoryOrderError] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   const quotePayload = useMemo(() => ({
     branch_id: branchId,
+    source_id: sourceId || null,
     order_type: orderType,
+    delivery_zone_id: orderType === "delivery" ? deliveryZoneId || null : null,
     delivery_fee: orderType === "delivery" ? deliveryFee : 0,
     discount: settings?.allow_discounts ? discount : 0,
     discount_reason: discount > 0 ? discountReason || null : null,
@@ -221,9 +281,33 @@ export function Pos() {
       notes: line.notes || null,
       modifier_ids: line.modifiers.map((modifier) => modifier.id),
     })),
-  }), [branchId, orderType, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
+  }), [branchId, sourceId, orderType, deliveryZoneId, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
   const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
   const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
+
+  useEffect(() => {
+    setShellControlsRoot(document.getElementById("pos-appshell-controls"));
+    setShellSessionRoot(document.getElementById("pos-appshell-session"));
+  }, []);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editing = target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+      if (event.key === "/" && !editing) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (event.key === "F2") {
+        event.preventDefault();
+        sourceSelectRef.current?.focus();
+      } else if (event.key === "F4") {
+        event.preventDefault();
+        setHistoryOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   useEffect(() => {
     if (!cartDrawerOpen) return;
@@ -235,7 +319,7 @@ export function Pos() {
   }, [cartDrawerOpen]);
 
   useEffect(() => {
-    if (!branchId || !cart.length) {
+    if (!branchId || !sourceId || !cart.length || (orderType === "delivery" && !deliveryZoneId)) {
       setQuoteState(null);
       setQuoteBusy(false);
       setQuoteError("");
@@ -263,7 +347,7 @@ export function Pos() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [branchId, cart.length, quoteKey, quotePayload]);
+  }, [branchId, sourceId, orderType, deliveryZoneId, cart.length, quoteKey, quotePayload]);
   useEffect(() => {
     let cancelled = false;
     api<{ data: Branch[] }>("/branches")
@@ -280,23 +364,70 @@ export function Pos() {
     };
   }, []);
 
-  useEffect(() => {
+  async function loadCustomers(preferredId?: string) {
     if (!can("customers.lookup") && !can("customers.manage")) {
       setCustomers([]);
       return;
     }
+    const response = await api<{ data: PosCustomer[] }>("/customers/lookup");
+    setCustomers(response.data);
+    if (preferredId) {
+      const customer = response.data.find((item) => item.id === preferredId);
+      if (customer) selectDeliveryCustomer(customer, response.data);
+    }
+  }
+
+  function selectDeliveryCustomer(customer: PosCustomer | null, rows = customers) {
+    if (!customer) {
+      setCustomerId("");
+      setDeliveryAddress("");
+      setDeliveryPhone("");
+      return;
+    }
+    const current = rows.find((item) => item.id === customer.id) ?? customer;
+    setCustomerId(current.id);
+    const savedAddresses = parseAddresses(current);
+    const preferredAddress = savedAddresses.find((item) => item.is_default) ?? savedAddresses[0];
+    setDeliveryAddress(current.address?.trim() || (preferredAddress ? addressText(preferredAddress) : ""));
+    setDeliveryPhone(current.phone?.trim() || current.alt_phone?.trim() || "");
+  }
+
+  useEffect(() => {
     let cancelled = false;
-    api<{ data: typeof customers }>("/customers/lookup")
+    if (!can("customers.lookup") && !can("customers.manage")) {
+      setCustomers([]);
+      return;
+    }
+    api<{ data: PosCustomer[] }>("/customers/lookup")
       .then((response) => {
         if (!cancelled) setCustomers(response.data);
       })
       .catch((e: Error) => {
         if (!cancelled) setError(e.message);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [can]);
+
+  useEffect(() => {
+    if (orderType !== "delivery") {
+      setDeliveryZones([]);
+      setDeliveryZoneId("");
+      setDeliveryFee(0);
+      return;
+    }
+    let cancelled = false;
+    api<{ data: DeliveryZone[] }>("/delivery-zones")
+      .then((response) => {
+        if (cancelled) return;
+        const active = response.data.filter((zone) => zone.is_active !== false);
+        setDeliveryZones(active);
+        setDeliveryZoneId((current) => active.some((zone) => zone.id === current) ? current : "");
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => { cancelled = true; };
+  }, [orderType, branchId]);
 
   async function loadShift(currentBranchId: string) {
     try {
@@ -339,17 +470,21 @@ export function Pos() {
     }
   }
 
-  async function loadMenu(currentBranchId = branchId) {
+  async function loadMenu(currentBranchId = branchId, currentSourceId = sourceId) {
     if (!currentBranchId) return;
-    const response = await api<{ data: { categories: MenuCategory[] } }>(`/branches/${currentBranchId}/menu`);
+    const query = currentSourceId ? "?source_id=" + encodeURIComponent(currentSourceId) : "";
+    const response = await api<{ data: { categories: MenuCategory[] } }>("/branches/" + currentBranchId + "/menu" + query);
     const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
+    const refreshed = new Map(sorted.flatMap((category) => category.products).map((product) => [product.id, product]));
     setCategories(sorted);
+    setCart((rows) => rows.map((line) => ({ ...line, product: refreshed.get(line.product.id) ?? line.product })));
     setActiveCat("الكل");
   }
 
   useEffect(() => {
     if (!branchId) return;
-    loadMenu(branchId).catch((e: Error) => setError(e.message));
+    setSourceId("");
+    loadMenu(branchId, "").catch((e: Error) => setError(e.message));
     api<{ data: Settings }>(`/settings?branch_id=${branchId}`).then((response) => {
       setSettings(response.data);
       setPayment((current) =>
@@ -364,6 +499,27 @@ export function Pos() {
     });
     loadShift(branchId);
   }, [branchId]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    setSources([]);
+    setSourceId("");
+    api<{ data: OrderSource[] }>("/order-sources?active_only=true&order_type=" + orderType)
+      .then((response) => {
+        if (!cancelled) setSources(response.data);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => { cancelled = true; };
+  }, [branchId, orderType]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    loadMenu(branchId, sourceId).catch((e: Error) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId, sourceId]);
 
   useEffect(() => {
     if (!historyOpen || !branchId) return;
@@ -391,6 +547,25 @@ export function Pos() {
     return (categories.find((category) => category.name_ar === activeCat)?.products ?? []).filter((p) => p.pos_visible !== false);
   }, [categories, allProducts, activeCat, search]);
 
+  const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
+  const selectedZone = deliveryZones.find((zone) => zone.id === deliveryZoneId) ?? null;
+  const customerAddressOptions = (() => {
+    const options: Array<{ label: string; value: string }> = [];
+    const add = (label: string, value?: string | null) => {
+      const clean = value?.trim();
+      if (clean && !options.some((item) => item.value === clean)) options.push({ label, value: clean });
+    };
+    add("العنوان الرئيسي", selectedCustomer?.address);
+    for (const address of parseAddresses(selectedCustomer)) {
+      const value = addressText(address);
+      add(address.label?.trim() || "عنوان محفوظ", value);
+    }
+    return options;
+  })();
+  const customerPhoneOptions = Array.from(new Set(
+    [selectedCustomer?.phone?.trim(), selectedCustomer?.alt_phone?.trim()].filter(Boolean) as string[]
+  ));
+
   const localSubtotal = cart.reduce((sum, line) => sum + unitPrice(line) * line.qty, 0);
   const subtotal = currentQuote?.subtotal ?? localSubtotal;
   // أنواع الطلب من الإعدادات، بينما كل القيم المالية النهائية تأتي من server quote.
@@ -401,7 +576,8 @@ export function Pos() {
   const serviceFeeEstimate = currentQuote?.service_fee ?? 0;
   const vatEstimate = currentQuote?.vat_amount ?? 0;
   const total = currentQuote?.total ?? 0;
-  const belowMinDelivery = orderType === "delivery" && (settings?.min_delivery_order ?? 0) > 0 && subtotal < (settings?.min_delivery_order ?? 0);
+  const deliveryMinimum = Math.max(settings?.min_delivery_order ?? 0, Number(selectedZone?.min_order ?? 0));
+  const belowMinDelivery = orderType === "delivery" && deliveryMinimum > 0 && subtotal < deliveryMinimum;
   const discountOverLimit =
     discount > 0 &&
     !!settings &&
@@ -462,20 +638,103 @@ export function Pos() {
     }
   }
 
+  async function createQuickCustomer() {
+    if (!quickName.trim() || !quickPhone.trim() || quickBusy) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      const initialAddress = quickAddress.trim();
+      const response = await api<{ data: PosCustomer }>("/customers", {
+        method: "POST",
+        body: {
+          name: quickName.trim(),
+          phone: quickPhone.trim(),
+          address: initialAddress || null,
+          addresses: initialAddress ? [{ label: "الرئيسي", area: initialAddress, is_default: true }] : [],
+        },
+      });
+      await loadCustomers(response.data.id);
+      setQuickName("");
+      setQuickPhone("");
+      setQuickAddress("");
+      setCustomerModalOpen(false);
+      setMsg("تمت إضافة العميل واختياره");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
+  async function addQuickAddress() {
+    if (!selectedCustomer || !quickAddress.trim() || quickBusy) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      const existing = parseAddresses(selectedCustomer);
+      const nextAddress: CustomerAddress = {
+        label: quickAddressLabel.trim() || "عنوان إضافي",
+        area: quickAddress.trim(),
+        is_default: existing.length === 0 && !selectedCustomer.address,
+      };
+      await api("/customers/" + selectedCustomer.id, {
+        method: "PATCH",
+        body: {
+          address: selectedCustomer.address || (nextAddress.is_default ? quickAddress.trim() : null),
+          addresses: [...existing, nextAddress],
+        },
+      });
+      await loadCustomers(selectedCustomer.id);
+      setDeliveryAddress(quickAddress.trim());
+      setQuickAddress("");
+      setQuickAddressLabel("الرئيسي");
+      setAddressModalOpen(false);
+      setMsg("تم حفظ عنوان التوصيل");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
+  async function addQuickPhone() {
+    if (!selectedCustomer || !quickExtraPhone.trim() || quickBusy) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      const body = selectedCustomer.phone?.trim()
+        ? { alt_phone: quickExtraPhone.trim() }
+        : { phone: quickExtraPhone.trim() };
+      await api("/customers/" + selectedCustomer.id, { method: "PATCH", body });
+      await loadCustomers(selectedCustomer.id);
+      setDeliveryPhone(quickExtraPhone.trim());
+      setQuickExtraPhone("");
+      setPhoneModalOpen(false);
+      setMsg(selectedCustomer.alt_phone ? "تم تحديث الرقم الإضافي" : "تم حفظ الرقم الإضافي");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
   async function fireOrder() {
     setError("");
     setMsg("");
-    if (!cart.length || busy || !currentQuote) return;
+    if (!sourceId || !cart.length || busy || !currentQuote) return;
     setBusy(true);
     try {
       const response = await api<{ data: FullOrder }>("/orders", {
         method: "POST",
         body: {
           branch_id: branchId,
+          source_id: sourceId,
           order_type: orderType,
           table_id: null,
           customer_id: orderType === "delivery" && customerId ? customerId : null,
           delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
+          delivery_phone: orderType === "delivery" ? deliveryPhone || null : null,
+          delivery_zone_id: orderType === "delivery" ? deliveryZoneId || null : null,
           delivery_fee: orderType === "delivery" ? deliveryFee : 0,
           submit: true,
           payment_method: payment,
@@ -497,6 +756,11 @@ export function Pos() {
       setDiscount(0);
       setDiscountReason("");
       setOrderNotes("");
+      setCustomerId("");
+      setDeliveryAddress("");
+      setDeliveryPhone("");
+      setDeliveryZoneId("");
+      setDeliveryFee(0);
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await loadShift(branchId);
@@ -508,34 +772,63 @@ export function Pos() {
     }
   }
 
-  function calcPress(key: string) {
-    if (key === "C") return setCalc("");
-    if (key === "⌫") return setCalc((value) => value.slice(0, -1));
-    if (key === "=") return setCalc((value) => safeCalc(value));
-    if (key === "خصم") return setDiscount(Number(calc || 0));
-    if (key === "دليفري") return setDeliveryFee(Number(calc || 0));
-    setCalc((value) => value + key);
-  }
+  const normalizedHistorySearch = historySearch.trim().replace(/^#/, "").toLocaleLowerCase("ar-EG");
+  const filteredHistory = normalizedHistorySearch
+    ? history.filter((order) => `${order.order_prefix ?? ""}${order.order_no}`.toLocaleLowerCase("ar-EG").includes(normalizedHistorySearch))
+    : history;
+  const shiftOrdersCount = shift?.totals?.orders_count ?? history.length;
 
   return (
     <div className="posx" dir="rtl">
+      {shellControlsRoot && createPortal(
+        <div className="posx-shell-operation-controls" aria-label="أدوات تشغيل نقطة البيع">
+          <label
+            className="posx-shell-icon posx-branch-picker"
+            title={branches.find((branch) => branch.id === branchId)?.name ?? "اختيار الفرع"}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 9h18" /><path d="M5 9v11h14V9" /><path d="M8 20v-6h8v6" /><path d="m4 9 2-5h12l2 5" />
+            </svg>
+            <select value={branchId} onChange={(event) => setBranchId(event.target.value)} aria-label="اختيار الفرع">
+              {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="posx-shell-icon posx-history-btn"
+            title="سجل الطلبات"
+            aria-label="سجل الطلبات"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /><path d="M12 7v5l3 2" />
+            </svg>
+          </button>
+          <input
+            ref={searchInputRef}
+            className="posx-search"
+            placeholder="ابحث باسم الصنف أو المكونات…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>,
+        shellControlsRoot
+      )}
+      {shellSessionRoot && can("shifts.manage") && createPortal(
+        <button
+          type="button"
+          className={`posx-shift-action${shift ? " is-open" : ""}`}
+          onClick={() => setAdminPanel("shift")}
+        >
+          {shift ? t.shift.close : t.shift.open}
+        </button>,
+        shellSessionRoot
+      )}
 
       <div className="posx-body">
         <section className="posx-menu">
           <div className="posx-menu-top">
             <div className="posx-menu-tools">
-              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} title="الفرع">
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>{branch.name}</option>
-              ))}
-            </select>
-            <span className={shift ? "posx-shift on" : "posx-shift off"}>
-              <span>{me?.name ?? "الكاشير"}</span>
-              <span>{shift ? t.shift.openTitle : t.shift.noShift}</span>
-              {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>{shift ? t.shift.close : t.shift.open}</button>}
-            </span>
-            <input className="posx-search" placeholder="ابحث باسم الصنف أو المكونات…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <button className="posx-history-btn" onClick={() => setHistoryOpen(true)}>سجل الطلبات</button>
             <button
               type="button"
               className="posx-cart-toggle"
@@ -545,14 +838,6 @@ export function Pos() {
             >
               السلة <span>{itemCount}</span>
             </button>
-            <details className="posx-adminmenu">
-              <summary>الإدارة ▾</summary>
-              <div className="posx-adminmenu-items" onClick={(e) => (e.currentTarget.closest("details") as HTMLDetailsElement).open = false}>
-                {can("menu.manage") && <button onClick={() => navigate("/menu")}>إدارة المنيو</button>}
-                {can("shifts.manage") && <button onClick={() => setAdminPanel("shift")}>إدارة الشيفت</button>}
-                {can("settings.manage") && <button onClick={() => navigate("/settings")}>{t.nav.settings}</button>}
-              </div>
-              </details>
             </div>
             <div className="posx-cats">
             <button className={activeCat === "الكل" && !search ? "active" : ""} onClick={() => { setActiveCat("الكل"); setSearch(""); }}>الكل</button>
@@ -592,57 +877,136 @@ export function Pos() {
           {error && <div className="alert dark-alert">{error}</div>}
           {msg && <div className="ok dark-ok">{msg}</div>}
 
-          <div className="posx-cart-lines">
-            {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
-            {cart.map((line, index) => (
-              <div key={`${line.key}-${index}`} className="posx-line">
-                <ProductThumb product={line.product} />
-                <div className="posx-line-content">
-                  <div className="posx-line-head">
-                    <span className="posx-line-name">{line.product.name_ar}</span>
-                    <span className="posx-line-total">{money(unitPrice(line) * line.qty)}</span>
-                  </div>
-                  <div className="posx-line-selection">
-                    {line.variant?.name_ar && <span>{line.variant.name_ar}</span>}
-                    {line.modifiers.map((modifier) => <span key={modifier.id}>{modifier.name_ar}</span>)}
-                  </div>
-                  <div className="posx-line-actions">
-                    <span className="posx-line-qty" aria-label={`الكمية ${line.qty}`}>{line.qty}</span>
-                    <button aria-label="زيادة الكمية" onClick={() => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, qty: row.qty + 1 } : row)))}>+</button>
-                    <button aria-label="تقليل الكمية" onClick={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}>−</button>
-                    <button className="rm" aria-label="حذف الصنف من الطلب" onClick={() => setCart((rows) => rows.filter((_, i) => i !== index))}>✕</button>
-                  </div>
-                  <input className="posx-line-note" placeholder={t.pos.itemNotes} value={line.notes} onChange={(e) => setCart((rows) => rows.map((row, i) => (i === index ? { ...row, notes: e.target.value } : row)))} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="posx-opts">
+          <div className="posx-order-rail" aria-label="بيانات الطلب الأساسية">
             <div className="seg dark">
               {enabledOrderTypes.map((type) => (
                 <button
+                  type="button"
                   key={type}
                   className={orderType === type ? "active" : ""}
                   onClick={() => {
                     setOrderType(type);
-                    // YKMS-02E: رسوم التوصيل الافتراضية من الإعدادات عند التحويل للدليفري
-                    if (type === "delivery" && !deliveryFee && settings?.default_delivery_fee) setDeliveryFee(settings.default_delivery_fee);
+                    setSourceId("");
+                    setDeliveryZoneId("");
+                    setDeliveryFee(0);
                   }}
                 >
                   {t.orders.types[type]}
                 </button>
               ))}
             </div>
+            <label className="posx-source-field">
+              <select ref={sourceSelectRef} value={sourceId} onChange={(event) => setSourceId(event.target.value)} aria-label="مصدر الطلب" required>
+                <option value="">اختر مصدر الطلب…</option>
+                {sources.map((source) => <option key={source.id} value={source.id}>{source.name_ar}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="posx-cart-scroll">
+            <div className="posx-cart-lines">
+              {!cart.length && <div className="posx-empty">{t.pos.emptyCart}</div>}
+              {cart.map((line, index) => (
+                <PosCartLine
+                  key={`${line.key}-${index}`}
+                  line={line}
+                  totalLabel={money(unitPrice(line) * line.qty)}
+                  onIncrease={() => setCart((rows) => rows.map((row, i) => i === index ? { ...row, qty: row.qty + 1 } : row))}
+                  onDecrease={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}
+                  onRemove={() => setCart((rows) => rows.filter((_, i) => i !== index))}
+                  onNotesChange={(notes) => setCart((rows) => rows.map((row, i) => i === index ? { ...row, notes } : row))}
+                />
+              ))}
+            </div>
+
+          <div className="posx-opts">
             {orderType === "delivery" && (
-              <>
-                <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); const customer = customers.find((item) => item.id === e.target.value); if (customer?.address) setDeliveryAddress(customer.address); }}>
-                  <option value="">{t.pos.customer}…</option>
-                  {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.phone ? ` — ${customer.phone}` : ""}</option>)}
-                </select>
-                <input placeholder={t.pos.deliveryAddress} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
-                <input type="number" min={0} placeholder={t.pos.deliveryFee} value={deliveryFee || ""} onChange={(e) => setDeliveryFee(Number(e.target.value))} />
-              </>
+              <div className="posx-delivery-fields">
+                <label className="posx-delivery-field posx-delivery-field-full">
+                  <span className="posx-delivery-label">
+                    <b>العميل</b>
+                    <button
+                      type="button"
+                      className="posx-quick-add"
+                      aria-label="إضافة عميل جديد"
+                      title={can("customers.manage") ? "إضافة عميل جديد" : "تحتاج صلاحية إدارة العملاء"}
+                      disabled={!can("customers.manage")}
+                      onClick={() => setCustomerModalOpen(true)}
+                    >+</button>
+                  </span>
+                  <select
+                    value={customerId}
+                    onChange={(event) => selectDeliveryCustomer(customers.find((item) => item.id === event.target.value) ?? null)}
+                  >
+                    <option value="">اختر العميل…</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}{customer.phone ? ` — ${customer.phone}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="posx-delivery-field posx-delivery-field-full">
+                  <span className="posx-delivery-label">
+                    <b>عنوان التوصيل</b>
+                    <button
+                      type="button"
+                      className="posx-quick-add"
+                      aria-label="إضافة عنوان للعميل"
+                      title={!selectedCustomer ? "اختر العميل أولًا" : "إضافة عنوان جديد"}
+                      disabled={!selectedCustomer || !can("customers.manage")}
+                      onClick={() => setAddressModalOpen(true)}
+                    >+</button>
+                  </span>
+                  <select value={deliveryAddress} disabled={!selectedCustomer} onChange={(event) => setDeliveryAddress(event.target.value)}>
+                    <option value="">اختر عنوان التوصيل…</option>
+                    {customerAddressOptions.map((address) => (
+                      <option key={address.value} value={address.value}>{address.label} — {address.value}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="posx-delivery-split posx-delivery-field-full">
+                  <label className="posx-delivery-field">
+                    <span className="posx-delivery-label"><b>زون التوصيل</b></span>
+                    <select
+                      value={deliveryZoneId}
+                      onChange={(event) => {
+                        const nextId = event.target.value;
+                        const zone = deliveryZones.find((item) => item.id === nextId);
+                        setDeliveryZoneId(nextId);
+                        setDeliveryFee(zone ? Number(zone.fee) : 0);
+                      }}
+                    >
+                      <option value="">اختر الزون…</option>
+                      {deliveryZones.map((zone) => (
+                        <option key={zone.id} value={zone.id}>{zone.name_ar} — {money(Number(zone.fee))}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="posx-delivery-field">
+                    <span className="posx-delivery-label">
+                      <b>رقم التليفون</b>
+                      <button
+                        type="button"
+                        className="posx-quick-add"
+                        aria-label="إضافة رقم تليفون"
+                        title={!selectedCustomer ? "اختر العميل أولًا" : "إضافة أو تحديث الرقم الإضافي"}
+                        disabled={!selectedCustomer || !can("customers.manage")}
+                        onClick={() => setPhoneModalOpen(true)}
+                      >+</button>
+                    </span>
+                    <select value={deliveryPhone} disabled={!selectedCustomer} onChange={(event) => setDeliveryPhone(event.target.value)}>
+                      <option value="">اختر رقم التليفون…</option>
+                      {customerPhoneOptions.map((phone, index) => (
+                        <option key={phone} value={phone}>{index === 0 ? "الأساسي" : "الإضافي"} — {phone}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
             )}
             {settings?.allow_discounts !== false && (
               <>
@@ -653,7 +1017,7 @@ export function Pos() {
                 {discountOverLimit && <div className="posx-warn">{t.pos.discountNeedsManager}</div>}
               </>
             )}
-            {belowMinDelivery && <div className="posx-warn">{t.pos.belowMinDelivery} ({money(settings?.min_delivery_order ?? 0)})</div>}
+            {belowMinDelivery && <div className="posx-warn">{t.pos.belowMinDelivery} ({money(deliveryMinimum)})</div>}
             <input placeholder={t.pos.orderNotes} value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
             <div className="seg dark wrap">
               {enabledMethods.map((method) => (
@@ -661,25 +1025,16 @@ export function Pos() {
               ))}
             </div>
             {cashBlocked && <div className="posx-warn">{t.shift.cashNeedsShift}</div>}
+            </div>
           </div>
 
-          <details className="posx-calc-box">
-            <summary>الآلة الحاسبة</summary>
-            <div className="posx-calc">
-              <div className="posx-calc-display" dir="ltr">{calc || "0"}</div>
-              {["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "-", "0", ".", "=", "+", "C", "⌫", "خصم", "دليفري"].map((key) => (
-                <button key={key} onClick={() => calcPress(key)}>{key}</button>
-              ))}
-            </div>
-          </details>
-
           <div className="posx-totals">
-            <div className="receipt-row"><span>{t.pos.subtotal}</span><span>{money(subtotal)}</span></div>
             {(currentQuote?.discount ?? discount) > 0 && <div className="receipt-row"><span>{t.pos.discount}</span><span>{money(currentQuote?.discount ?? discount)}</span></div>}
             {serviceFeeEstimate > 0 && <div className="receipt-row"><span>{t.pos.serviceFee}</span><span>{money(serviceFeeEstimate)}</span></div>}
             {orderType === "delivery" && activeDeliveryFee > 0 && <div className="receipt-row"><span>{t.pos.deliveryFee}</span><span>{money(activeDeliveryFee)}</span></div>}
             {vatEstimate > 0 && <div className="receipt-row"><span>{t.pos.vat} ({settings?.vat_percentage}%)</span><span>{money(vatEstimate)}</span></div>}
-            <div className="receipt-row posx-total"><span>{t.pos.total}</span><span>{quoteBusy && !currentQuote ? "…" : money(total)}</span></div>
+            <div className="receipt-row posx-total"><span>{t.pos.total}</span><span aria-live="polite">{!sourceId ? "—" : quoteBusy && !currentQuote ? "…" : currentQuote ? money(total) : "—"}</span></div>
+            {!sourceId && cart.length > 0 && <span className="posx-total-helper">اختر مصدر الطلب لحساب الإجمالي</span>}
           </div>
 
           {(() => {
@@ -687,9 +1042,13 @@ export function Pos() {
             const deliveryIncomplete =
               orderType === "delivery" &&
               ((settings?.require_customer_for_delivery !== false && !customerId) ||
-                (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()));
+                (settings?.require_address_for_delivery !== false && !deliveryAddress.trim()) ||
+                !deliveryZoneId ||
+                !deliveryPhone.trim());
             const fireReason = !cart.length
               ? "السلة فارغة"
+              : !sourceId
+                ? "اختر مصدر الطلب"
               : quoteError
                 ? quoteError
                 : quoteBusy || !currentQuote
@@ -726,58 +1085,97 @@ export function Pos() {
       </div>
 
       <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="سجل طلبات الشيفت" wide>
-        {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
-        {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
-        {historyOrderBusy && <div className="posx-history-empty">جارٍ تحميل تفاصيل الطلب…</div>}
-        {!historyOrderBusy && historyOrderError && <div className="alert dark-alert">{historyOrderError}</div>}
-        {!historyBusy && !historyError && !shift && (
-          <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
-        )}
-        {!historyBusy && !historyError && shift && !history.length && (
-          <div className="posx-history-empty">لم يتم تسجيل طلبات في الشيفت الحالي بعد.</div>
-        )}
-        <div className="posx-history-list">
-          {history.map((order) => {
-            const amount = Number(order.total);
-            const paymentState = order.payment_status === "paid" ? "مدفوع" : order.payment_status === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
-            const kitchenState =
-              order.kitchen_status === "waiting" ? "في انتظار المطبخ" :
-              order.kitchen_status === "preparing" ? "قيد التحضير" :
-              order.kitchen_status === "ready" ? "جاهز" :
-              order.kitchen_status === "completed" ? "مكتمل" :
-              order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
-            return (
-              <button key={order.id} className="posx-history-card" disabled={historyOrderBusy} onClick={() => openHistoryOrder(order.id)}>
-                <div className="posx-history-card-head">
-                  <span className="posx-history-main">
-                    <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
-                    <span>{new Date(order.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span>
-                  </span>
-                  <strong className="posx-history-total">{money(amount)}</strong>
-                </div>
-                <div className="posx-history-items">
-                  {order.preview_items.map((item) => {
-                    const src = resolveAssetUrl(item.image_url);
-                    return (
-                      <span key={item.id} className="posx-history-item">
-                        {src ? <img src={src} alt="" /> : <span className="posx-history-item-ph">{item.name_ar.trim().charAt(0)}</span>}
-                        <span className="posx-history-item-copy">
-                          <b>{item.qty} × {item.name_ar}</b>
-                          {item.variant_name_ar && <small>{item.variant_name_ar}</small>}
-                        </span>
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="posx-history-meta">
-                  <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
-                  <span>{order.item_count} قطعة</span>
-                  <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
-                  <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
-                </div>
-              </button>
-            );
-          })}
+        <div className="posx-history">
+          <div className="posx-history-toolbar">
+            <label className="posx-history-search">
+              <span>بحث برقم الطلب</span>
+              <input
+                inputMode="numeric"
+                placeholder="مثال: 31 أو #31"
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+              />
+            </label>
+            <div className="posx-history-kpi" aria-label={`إجمالي طلبات الشيفت ${shiftOrdersCount}`}>
+              <span>إجمالي طلبات الشيفت</span>
+              <strong>{shiftOrdersCount}</strong>
+            </div>
+          </div>
+
+          {historyBusy && <div className="posx-history-empty">جارٍ تحميل الطلبات…</div>}
+          {!historyBusy && historyError && <div className="alert dark-alert">{historyError}</div>}
+          {historyOrderBusy && <div className="posx-history-empty">جارٍ تحميل تفاصيل الطلب…</div>}
+          {!historyOrderBusy && historyOrderError && <div className="alert dark-alert">{historyOrderError}</div>}
+          {!historyBusy && !historyError && !shift && (
+            <div className="posx-history-empty">لا يوجد شيفت مفتوح لهذا الكاشير.</div>
+          )}
+          {!historyBusy && !historyError && shift && !history.length && (
+            <div className="posx-history-empty">لم يتم تسجيل طلبات في الشيفت الحالي بعد.</div>
+          )}
+          {!historyBusy && !historyError && history.length > 0 && !filteredHistory.length && (
+            <div className="posx-history-empty">لا يوجد طلب مطابق لرقم البحث.</div>
+          )}
+
+          <div className="posx-history-list">
+            {filteredHistory.map((order) => {
+              const expanded = expandedHistoryId === order.id;
+              const amount = Number(order.total);
+              const paymentState = order.payment_status === "paid" ? "مدفوع" : order.payment_status === "partial" ? "مدفوع جزئيًا" : "غير مدفوع";
+              const kitchenState =
+                order.kitchen_status === "waiting" ? "في انتظار المطبخ" :
+                order.kitchen_status === "preparing" ? "قيد التحضير" :
+                order.kitchen_status === "ready" ? "جاهز" :
+                order.kitchen_status === "completed" ? "مكتمل" :
+                order.kitchen_status === "cancelled" ? "ملغي" : "مسودة";
+              return (
+                <article key={order.id} className={`posx-history-card${expanded ? " expanded" : ""}`}>
+                  <button
+                    type="button"
+                    className="posx-history-summary"
+                    aria-expanded={expanded}
+                    aria-controls={`shift-order-${order.id}`}
+                    onClick={() => setExpandedHistoryId((current) => current === order.id ? null : order.id)}
+                  >
+                    <span className="posx-history-main">
+                      <strong>#{order.order_prefix ?? ""}{order.order_no}</strong>
+                      <span>{new Date(order.created_at).toLocaleString("ar-EG", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                    </span>
+                    <span className="posx-history-meta">
+                      <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+                      <span>{order.item_count} قطعة</span>
+                       <span>{order.source_name ?? "مصدر غير مسجل"}</span>
+                      <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>
+                      <span className={`posx-history-status kitchen-${order.kitchen_status}`}>{kitchenState}</span>
+                    </span>
+                    <span className="posx-history-expand-icon" aria-hidden>{expanded ? "−" : "+"}</span>
+                  </button>
+
+                  {expanded && (
+                    <div id={`shift-order-${order.id}`} className="posx-history-expanded">
+                      <div className="posx-history-items">
+                        {order.preview_items.map((item) => {
+                          const src = resolveAssetUrl(item.image_url);
+                          return (
+                            <span key={item.id} className="posx-history-item">
+                              {src ? <img src={src} alt="" /> : <span className="posx-history-item-ph">{item.name_ar.trim().charAt(0)}</span>}
+                              <span className="posx-history-item-copy">
+                                <b>{item.qty} × {item.name_ar}</b>
+                                {item.variant_name_ar && <small>{item.variant_name_ar}</small>}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <div className="posx-history-expanded-foot">
+                        <strong>{money(amount)}</strong>
+                        <button type="button" disabled={historyOrderBusy} onClick={() => openHistoryOrder(order.id)}>فتح التفاصيل الكاملة</button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         </div>
       </Drawer>
 
@@ -813,6 +1211,48 @@ export function Pos() {
           </div>
         </div>
       )}
+      {customerModalOpen && (
+        <div className="modal-back" onClick={() => setCustomerModalOpen(false)}>
+          <div className="modal posx-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-customer-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="quick-customer-title">إضافة عميل جديد</h3>
+            <label className="field"><span>اسم العميل</span><input autoFocus value={quickName} onChange={(event) => setQuickName(event.target.value)} /></label>
+            <label className="field"><span>رقم التليفون</span><input dir="ltr" inputMode="tel" value={quickPhone} onChange={(event) => setQuickPhone(event.target.value)} /></label>
+            <label className="field"><span>العنوان الأول (اختياري)</span><textarea rows={3} value={quickAddress} onChange={(event) => setQuickAddress(event.target.value)} /></label>
+            <div className="pos-actions">
+              <button className="primary" disabled={quickBusy || !quickName.trim() || !quickPhone.trim()} onClick={() => void createQuickCustomer()}>{quickBusy ? "جارٍ الحفظ…" : "إضافة واختيار"}</button>
+              <button onClick={() => setCustomerModalOpen(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addressModalOpen && selectedCustomer && (
+        <div className="modal-back" onClick={() => setAddressModalOpen(false)}>
+          <div className="modal posx-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-address-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="quick-address-title">إضافة عنوان — {selectedCustomer.name}</h3>
+            <label className="field"><span>اسم العنوان</span><input value={quickAddressLabel} placeholder="المنزل / العمل" onChange={(event) => setQuickAddressLabel(event.target.value)} /></label>
+            <label className="field"><span>العنوان</span><textarea autoFocus rows={3} value={quickAddress} onChange={(event) => setQuickAddress(event.target.value)} /></label>
+            <div className="pos-actions">
+              <button className="primary" disabled={quickBusy || !quickAddress.trim()} onClick={() => void addQuickAddress()}>{quickBusy ? "جارٍ الحفظ…" : "حفظ واختيار"}</button>
+              <button onClick={() => setAddressModalOpen(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phoneModalOpen && selectedCustomer && (
+        <div className="modal-back" onClick={() => setPhoneModalOpen(false)}>
+          <div className="modal posx-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-phone-title" onClick={(event) => event.stopPropagation()}>
+            <h3 id="quick-phone-title">{selectedCustomer.alt_phone ? "تحديث الرقم الإضافي" : "إضافة رقم إضافي"} — {selectedCustomer.name}</h3>
+            <label className="field"><span>رقم التليفون</span><input autoFocus dir="ltr" inputMode="tel" value={quickExtraPhone} onChange={(event) => setQuickExtraPhone(event.target.value)} /></label>
+            <div className="pos-actions">
+              <button className="primary" disabled={quickBusy || !quickExtraPhone.trim()} onClick={() => void addQuickPhone()}>{quickBusy ? "جارٍ الحفظ…" : "حفظ واختيار"}</button>
+              <button onClick={() => setPhoneModalOpen(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {adminPanel === "shift" && (
         <div className="modal-back" onClick={() => setAdminPanel(null)}>
           <div className="modal posx-admin-modal" onClick={(e) => e.stopPropagation()}>
@@ -821,21 +1261,6 @@ export function Pos() {
         </div>
       )}
     </div>
-  );
-}
-
-function ProductThumb({ product }: { product: MenuProduct }) {
-  const src = resolveAssetUrl(product.image_url);
-  const [broken, setBroken] = useState(false);
-
-  useEffect(() => setBroken(false), [src]);
-
-  return (
-    <span className="posx-line-thumb" aria-hidden>
-      {src && !broken
-        ? <img src={src} alt="" onError={() => setBroken(true)} />
-        : <span>{product.name_ar.trim().charAt(0)}</span>}
-    </span>
   );
 }
 

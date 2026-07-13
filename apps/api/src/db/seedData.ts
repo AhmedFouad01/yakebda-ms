@@ -1,6 +1,7 @@
 import { Knex } from "knex";
 import bcrypt from "bcryptjs";
 import { newId } from "../lib/ids";
+import { ensureDefaultOrderSource } from "../modules/orderSources";
 
 export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }> = [
   { key: "users.manage", name_ar: "إدارة المستخدمين", group: "المستخدمون" },
@@ -152,11 +153,13 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
   const ownerPassword = "Owner@12345";
   if (existing) {
     const branch = await db("branches").where({ account_id: existing.id }).first();
+    await ensureDefaultOrderSource(db, existing.id);
     return { accountId: existing.id, branchId: branch?.id, ownerEmail, ownerPassword };
   }
 
   const accountId = newId();
   await db("accounts").insert({ id: accountId, name: "يا كبدة" });
+  await ensureDefaultOrderSource(db, accountId);
 
   const branchId = newId();
   await db("branches").insert({

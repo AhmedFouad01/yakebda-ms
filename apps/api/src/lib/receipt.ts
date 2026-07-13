@@ -21,8 +21,11 @@ interface ReceiptOrder {
   order_no: number;
   order_type: string;
   branch_name: string;
+  source_name?: string | null;
   table_name_ar?: string | null;
   customer_name?: string | null;
+  customer_phone?: string | null;
+  delivery_zone_name?: string | null;
   delivery_address?: string | null;
   delivery_fee: string | number;
   subtotal: string | number;
@@ -57,8 +60,11 @@ export function renderReceiptPayload(order: ReceiptOrder, opts: ReceiptOptions =
   lines.push(order.branch_name);
   lines.push("--------------------------------");
   lines.push(`طلب رقم: ${order.order_no} — ${ORDER_TYPE_AR[order.order_type] ?? order.order_type}`);
+  if (order.source_name) lines.push(`المصدر: ${order.source_name}`);
   if (order.table_name_ar) lines.push(`الطاولة: ${order.table_name_ar}`);
   if (order.customer_name) lines.push(`العميل: ${order.customer_name}`);
+  if (order.customer_phone) lines.push(`التليفون: ${order.customer_phone}`);
+  if (order.delivery_zone_name) lines.push(`زون التوصيل: ${order.delivery_zone_name}`);
   if (order.delivery_address) lines.push(`العنوان: ${order.delivery_address}`);
   lines.push(`التاريخ: ${new Date(order.created_at).toLocaleString("ar-EG")}`);
   lines.push("--------------------------------");
@@ -101,6 +107,7 @@ export function renderKitchenTicketPayload(order: ReceiptOrder, paperWidthMm: 58
   const lines: string[] = [];
   lines.push("تذكرة مطبخ — يا كبدة");
   lines.push(`طلب ${order.order_no}${order.order_type ? ` — ${ORDER_TYPE_AR[order.order_type] ?? order.order_type}` : ""}`);
+  if (order.source_name) lines.push(`المصدر: ${order.source_name}`);
   lines.push(`الوقت: ${new Date(order.created_at).toLocaleTimeString("ar-EG")}`);
   lines.push("--------------------------------");
   for (const item of order.items) {

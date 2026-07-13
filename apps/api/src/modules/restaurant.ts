@@ -142,7 +142,7 @@ export function customerRoutes(db: Knex): Router {
             );
           }
         })
-        .select("id", "name", "phone", "address")
+        .select("id", "name", "phone", "alt_phone", "address", "addresses")
         .orderBy("created_at", "desc")
         .limit(200);
       res.json({ data: rows });

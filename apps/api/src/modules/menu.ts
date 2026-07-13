@@ -8,6 +8,7 @@ import { canAccessBranch, requirePermission, requireUser } from "../middleware/a
 import { ar } from "../i18n/ar";
 import { getStorage, validateImage } from "../lib/storage";
 import { buildWorkbook, buildTemplate, parseWorkbook, planImport, applyImport, type ExportRow } from "./menuExcel";
+import { resolveOrderSource } from "./orderSources";
 
 /** YKMS-02D — Menu Core + Ya Kebda POS menu import. All queries are account-scoped. */
 
@@ -621,16 +622,22 @@ export function branchMenuRoutes(db: Knex): Router {
       const branch = await ownBranch(db, req.user!.accountId, req.params.branchId);
       if (!branch) throw err.notFound();
       if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
+      const query = z.object({ source_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!query.success) throw err.validation(query.error.flatten());
+      const source = query.data.source_id
+        ? await resolveOrderSource(db, req.user!.accountId, query.data.source_id, "takeaway")
+        : null;
       const categories = await db("categories").where({ account_id: req.user!.accountId, is_active: true }).orderBy("sort_order", "asc");
       const products = await db("products").where({ account_id: req.user!.accountId, is_active: true }).orderBy("sort_order", "asc");
       const ids = products.map((p) => p.id);
-      const [variants, links, groups, mods, prices, avail] = await Promise.all([
+      const [variants, links, groups, mods, prices, avail, sourceRules] = await Promise.all([
         ids.length ? db("product_variants").whereIn("product_id", ids).where("is_active", true) : [],
         ids.length ? db("product_modifier_groups").whereIn("product_id", ids).orderBy("sort_order") : [],
         db("modifier_groups").where({ account_id: req.user!.accountId, is_active: true }),
         db("modifiers").whereIn("modifier_group_id", db("modifier_groups").select("id").where({ account_id: req.user!.accountId })).where("is_active", true),
         db("branch_product_prices").where({ branch_id: branch.id }),
         db("branch_product_availability").where({ branch_id: branch.id }),
+        source ? db("source_product_rules").where({ source_id: source.id }) : [],
       ]);
       const groupById = new Map(groups.map((g) => [g.id, { ...g, modifiers: mods.filter((m) => m.modifier_group_id === g.id) }]));
       const data = categories.map((c) => ({
@@ -638,12 +645,17 @@ export function branchMenuRoutes(db: Knex): Router {
         products: products
           .filter((p) => p.category_id === c.id)
           .map((p) => {
-            const override = prices.find((x) => x.product_id === p.id)?.price_override;
+            const branchOverride = prices.find((x) => x.product_id === p.id)?.price_override;
+            const sourceRule = sourceRules.find((x) => x.product_id === p.id);
             const a = avail.find((x) => x.product_id === p.id);
             return {
               ...p,
-              effective_price: override != null ? Number(override) : Number(p.base_price),
-              is_available: a ? a.is_available : true,
+              effective_price: sourceRule?.price_override != null
+                ? Number(sourceRule.price_override)
+                : branchOverride != null
+                  ? Number(branchOverride)
+                  : Number(p.base_price),
+              is_available: (a ? a.is_available : true) && sourceRule?.is_available !== false,
               available_count: a?.available_count ?? null,
               availability_note_ar: a?.availability_note_ar ?? null,
               variants: variants.filter((v) => v.product_id === p.id),
@@ -651,7 +663,7 @@ export function branchMenuRoutes(db: Knex): Router {
             };
           }),
       }));
-      res.json({ data: { branch: { id: branch.id, name: branch.name }, categories: data } });
+      res.json({ data: { branch: { id: branch.id, name: branch.name }, source, categories: data } });
     } catch (e) {
       next(e);
     }

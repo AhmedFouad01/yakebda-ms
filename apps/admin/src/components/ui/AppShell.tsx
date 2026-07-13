@@ -110,15 +110,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link to="/" className="app2-home" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
           <ShellIcon name="home" />
         </Link>
-        <button
-          type="button"
-          className="app2-back"
-          aria-label="رجوع"
-          onClick={() => (window.history.length > 2 ? nav(-1) : nav("/"))}
-        >
-          <ShellIcon name="back" />
-        </button>
-        {sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
+        {!isPos && (
+          <button
+            type="button"
+            className="app2-back"
+            aria-label="رجوع"
+            onClick={() => (window.history.length > 2 ? nav(-1) : nav("/"))}
+          >
+            <ShellIcon name="back" />
+          </button>
+        )}
+        {!isPos && sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
+        {isPos && <div id="pos-appshell-controls" className="app2-pos-controls-slot" aria-label="أدوات نقطة البيع" />}
         <span className="app2-spacer" />
         <div className="app2-theme-control" title={themeLabel}>
           <ToggleSwitch
@@ -127,12 +130,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             onChange={(checked) => setActiveTheme(checked ? "dark" : "light")}
           />
         </div>
-        {me && (
-          <span className="app2-user" title={me.permissions.length + " صلاحية"}>
-            <span className="app2-user-dot" aria-hidden />
-            {me.name}
-          </span>
-        )}
+        <div className="app2-account-cluster">
+          {isPos && <div id="pos-appshell-session" className="app2-pos-session-slot" />}
+          {me && (
+            <span className="app2-user" title={me.permissions.length + " صلاحية"}>
+              {!isPos && <span className="app2-user-dot" aria-hidden />}
+              {me.name}
+            </span>
+          )}
+        </div>
         <button type="button" className="app2-logout" onClick={logout}>{t.nav.logout}</button>
       </header>
 

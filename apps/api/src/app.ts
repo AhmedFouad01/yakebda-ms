@@ -19,6 +19,7 @@ import { orderRoutes, kitchenRoutes } from "./modules/orders";
 import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant";
 import { shiftRoutes } from "./modules/shifts";
 import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } from "./modules/settings";
+import { orderSourceRoutes } from "./modules/orderSources";
 
 type DatabaseError = Error & {
   code?: string;
@@ -68,6 +69,7 @@ export function createApp(db: Knex) {
   v1.use("/products", productDeleteRoutes(db));
   v1.use("/products", productRoutes(db));
   v1.use("/modifier-groups", modifierGroupRoutes(db));
+  v1.use("/order-sources", orderSourceRoutes(db));
   v1.use("/orders", orderPricingRoutes(db));
   v1.use("/orders", orderIntegrityRoutes(db));
   v1.use("/orders", orderRoutes(db));

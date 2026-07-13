@@ -47,11 +47,11 @@ export function Reports() {
   }, []);
 
   return (
-    <div dir="rtl">
+    <div dir="rtl" className="reports-page">
       <div className="page-head"><h1>{t.reports.title}</h1></div>
       {error && <div className="alert">{error}</div>}
       {summary && (
-        <div className="cards">
+        <div className="report-summary-grid">
           <div className="card"><div className="num">{money(summary.sales_today)}</div><div className="lbl">{t.reports.salesToday}</div></div>
           <div className="card"><div className="num">{summary.orders_today}</div><div className="lbl">{t.reports.ordersToday}</div></div>
           <div className="card"><div className="num">{summary.open_orders}</div><div className="lbl">{t.reports.openOrders}</div></div>
@@ -61,8 +61,8 @@ export function Reports() {
           <div className="card"><div className="num">{money(summary.open_shift_cash_sales)}</div><div className="lbl">{t.reports.openShiftCashSales}</div></div>
         </div>
       )}
-      <div className="cards">
-        <div className="panel">
+      <div className="report-grid">
+        <div className="report-panel">
           <table>
             <thead><tr><th>{t.reports.topProducts}</th><th>{t.reports.qty}</th><th>{t.reports.totalSales}</th></tr></thead>
             <tbody>
@@ -73,7 +73,7 @@ export function Reports() {
           </table>
           {!top.length && <div className="empty">{t.common.empty}</div>}
         </div>
-        <div className="panel">
+        <div className="report-panel">
           <table>
             <thead><tr><th>{t.reports.paymentMethods}</th><th>{t.reports.count}</th><th>{t.reports.totalSales}</th></tr></thead>
             <tbody>
@@ -84,7 +84,7 @@ export function Reports() {
           </table>
           {!methods.length && <div className="empty">{t.common.empty}</div>}
         </div>
-        <div className="panel">
+        <div className="report-panel">
           <table>
             <thead><tr><th>{t.reports.salesByBranch}</th><th>{t.reports.totalSales}</th></tr></thead>
             <tbody>

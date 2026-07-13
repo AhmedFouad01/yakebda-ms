@@ -14,6 +14,12 @@ import "./theme-interactions.css";
 import "./ui-polish.css";
 import "./ui-polish-final.css";
 import "./final-closure.css";
+import "./select-rendering-fix.css";
+import "./pos-1920-density.css";
+import "./pos-delivery-checkout.css";
+import "./pos-fast-rail.css";
+import "./pos-fast-rail-final.css";
+import "./global-colors.css";
 
 document.documentElement.dir = "rtl";
 document.documentElement.lang = "ar";

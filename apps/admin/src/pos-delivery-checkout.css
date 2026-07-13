@@ -1,0 +1,114 @@
+/* POS delivery checkout — scoped, last-loaded, no product-card changes. */
+.app2-pos .posx-delivery-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.app2-pos .posx-delivery-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.app2-pos .posx-delivery-field-full {
+  grid-column: 1 / -1;
+}
+
+.app2-pos .posx-delivery-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.app2-pos .posx-delivery-label b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app2-pos .posx-quick-add {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin-inline-start: auto;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid #ffe077 !important;
+  border-radius: 8px !important;
+  background: var(--yk-yellow) !important;
+  color: #111 !important;
+  font-size: 20px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  cursor: pointer;
+}
+
+.app2-pos .posx-quick-add:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.app2-pos .posx-quick-add:focus-visible {
+  outline: 3px solid rgba(246, 192, 38, 0.42) !important;
+  outline-offset: 2px;
+}
+
+.app2-pos .posx-quick-add:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.app2-pos .posx-delivery-field select {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+.app2-pos .posx-delivery-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.posx-quick-modal {
+  width: min(460px, calc(100vw - 28px));
+  display: grid;
+  gap: 12px;
+}
+
+.posx-quick-modal h3 {
+  margin: 0 0 2px;
+}
+
+.posx-quick-modal .field {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.posx-quick-modal :is(input, textarea) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 520px) {
+  .app2-pos .posx-delivery-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { t } from "../../lib/t";
@@ -7,7 +7,6 @@ import { useMe } from "../../lib/me";
 import type {
   AdminPanel,
   Branch,
-  OrderQuoteSummary,
   OrderSource,
   OrderType,
   PaymentMethod,
@@ -18,6 +17,7 @@ import { usePosCatalog } from "./usePosCatalog";
 import { usePosShift } from "./usePosShift";
 import { usePosHistory } from "./usePosHistory";
 import { usePosDelivery } from "./usePosDelivery";
+import { usePosQuote } from "./usePosQuote";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -113,9 +113,27 @@ export function usePosController() {
   });
   const [done, setDone] = useState<FullOrder | null>(null);
   const [busy, setBusy] = useState(false);
-  const [quoteState, setQuoteState] = useState<{ key: string; data: OrderQuoteSummary } | null>(null);
-  const [quoteBusy, setQuoteBusy] = useState(false);
-  const [quoteError, setQuoteError] = useState("");
+  const {
+    currentQuote,
+    quoteBusy,
+    quoteError,
+    subtotal,
+    activeDeliveryFee,
+    serviceFeeEstimate,
+    vatEstimate,
+    total,
+  } = usePosQuote({
+    branchId,
+    sourceId,
+    orderType,
+    deliveryZoneId,
+    deliveryFee,
+    discount,
+    discountReason,
+    allowDiscounts: settings?.allow_discounts,
+    cart,
+    localSubtotal,
+  });
   const {
     historyOpen,
     setHistoryOpen,
@@ -142,25 +160,6 @@ export function usePosController() {
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
-
-  const quotePayload = useMemo(() => ({
-    branch_id: branchId,
-    source_id: sourceId || null,
-    order_type: orderType,
-    delivery_zone_id: orderType === "delivery" ? deliveryZoneId || null : null,
-    delivery_fee: orderType === "delivery" ? deliveryFee : 0,
-    discount: settings?.allow_discounts ? discount : 0,
-    discount_reason: discount > 0 ? discountReason || null : null,
-    items: cart.map((line) => ({
-      product_id: line.product.id,
-      variant_id: line.variant?.id ?? null,
-      qty: line.qty,
-      notes: line.notes || null,
-      modifier_ids: line.modifiers.map((modifier) => modifier.id),
-    })),
-  }), [branchId, sourceId, orderType, deliveryZoneId, deliveryFee, discount, discountReason, settings?.allow_discounts, cart]);
-  const quoteKey = useMemo(() => JSON.stringify(quotePayload), [quotePayload]);
-  const currentQuote = quoteState?.key === quoteKey ? quoteState.data : null;
 
   useEffect(() => {
     setShellControlsRoot(document.getElementById("pos-appshell-controls"));
@@ -195,36 +194,6 @@ export function usePosController() {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [cartDrawerOpen]);
 
-  useEffect(() => {
-    if (!branchId || !sourceId || !cart.length || (orderType === "delivery" && !deliveryZoneId)) {
-      setQuoteState(null);
-      setQuoteBusy(false);
-      setQuoteError("");
-      return;
-    }
-    let cancelled = false;
-    setQuoteBusy(true);
-    setQuoteError("");
-    const timer = window.setTimeout(() => {
-      api<{ data: OrderQuoteSummary }>("/orders/quote", { method: "POST", body: quotePayload })
-        .then((response) => {
-          if (!cancelled) setQuoteState({ key: quoteKey, data: response.data });
-        })
-        .catch((e: Error) => {
-          if (!cancelled) {
-            setQuoteState(null);
-            setQuoteError(e.message);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setQuoteBusy(false);
-        });
-    }, 200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [branchId, sourceId, orderType, deliveryZoneId, cart.length, quoteKey, quotePayload]);
   useEffect(() => {
     let cancelled = false;
     api<{ data: Branch[] }>("/branches")
@@ -276,15 +245,9 @@ export function usePosController() {
   }, [branchId, orderType]);
 
 
-  const subtotal = currentQuote?.subtotal ?? localSubtotal;
-  // أنواع الطلب من الإعدادات، بينما كل القيم المالية النهائية تأتي من server quote.
   const enabledOrderTypes = (["takeaway", "delivery"] as const).filter((type) =>
     type === "takeaway" ? settings?.order_type_takeaway_enabled !== false : settings?.order_type_delivery_enabled !== false
   );
-  const activeDeliveryFee = currentQuote?.delivery_fee ?? (orderType === "delivery" ? deliveryFee : 0);
-  const serviceFeeEstimate = currentQuote?.service_fee ?? 0;
-  const vatEstimate = currentQuote?.vat_amount ?? 0;
-  const total = currentQuote?.total ?? 0;
   const deliveryMinimum = Math.max(settings?.min_delivery_order ?? 0, Number(selectedZone?.min_order ?? 0));
   const belowMinDelivery = orderType === "delivery" && deliveryMinimum > 0 && subtotal < deliveryMinimum;
   const discountOverLimit =

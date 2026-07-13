@@ -1,0 +1,30 @@
+name: P2 Source Export
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create source archive
+        run: |
+          zip -qr /tmp/yakebda-ms-source.zip . -x '.git/*' 'node_modules/*' '*/node_modules/*'
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-source-export
+          path: /tmp/yakebda-ms-source.zip
+          if-no-files-found: error
+          retention-days: 1

@@ -1,0 +1,27 @@
+name: P2 Lockfile
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate package lock
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Upload package lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-package-lock
+          path: package-lock.json

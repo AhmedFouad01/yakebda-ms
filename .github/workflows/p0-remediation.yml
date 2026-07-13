@@ -1,0 +1,1180 @@
+name: P0 security and finance remediation
+
+on:
+  push:
+    branches:
+      - fix/p0-security-finance
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ykms
+          POSTGRES_PASSWORD: ykms
+          POSTGRES_DB: ykms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ykms -d ykms_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_test
+      JWT_SECRET: p0-ci-only-secret
+      API_PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+      BASE_SHA: d52ab28c928e57a75aff249f57032f18f379f27f
+      TARGET_BRANCH: fix/p0-security-finance
+
+    steps:
+      - name: Checkout bootstrap branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Reset to verified main and configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$TARGET_BRANCH" "$BASE_SHA"
+
+      - name: R1 payment record-time integrity
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: expected one match, found {text.count(old)}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "apps/api/src/i18n/ar.ts",
+              '    payment_method_disabled: "طريقة الدفع هذه غير مفعلة في الإعدادات.",\n',
+              '    payment_method_disabled: "طريقة الدفع هذه غير مفعلة في الإعدادات.",\n'
+              '    payment_amount_positive: "مبلغ الدفع يجب أن يكون أكبر من صفر.",\n'
+              '    payment_already_paid: "الطلب مدفوع بالكامل بالفعل.",\n'
+              '    payment_over_remaining: "المبلغ يتجاوز المتبقّي على الطلب.",\n'
+              '    unpaid_amount_zero: "مبلغ حالة غير مدفوع يجب أن يكون صفرًا.",\n'
+          )
+
+          old = '''      const id = newId();
+                await db("payments").insert({
+                  id,
+                  order_id: order.id,
+                  branch_id: order.branch_id,
+                  method: body.data.method,
+                  amount: body.data.amount,
+                  received_by: req.user!.id,
+                  shift_id: shiftId,
+                });'''
+          new = '''      const id = newId();
+                await db.transaction(async (trx) => {
+                  const paymentOrder = await trx("orders")
+                    .where({ id: order.id, account_id: req.user!.accountId })
+                    .select("total")
+                    .forUpdate()
+                    .first();
+                  if (!paymentOrder) throw err.notFound();
+
+                  // Read the payment sum only after the order-row lock is acquired.
+                  // A waiting concurrent transaction then gets a fresh READ COMMITTED snapshot.
+                  const [{ paid_amount: paidAmount }] = await trx("payments")
+                    .where({ order_id: order.id })
+                    .whereNot("method", "unpaid")
+                    .sum("amount as paid_amount");
+
+                  const total = Number(paymentOrder.total ?? 0);
+                  const paid = Number(paidAmount ?? 0);
+                  const amount = body.data.amount;
+                  const epsilon = 0.001;
+
+                  if (body.data.method === "unpaid") {
+                    if (Math.abs(amount) > epsilon) {
+                      throw err.validation({ amount: ar.errors.unpaid_amount_zero });
+                    }
+                  } else {
+                    if (amount <= 0) {
+                      throw err.validation({ amount: ar.errors.payment_amount_positive });
+                    }
+                    if (paid + epsilon >= total) {
+                      throw err.validation({ amount: ar.errors.payment_already_paid });
+                    }
+                    if (paid + amount > total + epsilon) {
+                      throw err.validation({ amount: ar.errors.payment_over_remaining });
+                    }
+                  }
+
+                  await trx("payments").insert({
+                    id,
+                    order_id: order.id,
+                    branch_id: order.branch_id,
+                    method: body.data.method,
+                    amount,
+                    received_by: req.user!.id,
+                    shift_id: shiftId,
+                  });
+                });'''
+          replace_once("apps/api/src/modules/orders.ts", old, new)
+          PY
+
+          cat > apps/api/tests/payment-integrity.test.ts <<'EOF'
+          import { afterAll, beforeAll, describe, expect, it } from "vitest";
+          import request from "supertest";
+          import { createApp } from "../src/app";
+          import { config } from "../src/config";
+          import { makeKnex } from "../src/db/knex";
+          import { seedFoundation } from "../src/db/seedData";
+          import { newId } from "../src/lib/ids";
+
+          const db = makeKnex(config.testDatabaseUrl);
+          let app: ReturnType<typeof createApp>;
+          let ownerToken = "";
+          let branchId = "";
+          let sourceId = "";
+          let productId = "";
+
+          const auth = () => ({ Authorization: `Bearer ${ownerToken}` });
+
+          async function createUnpaidOrder() {
+            const response = await request(app)
+              .post("/api/v1/orders")
+              .set(auth())
+              .send({
+                branch_id: branchId,
+                source_id: sourceId,
+                order_type: "takeaway",
+                delivery_fee: 0,
+                discount: 0,
+                submit: true,
+                payment_method: "unpaid",
+                items: [{ product_id: productId, qty: 1, modifier_ids: [] }],
+              });
+            expect(response.status).toBe(201);
+            return response.body.data as { id: string; total: string | number };
+          }
+
+          function pay(orderId: string, amount: number, method: "cash" | "card" | "wallet" | "unpaid" = "card") {
+            return request(app)
+              .post(`/api/v1/orders/${orderId}/payments`)
+              .set(auth())
+              .send({ method, amount });
+          }
+
+          beforeAll(async () => {
+            await db.migrate.rollback(undefined, true);
+            await db.migrate.latest();
+            const seed = await seedFoundation(db);
+            branchId = seed.branchId;
+            app = createApp(db);
+
+            const login = await request(app)
+              .post("/api/v1/auth/login")
+              .send({ email: seed.ownerEmail, password: seed.ownerPassword });
+            ownerToken = login.body.token;
+
+            sourceId = (await db("order_sources")
+              .where({ account_id: seed.accountId, code: "direct" })
+              .first()).id;
+
+            const categoryId = newId();
+            productId = newId();
+            await db("categories").insert({
+              id: categoryId,
+              account_id: seed.accountId,
+              name_ar: "سلامة المدفوعات",
+              sort_order: 95,
+              is_active: true,
+            });
+            await db("products").insert({
+              id: productId,
+              account_id: seed.accountId,
+              category_id: categoryId,
+              name_ar: "صنف اختبار الدفع",
+              base_price: 30,
+              sort_order: 0,
+              is_active: true,
+            });
+          });
+
+          afterAll(async () => {
+            await db.destroy();
+          });
+
+          describe("Payment record-time integrity", () => {
+            it("accepts the exact remaining total and rejects a duplicate payment", async () => {
+              const order = await createUnpaidOrder();
+              const total = Number(order.total);
+
+              const first = await pay(order.id, total);
+              expect(first.status).toBe(201);
+
+              const second = await pay(order.id, total);
+              expect(second.status).toBe(422);
+              expect(second.body.details.amount).toContain("مدفوع بالكامل");
+
+              const [{ paid }] = await db("payments")
+                .where({ order_id: order.id })
+                .whereNot("method", "unpaid")
+                .sum("amount as paid");
+              expect(Number(paid)).toBe(total);
+            });
+
+            it("rejects zero-value real payments", async () => {
+              const order = await createUnpaidOrder();
+              const response = await pay(order.id, 0, "card");
+              expect(response.status).toBe(422);
+              expect(response.body.details.amount).toContain("أكبر من صفر");
+            });
+
+            it("rejects overpayment above the remaining amount", async () => {
+              const order = await createUnpaidOrder();
+              const response = await pay(order.id, Number(order.total) + 1);
+              expect(response.status).toBe(422);
+              expect(response.body.details.amount).toContain("المتبقّي");
+            });
+
+            it("supports partial payment followed by exact completion", async () => {
+              const order = await createUnpaidOrder();
+              const total = Number(order.total);
+
+              const partial = await pay(order.id, 10);
+              expect(partial.status).toBe(201);
+
+              const complete = await pay(order.id, total - 10);
+              expect(complete.status).toBe(201);
+
+              const duplicate = await pay(order.id, 1);
+              expect(duplicate.status).toBe(422);
+
+              const [{ paid }] = await db("payments")
+                .where({ order_id: order.id })
+                .whereNot("method", "unpaid")
+                .sum("amount as paid");
+              expect(Number(paid)).toBe(total);
+            });
+
+            it("serializes concurrent full-payment attempts", async () => {
+              const order = await createUnpaidOrder();
+              const total = Number(order.total);
+
+              const responses = await Promise.all([
+                pay(order.id, total),
+                pay(order.id, total),
+              ]);
+              expect(responses.map((response) => response.status).sort()).toEqual([201, 422]);
+
+              const [{ paid }] = await db("payments")
+                .where({ order_id: order.id })
+                .whereNot("method", "unpaid")
+                .sum("amount as paid");
+              expect(Number(paid)).toBe(total);
+            });
+
+            it("keeps unpaid markers zero-valued", async () => {
+              const order = await createUnpaidOrder();
+              const response = await pay(order.id, 1, "unpaid");
+              expect(response.status).toBe(422);
+              expect(response.body.details.amount).toContain("صفر");
+            });
+          });
+          EOF
+
+          git add apps/api/src/modules/orders.ts apps/api/src/i18n/ar.ts apps/api/tests/payment-integrity.test.ts
+          git commit -m "fix(payments): enforce record-time payment integrity"
+
+      - name: R2 preserve existing atomic numbering invariant
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          path = Path("apps/api/tests/order-numbering.test.ts")
+          text = path.read_text(encoding="utf-8")
+          marker = 'describe("Atomic order numbering", () => {\n'
+          addition = '''describe("Atomic order numbering", () => {
+            it("keeps the database advisory-lock allocator installed", async () => {
+              const result = await db.raw(`
+                select
+                  pg_get_triggerdef(t.oid) as trigger_def,
+                  pg_get_functiondef(p.oid) as function_def
+                from pg_trigger t
+                join pg_proc p on p.oid = t.tgfoid
+                where t.tgname = 'orders_assign_number_before_insert'
+                  and not t.tgisinternal
+              `);
+
+              expect(result.rows).toHaveLength(1);
+              expect(result.rows[0].trigger_def).toContain("BEFORE INSERT");
+              expect(result.rows[0].function_def).toContain("pg_advisory_xact_lock");
+              expect(result.rows[0].function_def).toContain("v_numbering_key");
+            });
+
+          '''
+          if text.count(marker) != 1:
+              raise SystemExit(f"order-numbering marker count: {text.count(marker)}")
+          path.write_text(text.replace(marker, addition, 1), encoding="utf-8")
+          PY
+
+          git add apps/api/tests/order-numbering.test.ts
+          git commit -m "test(orders): preserve advisory-lock numbering invariant"
+
+      - name: R3 auth rate limiting lockout and failure audit
+        run: |
+          cat > apps/api/src/db/migrations/20260713_015_auth_lockout.ts <<'EOF'
+          import { Knex } from "knex";
+
+          export async function up(db: Knex): Promise<void> {
+            const hasFailedCount = await db.schema.hasColumn("users", "failed_login_count");
+            const hasLockedUntil = await db.schema.hasColumn("users", "locked_until");
+
+            await db.schema.alterTable("users", (table) => {
+              if (!hasFailedCount) {
+                table.integer("failed_login_count").notNullable().defaultTo(0);
+              }
+              if (!hasLockedUntil) {
+                table.timestamp("locked_until", { useTz: true }).nullable();
+              }
+            });
+          }
+
+          export async function down(db: Knex): Promise<void> {
+            const hasFailedCount = await db.schema.hasColumn("users", "failed_login_count");
+            const hasLockedUntil = await db.schema.hasColumn("users", "locked_until");
+
+            await db.schema.alterTable("users", (table) => {
+              if (hasLockedUntil) table.dropColumn("locked_until");
+              if (hasFailedCount) table.dropColumn("failed_login_count");
+            });
+          }
+          EOF
+
+          cat > apps/api/src/modules/auth.ts <<'EOF'
+          import { Request, Router } from "express";
+          import bcrypt from "bcryptjs";
+          import { z } from "zod";
+          import { Knex } from "knex";
+          import { err } from "../lib/errors";
+          import { writeAudit } from "../lib/audit";
+          import { loadUser, requireUser, signUserToken } from "../middleware/auth";
+          import { ar } from "../i18n/ar";
+
+          type RateBucket = {
+            count: number;
+            resetAt: number;
+          };
+
+          function positiveEnv(name: string, fallback: number): number {
+            const value = Number(process.env[name]);
+            return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+          }
+
+          function lockDate(value: unknown): Date | null {
+            if (!value) return null;
+            const date = value instanceof Date ? value : new Date(String(value));
+            return Number.isNaN(date.getTime()) ? null : date;
+          }
+
+          export function authRoutes(db: Knex): Router {
+            const router = Router();
+            const rateBuckets = new Map<string, RateBucket>();
+
+            const rateMax = () => positiveEnv("AUTH_RATE_LIMIT_MAX", 10);
+            const rateWindowMs = () => positiveEnv("AUTH_RATE_LIMIT_WINDOW_MS", 5 * 60 * 1000);
+            const lockThreshold = () => positiveEnv("AUTH_LOCKOUT_THRESHOLD", 5);
+            const lockWindowMs = () => positiveEnv("AUTH_LOCKOUT_MS", 15 * 60 * 1000);
+
+            function assertRateAllowed(key: string): void {
+              const now = Date.now();
+              const current = rateBuckets.get(key);
+              if (!current) return;
+              if (current.resetAt <= now) {
+                rateBuckets.delete(key);
+                return;
+              }
+              if (current.count >= rateMax()) {
+                throw err.rateLimited({ retry_after_ms: current.resetAt - now });
+              }
+            }
+
+            function noteRateFailure(key: string): void {
+              const now = Date.now();
+              const current = rateBuckets.get(key);
+              if (!current || current.resetAt <= now) {
+                rateBuckets.set(key, { count: 1, resetAt: now + rateWindowMs() });
+                return;
+              }
+              current.count += 1;
+            }
+
+            function clearRateFailures(key: string): void {
+              rateBuckets.delete(key);
+            }
+
+            async function auditFailure(entry: {
+              action: "auth.login_failed" | "auth.pin_failed";
+              req: Request;
+              accountId?: string | null;
+              branchId?: string | null;
+              userId?: string | null;
+              reason: string;
+            }): Promise<void> {
+              await writeAudit(db, {
+                accountId: entry.accountId ?? null,
+                branchId: entry.branchId ?? null,
+                userId: entry.userId ?? null,
+                action: entry.action,
+                meta: { reason: entry.reason },
+                ip: entry.req.ip,
+              });
+            }
+
+            router.post("/login", async (req, res, next) => {
+              try {
+                const body = z
+                  .object({ email: z.string().email(), password: z.string().min(1) })
+                  .safeParse(req.body);
+                if (!body.success) throw err.validation(body.error.flatten());
+
+                const email = body.data.email.trim().toLowerCase();
+                const rateKey = `login:${req.ip}:${email}`;
+                assertRateAllowed(rateKey);
+
+                const userRow = await db("users")
+                  .whereRaw("lower(email) = ?", [email])
+                  .where({ is_active: true })
+                  .first();
+
+                if (!userRow?.password_hash) {
+                  noteRateFailure(rateKey);
+                  await auditFailure({
+                    action: "auth.login_failed",
+                    req,
+                    reason: "invalid_credentials",
+                  });
+                  throw err.badCredentials();
+                }
+
+                const locked = lockDate(userRow.locked_until);
+                if (locked && locked.getTime() <= Date.now()) {
+                  userRow.failed_login_count = 0;
+                  userRow.locked_until = null;
+                  await db("users").where({ id: userRow.id }).update({
+                    failed_login_count: 0,
+                    locked_until: null,
+                    updated_at: db.fn.now(),
+                  });
+                }
+                if (locked && locked.getTime() > Date.now()) {
+                  noteRateFailure(rateKey);
+                  await auditFailure({
+                    action: "auth.login_failed",
+                    req,
+                    accountId: userRow.account_id,
+                    branchId: userRow.branch_id,
+                    userId: userRow.id,
+                    reason: "account_locked",
+                  });
+                  throw err.locked({ locked_until: locked.toISOString() });
+                }
+
+                if (!bcrypt.compareSync(body.data.password, userRow.password_hash)) {
+                  const failedCount = Number(userRow.failed_login_count ?? 0) + 1;
+                  const shouldLock = failedCount >= lockThreshold();
+                  const lockedUntil = shouldLock ? new Date(Date.now() + lockWindowMs()) : null;
+
+                  await db("users").where({ id: userRow.id }).update({
+                    failed_login_count: failedCount,
+                    locked_until: lockedUntil,
+                    updated_at: db.fn.now(),
+                  });
+                  noteRateFailure(rateKey);
+                  await auditFailure({
+                    action: "auth.login_failed",
+                    req,
+                    accountId: userRow.account_id,
+                    branchId: userRow.branch_id,
+                    userId: userRow.id,
+                    reason: shouldLock ? "lockout_threshold" : "invalid_credentials",
+                  });
+
+                  if (shouldLock) throw err.locked({ locked_until: lockedUntil!.toISOString() });
+                  throw err.badCredentials();
+                }
+
+                await db("users").where({ id: userRow.id }).update({
+                  failed_login_count: 0,
+                  locked_until: null,
+                  updated_at: db.fn.now(),
+                });
+                clearRateFailures(rateKey);
+
+                const user = await loadUser(db, userRow.id);
+                if (!user) throw err.badCredentials();
+                const token = signUserToken(user);
+                await writeAudit(db, {
+                  accountId: user.accountId,
+                  branchId: user.branchId,
+                  userId: user.id,
+                  action: "auth.login",
+                  ip: req.ip,
+                });
+                res.json({ token, user, message: ar.messages.login_ok });
+              } catch (error) {
+                next(error);
+              }
+            });
+
+            router.post("/pin-login", async (req, res, next) => {
+              try {
+                const body = z
+                  .object({ branch_id: z.string().uuid(), pin: z.string().min(4).max(8) })
+                  .safeParse(req.body);
+                if (!body.success) throw err.validation(body.error.flatten());
+
+                const rateKey = `pin:${req.ip}:${body.data.branch_id}`;
+                assertRateAllowed(rateKey);
+
+                const branch = await db("branches")
+                  .where({ id: body.data.branch_id, is_active: true })
+                  .select("id", "account_id")
+                  .first();
+
+                const candidates = branch
+                  ? await db("users")
+                      .where({ branch_id: branch.id, is_active: true })
+                      .whereNotNull("pin_hash")
+                  : [];
+                const match = candidates.find((candidate) =>
+                  bcrypt.compareSync(body.data.pin, candidate.pin_hash)
+                );
+
+                if (!match) {
+                  noteRateFailure(rateKey);
+                  await auditFailure({
+                    action: "auth.pin_failed",
+                    req,
+                    accountId: branch?.account_id ?? null,
+                    branchId: branch?.id ?? null,
+                    reason: "invalid_pin",
+                  });
+                  throw err.badPin();
+                }
+
+                const locked = lockDate(match.locked_until);
+                if (locked && locked.getTime() > Date.now()) {
+                  noteRateFailure(rateKey);
+                  await auditFailure({
+                    action: "auth.pin_failed",
+                    req,
+                    accountId: match.account_id,
+                    branchId: match.branch_id,
+                    userId: match.id,
+                    reason: "account_locked",
+                  });
+                  throw err.locked({ locked_until: locked.toISOString() });
+                }
+
+                await db("users").where({ id: match.id }).update({
+                  failed_login_count: 0,
+                  locked_until: null,
+                  updated_at: db.fn.now(),
+                });
+                clearRateFailures(rateKey);
+
+                const user = await loadUser(db, match.id);
+                if (!user) throw err.badPin();
+                const token = signUserToken(user);
+                await writeAudit(db, {
+                  accountId: user.accountId,
+                  branchId: user.branchId,
+                  userId: user.id,
+                  action: "auth.pin_login",
+                  ip: req.ip,
+                });
+                res.json({ token, user, message: ar.messages.login_ok });
+              } catch (error) {
+                next(error);
+              }
+            });
+
+            router.get("/me", requireUser(db), (req, res) => {
+              res.json({ user: req.user });
+            });
+
+            return router;
+          }
+          EOF
+
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: expected one match, found {text.count(old)}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "apps/api/src/lib/errors.ts",
+              '  badPin: () => new ApiError(401, "bad_pin"),\n',
+              '  badPin: () => new ApiError(401, "bad_pin"),\n'
+              '  rateLimited: (details?: unknown) => new ApiError(429, "too_many_attempts", details),\n'
+              '  locked: (details?: unknown) => new ApiError(423, "account_locked", details),\n'
+          )
+
+          replace_once(
+              "apps/api/src/i18n/ar.ts",
+              '    bad_pin: "رمز PIN غير صحيح.",\n',
+              '    bad_pin: "رمز PIN غير صحيح.",\n'
+              '    too_many_attempts: "محاولات كثيرة. حاول لاحقًا.",\n'
+              '    account_locked: "تم إيقاف تسجيل الدخول مؤقتًا. حاول لاحقًا.",\n'
+          )
+
+          replace_once(
+              "apps/api/src/db/knex.ts",
+              'import * as m014 from "./migrations/20260712_014_delivery_checkout_context";\n',
+              'import * as m014 from "./migrations/20260712_014_delivery_checkout_context";\n'
+              'import * as m015 from "./migrations/20260713_015_auth_lockout";\n'
+          )
+          replace_once(
+              "apps/api/src/db/knex.ts",
+              '  "20260712_014_delivery_checkout_context": m014,\n',
+              '  "20260712_014_delivery_checkout_context": m014,\n'
+              '  "20260713_015_auth_lockout": m015,\n'
+          )
+          PY
+
+          cat > apps/api/tests/auth-security.test.ts <<'EOF'
+          import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+          import request from "supertest";
+          import { createApp } from "../src/app";
+          import { config } from "../src/config";
+          import { makeKnex } from "../src/db/knex";
+          import { seedFoundation } from "../src/db/seedData";
+
+          const db = makeKnex(config.testDatabaseUrl);
+          let app: ReturnType<typeof createApp>;
+          let branchId = "";
+          let ownerEmail = "";
+          let ownerPassword = "";
+
+          beforeAll(async () => {
+            await db.migrate.rollback(undefined, true);
+            await db.migrate.latest();
+            const seed = await seedFoundation(db);
+            branchId = seed.branchId;
+            ownerEmail = seed.ownerEmail;
+            ownerPassword = seed.ownerPassword;
+            app = createApp(db);
+          });
+
+          afterEach(async () => {
+            delete process.env.AUTH_RATE_LIMIT_MAX;
+            delete process.env.AUTH_RATE_LIMIT_WINDOW_MS;
+            delete process.env.AUTH_LOCKOUT_THRESHOLD;
+            delete process.env.AUTH_LOCKOUT_MS;
+            await db("users").update({ failed_login_count: 0, locked_until: null });
+            app = createApp(db);
+          });
+
+          afterAll(async () => {
+            await db.destroy();
+          });
+
+          describe("Authentication abuse protection", () => {
+            it("locks a known email account after the configured failure threshold", async () => {
+              process.env.AUTH_RATE_LIMIT_MAX = "50";
+              process.env.AUTH_LOCKOUT_THRESHOLD = "2";
+              process.env.AUTH_LOCKOUT_MS = "60000";
+              app = createApp(db);
+
+              const first = await request(app)
+                .post("/api/v1/auth/login")
+                .send({ email: ownerEmail, password: "wrong-one" });
+              expect(first.status).toBe(401);
+
+              const second = await request(app)
+                .post("/api/v1/auth/login")
+                .send({ email: ownerEmail, password: "wrong-two" });
+              expect(second.status).toBe(423);
+              expect(second.body.message).toContain("مؤقتًا");
+
+              const correctWhileLocked = await request(app)
+                .post("/api/v1/auth/login")
+                .send({ email: ownerEmail, password: ownerPassword });
+              expect(correctWhileLocked.status).toBe(423);
+
+              const row = await db("users").where({ email: ownerEmail }).first();
+              expect(Number(row.failed_login_count)).toBe(2);
+              expect(row.locked_until).toBeTruthy();
+            });
+
+            it("rate limits repeated PIN failures by IP and branch", async () => {
+              process.env.AUTH_RATE_LIMIT_MAX = "2";
+              process.env.AUTH_RATE_LIMIT_WINDOW_MS = "60000";
+              process.env.AUTH_LOCKOUT_THRESHOLD = "50";
+              app = createApp(db);
+
+              for (const pin of ["9998", "9999"]) {
+                const failed = await request(app)
+                  .post("/api/v1/auth/pin-login")
+                  .send({ branch_id: branchId, pin });
+                expect(failed.status).toBe(401);
+              }
+
+              const blocked = await request(app)
+                .post("/api/v1/auth/pin-login")
+                .send({ branch_id: branchId, pin: "1234" });
+              expect(blocked.status).toBe(429);
+              expect(blocked.body.message).toContain("محاولات كثيرة");
+            });
+
+            it("blocks a locked PIN user and resets expired lock state on success", async () => {
+              const cashier = await db("users").where({ branch_id: branchId }).whereNotNull("pin_hash").first();
+              await db("users").where({ id: cashier.id }).update({
+                failed_login_count: 5,
+                locked_until: new Date(Date.now() + 60000),
+              });
+
+              app = createApp(db);
+              const locked = await request(app)
+                .post("/api/v1/auth/pin-login")
+                .send({ branch_id: branchId, pin: "1234" });
+              expect(locked.status).toBe(423);
+
+              await db("users").where({ id: cashier.id }).update({
+                failed_login_count: 5,
+                locked_until: new Date(Date.now() - 1000),
+              });
+              app = createApp(db);
+              const success = await request(app)
+                .post("/api/v1/auth/pin-login")
+                .send({ branch_id: branchId, pin: "1234" });
+              expect(success.status).toBe(200);
+
+              const refreshed = await db("users").where({ id: cashier.id }).first();
+              expect(Number(refreshed.failed_login_count)).toBe(0);
+              expect(refreshed.locked_until).toBeNull();
+            });
+
+            it("audits failed login and PIN attempts without storing secrets", async () => {
+              process.env.AUTH_RATE_LIMIT_MAX = "50";
+              app = createApp(db);
+              const password = "NeverStoreThisPassword!";
+              const pin = "9876";
+
+              await request(app)
+                .post("/api/v1/auth/login")
+                .send({ email: ownerEmail, password });
+              await request(app)
+                .post("/api/v1/auth/pin-login")
+                .send({ branch_id: branchId, pin });
+
+              const rows = await db("audit_logs")
+                .whereIn("action", ["auth.login_failed", "auth.pin_failed"])
+                .orderBy("created_at", "desc")
+                .limit(2);
+              expect(rows.map((row) => row.action)).toEqual(
+                expect.arrayContaining(["auth.login_failed", "auth.pin_failed"])
+              );
+
+              const serialized = JSON.stringify(rows);
+              expect(serialized).not.toContain(password);
+              expect(serialized).not.toContain(pin);
+              expect(rows.every((row) => row.ip)).toBe(true);
+            });
+          });
+          EOF
+
+          git add \
+            apps/api/src/modules/auth.ts \
+            apps/api/src/lib/errors.ts \
+            apps/api/src/i18n/ar.ts \
+            apps/api/src/db/knex.ts \
+            apps/api/src/db/migrations/20260713_015_auth_lockout.ts \
+            apps/api/tests/auth-security.test.ts
+          git commit -m "fix(auth): add rate limiting lockout and failure audit"
+
+      - name: R4 explicit read permissions for settings and customers
+        run: |
+          cat > apps/api/src/db/migrations/20260713_016_read_permission_scoping.ts <<'EOF'
+          import { Knex } from "knex";
+          import { syncPermissionCatalog } from "../seedData";
+
+          const GRANTS: Record<string, string[]> = {
+            "settings.view": ["owner", "admin", "manager"],
+            "customers.view": ["owner", "admin", "manager"],
+          };
+
+          export async function up(db: Knex): Promise<void> {
+            await syncPermissionCatalog(db);
+
+            for (const [permissionKey, roleKeys] of Object.entries(GRANTS)) {
+              const roles = await db("roles")
+                .where({ is_system: true })
+                .whereIn("key", roleKeys);
+
+              for (const role of roles) {
+                await db("role_permissions")
+                  .insert({ role_id: role.id, permission_key: permissionKey })
+                  .onConflict(["role_id", "permission_key"])
+                  .ignore();
+              }
+            }
+          }
+
+          export async function down(db: Knex): Promise<void> {
+            const keys = Object.keys(GRANTS);
+            await db("role_permissions").whereIn("permission_key", keys).del();
+            await db("permissions").whereIn("key", keys).del();
+          }
+          EOF
+
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: expected one match, found {text.count(old)}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "apps/api/src/db/seedData.ts",
+              '  { key: "customers.lookup", name_ar: "البحث عن العملاء من نقطة البيع", group: "العملاء" },\n'
+              '  { key: "customers.manage", name_ar: "إدارة العملاء", group: "العملاء" },\n',
+              '  { key: "customers.lookup", name_ar: "البحث عن العملاء من نقطة البيع", group: "العملاء" },\n'
+              '  { key: "customers.view", name_ar: "عرض قائمة العملاء", group: "العملاء" },\n'
+              '  { key: "customers.manage", name_ar: "إدارة العملاء", group: "العملاء" },\n'
+          )
+          replace_once(
+              "apps/api/src/db/seedData.ts",
+              '  { key: "settings.manage", name_ar: "إدارة الإعدادات", group: "الإعدادات" },\n',
+              '  { key: "settings.view", name_ar: "عرض إعدادات التشغيل", group: "الإعدادات" },\n'
+              '  { key: "settings.manage", name_ar: "إدارة الإعدادات", group: "الإعدادات" },\n',
+          )
+          replace_once(
+              "apps/api/src/db/seedData.ts",
+              '      "customers.lookup",\n      "customers.manage",\n      "reports.view",\n      "settings.manage",\n',
+              '      "customers.lookup",\n      "customers.view",\n      "customers.manage",\n      "reports.view",\n      "settings.view",\n      "settings.manage",\n',
+          )
+          replace_once(
+              "apps/api/src/db/seedData.ts",
+              '    perms: ["print_jobs.create", "orders.create", "orders.manage", "payments.record", "shifts.manage", "customers.lookup", "reports.view"],\n',
+              '    perms: ["print_jobs.create", "orders.create", "orders.manage", "payments.record", "shifts.manage", "customers.lookup", "reports.view"],\n',
+          )
+          replace_once(
+              "apps/api/src/db/seedData.ts",
+              '  { key: "waiter", name_ar: "الويتر", perms: ["orders.create", "tables.manage"] },\n',
+              '  { key: "waiter", name_ar: "الويتر", perms: ["orders.create", "tables.manage"] },\n',
+          )
+          replace_once(
+              "apps/api/src/db/seedData.ts",
+              '  { key: "kitchen", name_ar: "موظف المطبخ", perms: ["kitchen.view", "kitchen.update"] },\n',
+              '  { key: "kitchen", name_ar: "موظف المطبخ", perms: ["kitchen.view", "kitchen.update"] },\n',
+          )
+
+          replace_once(
+              "apps/api/src/modules/settings.ts",
+              'import { requirePermission, requireUser } from "../middleware/auth";\n',
+              'import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";\n',
+          )
+
+          settings_path = Path("apps/api/src/modules/settings.ts")
+          settings_text = settings_path.read_text(encoding="utf-8")
+          route_old = '''  // GET /settings[?branch_id=] — أي مستخدم مسجل (POS يحتاجها)
+  r.get("/", async (req, res, next) => {
+    try {
+      const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!q.success) throw err.validation(q.error.flatten());
+      if (q.data.branch_id) {
+        const branch = await db("branches")
+          .where({ id: q.data.branch_id, account_id: req.user!.accountId })
+          .first();
+        if (!branch) throw err.notFound();
+      }
+      res.json({ data: await getSettings(db, req.user!.accountId, q.data.branch_id) });
+    } catch (e) {
+      next(e);
+    }
+  });
+'''
+          route_new = '''  // Full settings require settings.view. POS/KDS receive only their runtime allowlist.
+  r.get("/", async (req, res, next) => {
+    try {
+      const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!q.success) throw err.validation(q.error.flatten());
+
+      const canViewFull = req.user!.permissions.includes("settings.view");
+      const canViewRuntime = req.user!.permissions.some((permission) =>
+        ["orders.create", "kitchen.view"].includes(permission)
+      );
+      if (!canViewFull && !canViewRuntime) throw err.forbidden();
+
+      if (q.data.branch_id) {
+        const branch = await db("branches")
+          .where({ id: q.data.branch_id, account_id: req.user!.accountId })
+          .first();
+        if (!branch) throw err.notFound();
+        if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
+      }
+
+      const settings = await getSettings(db, req.user!.accountId, q.data.branch_id);
+      if (canViewFull) {
+        res.json({ data: settings });
+        return;
+      }
+
+      const runtimeKeys: Array<keyof Settings> = [
+        "show_product_images",
+        "require_open_shift_for_cash",
+        "enabled_payment_methods",
+        "receipt_printing_enabled",
+        "allow_discounts",
+        "order_type_takeaway_enabled",
+        "order_type_delivery_enabled",
+        "order_type_dine_in_enabled",
+        "default_delivery_fee",
+        "min_delivery_order",
+        "max_discount_without_manager",
+        "max_cashier_discount_percent",
+        "discount_reason_required",
+        "vat_enabled",
+        "vat_percentage",
+        "prices_include_vat",
+        "service_fee_enabled",
+        "service_fee_type",
+        "service_fee_value",
+        "rounding_rule",
+        "require_customer_for_delivery",
+        "require_address_for_delivery",
+        "kds_enabled",
+        "kds_warning_minutes",
+        "kds_late_minutes",
+        "kds_hide_ready_after_minutes",
+        "kds_sound_alert",
+      ];
+      const runtime = Object.fromEntries(runtimeKeys.map((key) => [key, settings[key]]));
+      res.json({ data: runtime });
+    } catch (e) {
+      next(e);
+    }
+  });
+'''
+          if settings_text.count(route_old) != 1:
+              raise SystemExit(f"settings route expected one match, found {settings_text.count(route_old)}")
+          settings_path.write_text(settings_text.replace(route_old, route_new, 1), encoding="utf-8")
+          replace_once(
+              "apps/api/src/modules/restaurant.ts",
+              '  r.get("/", requirePermission("customers.manage"), async (req, res, next) => {\n',
+              '  r.get("/", requirePermission("customers.view"), async (req, res, next) => {\n',
+          )
+
+          replace_once(
+              "apps/api/src/db/knex.ts",
+              'import * as m015 from "./migrations/20260713_015_auth_lockout";\n',
+              'import * as m015 from "./migrations/20260713_015_auth_lockout";\n'
+              'import * as m016 from "./migrations/20260713_016_read_permission_scoping";\n'
+          )
+          replace_once(
+              "apps/api/src/db/knex.ts",
+              '  "20260713_015_auth_lockout": m015,\n',
+              '  "20260713_015_auth_lockout": m015,\n'
+              '  "20260713_016_read_permission_scoping": m016,\n'
+          )
+          PY
+
+          cat > apps/api/tests/read-permissions.test.ts <<'EOF'
+          import { afterAll, beforeAll, describe, expect, it } from "vitest";
+          import bcrypt from "bcryptjs";
+          import request from "supertest";
+          import { createApp } from "../src/app";
+          import { config } from "../src/config";
+          import { makeKnex } from "../src/db/knex";
+          import { seedFoundation } from "../src/db/seedData";
+          import { newId } from "../src/lib/ids";
+
+          const db = makeKnex(config.testDatabaseUrl);
+          let app: ReturnType<typeof createApp>;
+          let ownerToken = "";
+          let managerToken = "";
+          let kitchenToken = "";
+          let cashierToken = "";
+          let driverToken = "";
+          let branchId = "";
+
+          async function login(email: string, password: string): Promise<string> {
+            const response = await request(app)
+              .post("/api/v1/auth/login")
+              .send({ email, password });
+            expect(response.status).toBe(200);
+            return response.body.token;
+          }
+
+          const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+          beforeAll(async () => {
+            await db.migrate.rollback(undefined, true);
+            await db.migrate.latest();
+            const seed = await seedFoundation(db);
+            branchId = seed.branchId;
+            app = createApp(db);
+
+            ownerToken = await login(seed.ownerEmail, seed.ownerPassword);
+            managerToken = await login("manager@ykms.local", "Manager@12345");
+            kitchenToken = await login("kitchen@ykms.local", "Kitchen@12345");
+
+            const cashier = await request(app)
+              .post("/api/v1/auth/pin-login")
+              .send({ branch_id: branchId, pin: "1234" });
+            expect(cashier.status).toBe(200);
+            cashierToken = cashier.body.token;
+
+            const driverRole = await db("roles")
+              .where({ account_id: seed.accountId, key: "driver" })
+              .first();
+            const driverId = newId();
+            const driverPassword = "Driver@12345";
+            await db("users").insert({
+              id: driverId,
+              account_id: seed.accountId,
+              branch_id: branchId,
+              name: "سائق اختبار الصلاحيات",
+              email: "driver.permissions@ykms.local",
+              password_hash: bcrypt.hashSync(driverPassword, 10),
+              is_active: true,
+            });
+            await db("user_roles").insert({ user_id: driverId, role_id: driverRole.id });
+            driverToken = await login("driver.permissions@ykms.local", driverPassword);
+          });
+
+          afterAll(async () => {
+            await db.destroy();
+          });
+
+          describe("Read permission scoping", () => {
+            it("allows owner and manager to read settings", async () => {
+              for (const token of [ownerToken, managerToken]) {
+                const response = await request(app)
+                  .get(`/api/v1/settings?branch_id=${branchId}`)
+                  .set(auth(token));
+                expect(response.status).toBe(200);
+                expect(response.body.data.tax_number).toBeDefined();
+              }
+            });
+
+            it("returns only an allowlisted runtime settings projection to POS and KDS roles", async () => {
+              for (const token of [cashierToken, kitchenToken]) {
+                const response = await request(app)
+                  .get(`/api/v1/settings?branch_id=${branchId}`)
+                  .set(auth(token));
+                expect(response.status).toBe(200);
+                expect(response.body.data.tax_number).toBeUndefined();
+                expect(response.body.data.brand_primary_color).toBeUndefined();
+              }
+
+              const cashierSettings = await request(app)
+                .get(`/api/v1/settings?branch_id=${branchId}`)
+                .set(auth(cashierToken));
+              expect(cashierSettings.body.data.enabled_payment_methods).toBeTruthy();
+
+              const kitchenSettings = await request(app)
+                .get(`/api/v1/settings?branch_id=${branchId}`)
+                .set(auth(kitchenToken));
+              expect(kitchenSettings.body.data.kds_enabled).toBeTypeOf("boolean");
+            });
+
+            it("blocks a role without settings.view", async () => {
+              const response = await request(app)
+                .get(`/api/v1/settings?branch_id=${branchId}`)
+                .set(auth(driverToken));
+              expect(response.status).toBe(403);
+            });
+
+            it("allows customers.view holders and blocks lookup-only roles from the full list", async () => {
+              const managerList = await request(app)
+                .get("/api/v1/customers")
+                .set(auth(managerToken));
+              expect(managerList.status).toBe(200);
+
+              const cashierList = await request(app)
+                .get("/api/v1/customers")
+                .set(auth(cashierToken));
+              expect(cashierList.status).toBe(403);
+
+              const lookup = await request(app)
+                .get("/api/v1/customers/lookup")
+                .set(auth(cashierToken));
+              expect(lookup.status).toBe(200);
+            });
+
+            it("keeps owner access and blocks unrelated operational roles from customer PII", async () => {
+              const ownerList = await request(app)
+                .get("/api/v1/customers")
+                .set(auth(ownerToken));
+              expect(ownerList.status).toBe(200);
+
+              const kitchenList = await request(app)
+                .get("/api/v1/customers")
+                .set(auth(kitchenToken));
+              expect(kitchenList.status).toBe(403);
+            });
+          });
+          EOF
+
+          git add \
+            apps/api/src/db/seedData.ts \
+            apps/api/src/modules/settings.ts \
+            apps/api/src/modules/restaurant.ts \
+            apps/api/src/db/knex.ts \
+            apps/api/src/db/migrations/20260713_016_read_permission_scoping.ts \
+            apps/api/tests/read-permissions.test.ts
+          git commit -m "fix(rbac): scope settings and customer read access"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck API
+        run: npm --workspace @ykms/api run build
+
+      - name: Run migrations on a fresh test database
+        run: |
+          npm run api:migrate
+          npm run api:migrate
+
+      - name: Run API tests
+        run: npm run api:test -- --fileParallelism=false
+
+      - name: Validate admin build and color contract
+        run: |
+          npm run ui:colors:check
+          npm run admin:build
+
+      - name: Verify checkpoint history
+        run: |
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 4
+          git log --oneline "$BASE_SHA"..HEAD
+
+      - name: Publish four verified checkpoints
+        run: |
+          git push origin HEAD:refs/heads/"$TARGET_BRANCH" \
+            --force-with-lease=refs/heads/"$TARGET_BRANCH":"$GITHUB_SHA"

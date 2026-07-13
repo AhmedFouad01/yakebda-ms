@@ -1,0 +1,41 @@
+name: P2 Enable Apply
+
+on:
+  push:
+    branches: [refactor/p2-maintainability]
+
+permissions:
+  contents: write
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/p2-maintainability
+          fetch-depth: 0
+      - name: Enable push execution
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/p2-apply-maintainability.yml')
+          text = path.read_text()
+          text = text.replace(
+              'on:\n  pull_request:\n    branches: [main]\n',
+              'on:\n  push:\n    branches: [refactor/p2-maintainability]\n',
+              1,
+          )
+          text = text.replace(
+              "    if: github.event.pull_request.head.ref == 'refactor/p2-maintainability'\n",
+              "    if: github.ref_name == 'refactor/p2-maintainability'\n",
+              1,
+          )
+          path.write_text(text)
+          PY
+          git config user.name "YAKEBDA P2 Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/p2-enable-apply.yml
+          git add .github/workflows/p2-apply-maintainability.yml
+          git commit -m "chore(p2): enable guarded apply workflow"
+          git push origin HEAD:refactor/p2-maintainability

@@ -182,12 +182,7 @@ jobs:
                       '- CSS authority: consolidated `theme.css`, then final `global-colors.css`.',
                   )
                   if current_name == 'Reconstruct and verify transformation script':
-                      script += '''
-base64 --decode .github/p2-temp/runtime-patch.b64 > /tmp/p2-runtime-patch.py
-echo "da7d9381ee26c6cfb98e9636431bc2e5111479a9f2b0e8f10ad3bcabf2c25115  /tmp/p2-runtime-patch.py" | sha256sum --check
-python /tmp/p2-runtime-patch.py
-python -m py_compile /tmp/p2-apply-maintainability.py
-'''
+                      script += '\nbase64 --decode .github/p2-temp/runtime-patch.b64 > /tmp/p2-runtime-patch.py\necho "da7d9381ee26c6cfb98e9636431bc2e5111479a9f2b0e8f10ad3bcabf2c25115  /tmp/p2-runtime-patch.py" | sha256sum --check\npython /tmp/p2-runtime-patch.py\npython -m py_compile /tmp/p2-apply-maintainability.py\n'
                   script = re.sub(
                       r'(?m)^(git commit -m "[^"]+")$',
                       r'\1\ngit push origin HEAD:refactor/p2-maintainability',

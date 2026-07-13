@@ -281,11 +281,33 @@ body, button, input, select, textarea { font-family: 'Cairo', system-ui, -apple-
 .app2-navdrawer-links { display: flex; flex-direction: column; padding: var(--sp-2) 0; overflow-y: auto; }
 .app2-navdrawer-links a.active { background: #1f252b; color: var(--yk-yellow); box-shadow: inset 3px 0 0 var(--yk-yellow); }
 .uif-no-scroll { overflow: hidden; }
+.uif-overlay { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: flex-start; }
 .uif-overlay.center { align-items: center; justify-content: center; padding: var(--sp-4); }
+.uif-drawer {
+  block-size: 100%;
+  inline-size: min(440px, 96vw);
+  display: flex;
+  flex-direction: column;
+  border-inline-end-width: 1px;
+  border-inline-end-style: solid;
+  animation: uif-drawer-in 0.2s ease-out;
+}
 @keyframes uif-drawer-in { from { transform: translateX(24px); opacity: 0.4; } to { transform: translateX(0); opacity: 1; } }
+.uif-drawer.wide { inline-size: min(720px, 96vw); }
 .uif-drawer-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--yk-line); }
+.uif-drawer-title { font-size: 15.5px; font-weight: 800; }
 .uif-x { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--yk-line); background: transparent; color: var(--yk-muted); cursor: pointer; font-size: 13px; }
 .uif-drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-4); }
+.uif-drawer-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: var(--sp-3) var(--sp-4);
+  border-block-start-width: 1px;
+  border-block-start-style: solid;
+}
 .uif-modal { width: min(460px, 94vw); max-height: 90dvh; display: flex; flex-direction: column; background: var(--yk-panel); color: var(--yk-text); border: 1px solid var(--yk-line); border-radius: 14px; overflow: hidden; }
 .uif-confirm-msg { margin: 0 0 var(--sp-4); font-size: 14px; line-height: 1.7; }
 .uif-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-3); }

@@ -21,4 +21,11 @@ text = text[:important_start] + '''def stage_important():
 
 ''' + text[important_end:]
 
+old_shift = '    shift = block(848, 916)'
+old_product = '    product = block(918, len(lines))'
+assert old_shift in text, old_shift
+assert old_product in text, old_product
+text = text.replace(old_shift, '    shift = block(848, 914)', 1)
+text = text.replace(old_product, '    product = block(915, len(lines))', 1)
+
 path.write_text(text)

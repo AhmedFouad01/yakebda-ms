@@ -251,7 +251,6 @@ html, body { overflow-x: hidden; }
 .posx-adminmenu-items button:hover { background: #1f252b; color: var(--yk-yellow); }
 
 /* هيدر POS: أعمدة مرنة بعد دمج الأزرار */
-.posx-head { grid-template-columns: auto minmax(120px, 150px) auto auto minmax(200px, 1fr) !important; }
 
 /* شبكة الأصناف: أعمدة محسوبة — لا بطاقات ضيقة مكدسة على 1366px */
 .posx-grid { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important; }

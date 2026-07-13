@@ -285,15 +285,6 @@ button.wide { width: 100%; margin-top: 8px; }
   --posx-amber: #e9a13b;
 }
 .posx { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--posx-bg); color: var(--posx-text); z-index: 10; }
-.posx-head { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: var(--posx-panel); border-bottom: 1px solid var(--posx-line); }
-.posx-brand { display: flex; align-items: center; gap: 9px; }
-.posx-brand img { width: 40px; height: 40px; }
-.posx-brand strong { display: block; font-size: 16px; }
-.posx-brand span { display: block; font-size: 10.5px; letter-spacing: 1px; color: var(--posx-soft); }
-.posx-head select, .posx-search {
-  background: var(--posx-bg); color: var(--posx-text); border: 1px solid var(--posx-line);
-  border-radius: 9px; padding: 9px 12px; font-family: inherit; font-size: 14px;
-}
 .posx-search { flex: 1; max-width: 420px; margin-inline-start: auto; }
 .posx-shift { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 9px; border: 1px solid var(--posx-line); }
 .posx-shift.on { color: #7fd8a5; border-color: #2e5c44; }

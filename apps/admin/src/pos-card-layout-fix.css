@@ -4,13 +4,6 @@
  * from allowing cards or their children to paint over adjacent rows.
  */
 
-.app2-pos .posx-grid {
-  grid-auto-flow: row !important;
-  grid-auto-rows: max-content !important;
-  align-items: start !important;
-  align-content: start !important;
-  row-gap: 16px !important;
-}
 
 .app2-pos .posx-grid > .posx-card2 {
   position: relative !important;

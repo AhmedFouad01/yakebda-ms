@@ -299,7 +299,6 @@ button.wide { width: 100%; margin-top: 8px; }
   border-radius: 20px; padding: 8px 18px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13.5px;
 }
 .posx-cats button.active { background: var(--liver-hot); border-color: var(--liver-hot); color: #fff; }
-.posx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .posx-card {
   background: var(--posx-panel); border: 1px solid var(--posx-line); border-radius: 12px;
   padding: 10px; cursor: pointer; font-family: inherit; color: var(--posx-text);

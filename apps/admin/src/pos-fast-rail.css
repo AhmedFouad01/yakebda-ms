@@ -329,7 +329,6 @@
 }
 
 @media (min-width: 1600px) {
-  .app2-pos .posx-grid { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
 }
 
 @media (max-width: 1280px) {

@@ -36,13 +36,6 @@
     padding-inline: 13px !important;
   }
 
-  .app2-pos .posx-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    grid-auto-rows: max-content !important;
-    column-gap: 10px !important;
-    row-gap: 10px !important;
-    padding: 10px 12px 16px !important;
-  }
 
   .app2-pos .posx-grid > .posx-card2 {
     grid-template-rows: auto 62px minmax(94px, auto) !important;
@@ -141,11 +134,6 @@
     grid-template-columns: minmax(0, 1fr) minmax(460px, 500px) !important;
   }
 
-  .app2-pos .posx-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    gap: 9px !important;
-    padding: 9px 10px 14px !important;
-  }
 
   .app2-pos .posx-card2-media {
     aspect-ratio: 4 / 3 !important;

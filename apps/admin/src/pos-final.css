@@ -33,10 +33,6 @@
 }
 
 /* Product grid: deterministic columns and equal-width cards. */
-.app2-pos .posx-grid {
-  align-items: start !important;
-  grid-auto-flow: row !important;
-}
 
 /* Card shell */
 .app2-pos .posx-card2 {
@@ -474,9 +470,6 @@
 /* Keep the four-card target on large cashier displays; preserve responsive
    breakpoints already defined in pos-operational.css. */
 @media (min-width: 1601px) {
-  .app2-pos .posx-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
 }
 
 @media (max-width: 1380px) {

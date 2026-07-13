@@ -253,10 +253,8 @@ html, body { overflow-x: hidden; }
 /* هيدر POS: أعمدة مرنة بعد دمج الأزرار */
 
 /* شبكة الأصناف: أعمدة محسوبة — لا بطاقات ضيقة مكدسة على 1366px */
-.posx-grid { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important; }
 @media (max-width: 1440px) {
   .posx-body { grid-template-columns: minmax(0, 1fr) minmax(360px, 396px) !important; }
-  .posx-grid { grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)) !important; }
 }
 
 /* لا سكرول مزدوج داخل POS */
@@ -494,7 +492,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .posx-menu-top .posx-cats::-webkit-scrollbar { display: none; }
 .posx-menu-top .posx-cats button { flex: 0 0 auto; padding: 8px 16px; }
 
-.posx-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .posx-card2 {
   min-width: 0;
   min-height: 420px;
@@ -566,15 +563,12 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .posx-history-empty { padding: 24px; color: var(--yk-muted); text-align: center; }
 
 @media (max-width: 1450px) {
-  .posx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1120px) {
   .posx-menu-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .posx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .posx-body { grid-template-columns: 1fr; }
   .posx-cart { display: none; }
   .posx-menu-tools { grid-template-columns: 1fr; }
-  .posx-grid { grid-template-columns: 1fr; }
 }

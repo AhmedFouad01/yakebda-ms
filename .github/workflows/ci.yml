@@ -46,8 +46,19 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: API typecheck
+        run: npm --workspace @ykms/api run build
+
+      - name: Migration idempotency
+        run: |
+          npm run api:migrate
+          npm run api:migrate
+
       - name: API tests
         run: npm run api:test
+
+      - name: Global color contract
+        run: npm run ui:colors:check
 
       - name: Admin build
         run: npm run admin:build

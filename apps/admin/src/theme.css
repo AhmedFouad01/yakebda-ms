@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 @layer p2_normal, p2_priority;
 @layer p2_normal {
+@layer p2_normal, p2_priority;
+@layer p2_normal {
+@layer p2_normal, p2_priority;
+@layer p2_normal {
 /* YAKEBDA MS consolidated stylesheet — original cascade order preserved. */
 
 /* ===== migrated from styles.css ===== */
@@ -4113,7 +4117,7 @@ input[type="checkbox"] {
     border: 0;
     border-inline-end: 1px solid #4a575e;
     background: #11181c;
-    box-shadow: -16px 0 44px rgba(0, 0, 0, 0.58);
+    box-shadow: ---16px 0 44px rgba(0, 0, 0, 0.58);
     transform: translateX(105%);
     visibility: hidden;
     pointer-events: none;
@@ -12129,5 +12133,17 @@ button.danger:hover:not(:disabled),
     justify-self: end;
   }
 }
+
+}
+
+}
+@layer p2_priority {
+
+
+}
+
+}
+@layer p2_priority {
+
 
 }

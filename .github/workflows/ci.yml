@@ -152,6 +152,12 @@ jobs:
           lines = Path('.github/workflows/p2-apply-maintainability.yml').read_text().splitlines()
           steps = []
           current_name = 'unnamed'
+          skip_names = {
+              'Configure checkpoint commits',
+              'Apply .posx-head checkpoint',
+              'Apply .posx-grid checkpoint',
+              'Apply .posx-card checkpoint',
+          }
           index = 0
           while index < len(lines):
               line = lines[index]
@@ -182,13 +188,14 @@ jobs:
                       '- CSS authority: consolidated `theme.css`, then final `global-colors.css`.',
                   )
                   if current_name == 'Reconstruct and verify transformation script':
-                      script += '\nbase64 --decode .github/p2-temp/runtime-patch.b64 > /tmp/p2-runtime-patch.py\necho "079d059a87d8e7e78dab7c2e431db7ceec00cdb59e1a0f5639ef132ee9d2aa24  /tmp/p2-runtime-patch.py" | sha256sum --check\nsed -i "s/from { translateX(24px);/from { transform: translateX(24px);/" /tmp/p2-runtime-patch.py\necho "da7d9381ee26c6cfb98e9636431bc2e5111479a9f2b0e8f10ad3bcabf2c25115  /tmp/p2-runtime-patch.py" | sha256sum --check\npython /tmp/p2-runtime-patch.py\npython -m py_compile /tmp/p2-apply-maintainability.py\n'
+                      script += '\nbase64 --decode .github/p2-temp/runtime-patch.b64 > /tmp/p2-runtime-patch.py\necho "079d059a87d8e7e78dab7c2e431db7ceec00cdb59e1a0f5639ef132ee9d2aa24  /tmp/p2-runtime-patch.py" | sha256sum --check\nsed -i "s/from { translateX(24px);/from { transform: translateX(24px);/" /tmp/p2-runtime-patch.py\necho "da7d9381ee26c6cfb98e9636431bc2e5111479a9f2b0e8f10ad3bcabf2c25115  /tmp/p2-runtime-patch.py" | sha256sum --check\npython /tmp/p2-runtime-patch.py\npython .github/p2-temp/resume-layer-fix.py\npython -m py_compile /tmp/p2-apply-maintainability.py\ngit config user.name "YAKEBDA P2 Automation"\ngit config user.email "actions@users.noreply.github.com"\n'
                   script = re.sub(
                       r'(?m)^(git commit -m "[^"]+")$',
                       r'\1\ngit push origin HEAD:refactor/p2-maintainability',
                       script,
                   )
-                  steps.append((current_name, script))
+                  if current_name not in skip_names:
+                      steps.append((current_name, script))
                   continue
               index += 1
 

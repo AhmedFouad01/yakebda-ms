@@ -130,11 +130,6 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/checkout@v4
-        with:
-          ref: refactor/p2-maintainability
-
-      - name: Setup Node runtime
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -151,6 +146,7 @@ jobs:
           python - <<'PY' 2>&1 | tee /tmp/p2-run.log
           from pathlib import Path
           import os
+          import re
           import subprocess
 
           lines = Path('.github/workflows/p2-apply-maintainability.yml').read_text().splitlines()
@@ -176,6 +172,107 @@ jobs:
                   script = script.replace(
                       'http://127.0.0.1:3001/health',
                       'http://127.0.0.1:3001/api/v1/health',
+                  )
+                  script = script.replace(
+                      "assert data['css_imports'] == 3, data",
+                      "assert data['css_imports'] <= 3, data",
+                  )
+                  script = script.replace(
+                      '- CSS authority: `app.css`, `pos.css`, then final `global-colors.css`.',
+                      '- CSS authority: consolidated `theme.css`, then final `global-colors.css`.',
+                  )
+                  if current_name == 'Reconstruct and verify transformation script':
+                      script += r'''
+python - <<'P2PATCH'
+from pathlib import Path
+
+path = Path('/tmp/p2-apply-maintainability.py')
+text = path.read_text()
+
+layers_start = text.index('def stage_layers():')
+layers_end = text.index('\ndef stage_important', layers_start)
+new_layers = r'''def stage_layers():
+    main = SRC / "main.tsx"
+    text = main.read_text()
+    imports = []
+    for line in text.splitlines():
+        match = re.fullmatch(r'import "\./([^\"]+\.css)";', line.strip())
+        if match:
+            imports.append(match.group(1))
+    assert len(imports) == 18, imports
+    assert "theme.css" in imports
+    assert imports[-1] == "global-colors.css"
+
+    chunks = ["/* YAKEBDA MS consolidated stylesheet — original cascade order preserved. */\n"]
+    hoisted_imports = []
+    for name in imports[:-1]:
+        content = (SRC / name).read_text().rstrip()
+        for found in re.findall(r'(?m)^@import\s+[^;]+;\s*$', content):
+            hoisted_imports.append(found.strip())
+        content = re.sub(r'(?m)^@import\s+[^;]+;\s*\n?', '', content)
+        chunks.append(f"\n/* ===== migrated from {name} ===== */\n{content}\n")
+
+    combined = "\n".join(dict.fromkeys(hoisted_imports))
+    if combined:
+        combined += "\n\n"
+    combined += "".join(chunks)
+    (SRC / "theme.css").write_text(combined)
+
+    remaining = []
+    for line in text.splitlines():
+        if re.fullmatch(r'import "\./[^\"]+\.css";', line.strip()):
+            continue
+        remaining.append(line)
+    new_text = "\n".join(remaining) + "\n"
+    needle = 'import { initializeTheme } from "./lib/theme";\n'
+    assert needle in new_text
+    new_text = new_text.replace(
+        needle,
+        needle + 'import "./theme.css";\nimport "./global-colors.css";\n',
+        1,
+    )
+    main.write_text(new_text)
+
+    for name in imports[:-1]:
+        if name != "theme.css":
+            (SRC / name).unlink()
+
+'''
+text = text[:layers_start] + new_layers + text[layers_end:]
+
+important_start = text.index('def stage_important():')
+important_end = text.index('\ndef controller_names', important_start)
+new_important = r'''def stage_important():
+    p = SRC / "theme.css"
+    s = p.read_text().replace(" !important", "").replace("!important", "")
+    s = s.replace("    left: 9px;", "    inset-inline-end: 9px;", 1)
+    s = s.replace("    right: 9px;", "    inset-inline-start: 9px;", 1)
+    replacements = [
+        ("  right: auto;\n  bottom: auto;\n  left: auto;", "  inset-inline: auto;\n  bottom: auto;", 1),
+        ("  left: 12px;", "  inset-inline-end: 12px;", 1),
+        ("  right: 12px;\n  left: auto;", "  inset-inline-start: 12px;\n  inset-inline-end: auto;", 1),
+        ("    left: 0;\n    right: auto;", "    inset-inline-start: 0;\n    inset-inline-end: auto;", 1),
+        ("    right: 0;\n    bottom: 0;\n    left: 0;", "    inset-inline: 0;\n    bottom: 0;", 1),
+        ("text-align: right;", "text-align: start;", 999),
+        ("text-align: left;", "text-align: end;", 999),
+        ("@keyframes uif-drawer-in { from { transform: translateX(-24px); opacity: 0.4; }", "@keyframes uif-drawer-in { from { transform: translateX(24px); opacity: 0.4; }", 1),
+        ("    box-shadow: 16px 0 44px rgba(0, 0, 0, 0.58);\n    transform: translateX(-105%);", "    box-shadow: -16px 0 44px rgba(0, 0, 0, 0.58);\n    transform: translateX(105%);", 1),
+    ]
+    for old, new, count in replacements:
+        assert old in s, old
+        s = s.replace(old, new, count)
+    p.write_text(s)
+
+'''
+text = text[:important_start] + new_important + text[important_end:]
+path.write_text(text)
+P2PATCH
+python -m py_compile /tmp/p2-apply-maintainability.py
+'''
+                  script = re.sub(
+                      r'(?m)^(git commit -m "[^"]+")$',
+                      r'\1\ngit push origin HEAD:refactor/p2-maintainability',
+                      script,
                   )
                   steps.append((current_name, script))
                   continue

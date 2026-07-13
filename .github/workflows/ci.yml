@@ -163,7 +163,12 @@ jobs:
                       body_line = lines[index]
                       block.append(body_line[10:] if body_line.startswith('          ') else body_line)
                       index += 1
-                  steps.append((current_name, '\n'.join(block).rstrip() + '\n'))
+                  script = '\n'.join(block).rstrip() + '\n'
+                  script = script.replace(
+                      'npm run admin:dev -- --host 127.0.0.1',
+                      'npm --workspace @ykms/admin run dev -- --host 127.0.0.1',
+                  )
+                  steps.append((current_name, script))
                   continue
               index += 1
 

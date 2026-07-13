@@ -1,6 +1,72 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
 /** YKMS-02F — طبقات فوقية: Drawer/Modal/ConfirmDialog/Toast. */
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function focusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true"
+  );
+}
+
+export function useFocusTrap<T extends HTMLElement>(open: boolean, onClose: () => void) {
+  const containerRef = useRef<T | null>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const initial = focusableElements(container)[0] ?? container;
+    initial.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = focusableElements(container);
+      if (!focusable.length) {
+        event.preventDefault();
+        container.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !container.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    };
+  }, [open, onClose]);
+
+  return containerRef;
+}
 
 /* ——— Drawer (RTL: ينزلق من اليمين افتراضيًا) ——— */
 
@@ -19,23 +85,26 @@ export function Drawer({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  const dialogRef = useFocusTrap<HTMLElement>(open, onClose);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
     document.body.classList.add("uif-no-scroll");
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.classList.remove("uif-no-scroll");
-    };
-  }, [open, onClose]);
+    return () => document.body.classList.remove("uif-no-scroll");
+  }, [open]);
 
   if (!open) return null;
   return (
     <div className="uif-overlay" onClick={onClose}>
-      <aside className={`uif-drawer${wide ? " wide" : ""}`} dir="rtl" role="dialog" aria-modal onClick={(e) => e.stopPropagation()}>
+      <aside
+        ref={dialogRef}
+        className={`uif-drawer${wide ? " wide" : ""}`}
+        dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
           <header className="uif-drawer-head">
             <div className="uif-drawer-title">{title}</div>
@@ -52,18 +121,19 @@ export function Drawer({
 /* ——— Modal ——— */
 
 export function Modal({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const dialogRef = useFocusTrap<HTMLDivElement>(open, onClose);
   if (!open) return null;
   return (
     <div className="uif-overlay center" onClick={onClose}>
-      <div className="uif-modal" dir="rtl" role="dialog" aria-modal onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="uif-modal"
+        dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
           <header className="uif-drawer-head">
             <div className="uif-drawer-title">{title}</div>

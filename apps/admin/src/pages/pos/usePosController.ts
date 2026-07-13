@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
-import { t } from "../../lib/t";
-import type { FullOrder } from "../../components/Receipt";
 import { useMe } from "../../lib/me";
 import type {
   AdminPanel,
@@ -18,6 +16,7 @@ import { usePosShift } from "./usePosShift";
 import { usePosHistory } from "./usePosHistory";
 import { usePosDelivery } from "./usePosDelivery";
 import { usePosQuote } from "./usePosQuote";
+import { usePosSubmission } from "./usePosSubmission";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -111,8 +110,6 @@ export function usePosController() {
     onError: setError,
     onMessage: setMsg,
   });
-  const [done, setDone] = useState<FullOrder | null>(null);
-  const [busy, setBusy] = useState(false);
   const {
     currentQuote,
     quoteBusy,
@@ -160,6 +157,36 @@ export function usePosController() {
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const { done, setDone, busy, fireOrder } = usePosSubmission({
+    branchId,
+    sourceId,
+    orderType,
+    payment,
+    discount,
+    discountReason,
+    orderNotes,
+    allowDiscounts: settings?.allow_discounts,
+    cart,
+    currentQuote,
+    customerId,
+    deliveryAddress,
+    deliveryPhone,
+    deliveryZoneId,
+    deliveryFee,
+    historyOpen,
+    resetCart,
+    resetOrderDraft: () => {
+      setDiscount(0);
+      setDiscountReason("");
+      setOrderNotes("");
+    },
+    resetDeliveryDraft,
+    closeCartDrawer: () => setCartDrawerOpen(false),
+    refreshShift,
+    refreshHistory,
+    onError: setError,
+    onMessage: setMsg,
+  });
 
   useEffect(() => {
     setShellControlsRoot(document.getElementById("pos-appshell-controls"));
@@ -258,56 +285,6 @@ export function usePosController() {
   const discountReasonMissing = discount > 0 && !!settings?.discount_reason_required && !discountReason.trim();
   const cashBlocked = payment === "cash" && !!settings?.require_open_shift_for_cash && !shift;
   const enabledMethods = (settings?.enabled_payment_methods ?? ["cash", "card", "wallet", "unpaid"]) as PaymentMethod[];
-  async function fireOrder() {
-    setError("");
-    setMsg("");
-    if (!sourceId || !cart.length || busy || !currentQuote) return;
-    setBusy(true);
-    try {
-      const response = await api<{ data: FullOrder }>("/orders", {
-        method: "POST",
-        body: {
-          branch_id: branchId,
-          source_id: sourceId,
-          order_type: orderType,
-          table_id: null,
-          customer_id: orderType === "delivery" && customerId ? customerId : null,
-          delivery_address: orderType === "delivery" ? deliveryAddress || null : null,
-          delivery_phone: orderType === "delivery" ? deliveryPhone || null : null,
-          delivery_zone_id: orderType === "delivery" ? deliveryZoneId || null : null,
-          delivery_fee: orderType === "delivery" ? deliveryFee : 0,
-          submit: true,
-          payment_method: payment,
-          discount: settings?.allow_discounts ? discount : 0,
-          discount_reason: discount > 0 ? discountReason || null : null,
-          notes: orderNotes || null,
-          items: cart.map((line) => ({
-            product_id: line.product.id,
-            variant_id: line.variant?.id ?? null,
-            qty: line.qty,
-            notes: line.notes || null,
-            modifier_ids: line.modifiers.map((modifier) => modifier.id),
-          })),
-        },
-      });
-      const order = response.data;
-      setDone(order);
-      resetCart();
-      setDiscount(0);
-      setDiscountReason("");
-      setOrderNotes("");
-      resetDeliveryDraft();
-      setCartDrawerOpen(false);
-      setMsg(`${t.pos.orderCreated} ${order.order_no}`);
-      await refreshShift(branchId);
-      if (historyOpen) await refreshHistory(true);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return {
     can,
     branches,

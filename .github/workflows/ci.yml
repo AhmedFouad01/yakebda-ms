@@ -142,21 +142,35 @@ jobs:
 
       - name: Execute guarded P2 runner
         run: |
-          python -m pip install --disable-pip-version-check pyyaml
           set -o pipefail
           python - <<'PY' 2>&1 | tee /tmp/p2-run.log
           from pathlib import Path
           import os
           import subprocess
-          import yaml
 
-          workflow = yaml.safe_load(Path('.github/workflows/p2-apply-maintainability.yml').read_text())
-          steps = workflow['jobs']['apply']['steps']
-          for step in steps:
-              script = step.get('run')
-              if not script:
+          lines = Path('.github/workflows/p2-apply-maintainability.yml').read_text().splitlines()
+          steps = []
+          current_name = 'unnamed'
+          index = 0
+          while index < len(lines):
+              line = lines[index]
+              if line.startswith('      - name: '):
+                  current_name = line.split(': ', 1)[1]
+              if line == '        run: |':
+                  index += 1
+                  block = []
+                  while index < len(lines) and not lines[index].startswith('      - name: '):
+                      body_line = lines[index]
+                      block.append(body_line[10:] if body_line.startswith('          ') else body_line)
+                      index += 1
+                  steps.append((current_name, '\n'.join(block).rstrip() + '\n'))
                   continue
-              name = step.get('name', 'unnamed')
+              index += 1
+
+          if not steps:
+              raise RuntimeError('No run blocks found in P2 workflow')
+
+          for name, script in steps:
               print(f'\n===== {name} =====', flush=True)
               subprocess.run(
                   ['bash', '-euo', 'pipefail', '-c', script],

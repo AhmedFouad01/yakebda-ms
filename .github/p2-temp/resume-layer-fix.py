@@ -6,8 +6,10 @@ text = path.read_text()
 layers_start = text.index('def stage_layers():')
 layers_end = text.index('\ndef stage_important', layers_start)
 text = text[:layers_start] + '''def stage_layers():
+    import os
     marker = ROOT / ".github/p2-temp/resumed-layer-checkpoint"
-    marker.write_text("Layer collapse was validated and committed before this resumed run.\\n")
+    previous = marker.read_text() if marker.exists() else ""
+    marker.write_text(previous + f"Validated again in workflow {os.environ.get('GITHUB_RUN_ID', 'local')}.\\n")
 
 ''' + text[layers_end:]
 

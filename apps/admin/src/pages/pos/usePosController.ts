@@ -9,7 +9,6 @@ import type {
   Branch,
   CustomerAddress,
   DeliveryZone,
-  MenuCategory,
   OrderQuoteSummary,
   OrderSource,
   OrderType,
@@ -19,8 +18,9 @@ import type {
   Shift,
   ShiftOrderSummary,
 } from "./types";
-import { addressText, catRank, parseAddresses } from "./utils";
+import { addressText, parseAddresses } from "./utils";
 import { usePosCart } from "./usePosCart";
+import { usePosCatalog } from "./usePosCatalog";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -31,9 +31,7 @@ export function usePosController() {
   const [sourceId, setSourceId] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [shift, setShift] = useState<Shift | null>(null);
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [activeCat, setActiveCat] = useState("الكل");
-  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
   const {
     cart,
     setCart,
@@ -44,6 +42,20 @@ export function usePosController() {
     itemCount,
     localSubtotal,
   } = usePosCart();
+  const {
+    categories,
+    activeCat,
+    setActiveCat,
+    search,
+    setSearch,
+    visibleProducts,
+    refreshCatalog,
+  } = usePosCatalog({
+    branchId,
+    sourceId,
+    refreshCartProducts: refreshProducts,
+    onError: setError,
+  });
   const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const [customers, setCustomers] = useState<PosCustomer[]>([]);
   const [customerId, setCustomerId] = useState("");
@@ -70,7 +82,6 @@ export function usePosController() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sourceSelectRef = useRef<HTMLSelectElement>(null);
   const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
   const [done, setDone] = useState<FullOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [quoteState, setQuoteState] = useState<{ key: string; data: OrderQuoteSummary } | null>(null);
@@ -293,21 +304,10 @@ export function usePosController() {
     }
   }
 
-  async function loadMenu(currentBranchId = branchId, currentSourceId = sourceId) {
-    if (!currentBranchId) return;
-    const query = currentSourceId ? "?source_id=" + encodeURIComponent(currentSourceId) : "";
-    const response = await api<{ data: { categories: MenuCategory[] } }>("/branches/" + currentBranchId + "/menu" + query);
-    const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
-    const refreshed = new Map(sorted.flatMap((category) => category.products).map((product) => [product.id, product]));
-    setCategories(sorted);
-    refreshProducts(refreshed);
-    setActiveCat("الكل");
-  }
-
   useEffect(() => {
     if (!branchId) return;
     setSourceId("");
-    loadMenu(branchId, "").catch((e: Error) => setError(e.message));
+    refreshCatalog(branchId, "").catch((e: Error) => setError(e.message));
     api<{ data: Settings }>(`/settings?branch_id=${branchId}`).then((response) => {
       setSettings(response.data);
       setPayment((current) =>
@@ -338,11 +338,6 @@ export function usePosController() {
     return () => { cancelled = true; };
   }, [branchId, orderType]);
 
-  useEffect(() => {
-    if (!branchId) return;
-    loadMenu(branchId, sourceId).catch((e: Error) => setError(e.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId, sourceId]);
 
   useEffect(() => {
     if (!historyOpen || !branchId) return;
@@ -351,24 +346,6 @@ export function usePosController() {
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyOpen, branchId]);
-
-  // YKMS-02E: إخفاء الأصناف غير المرئية في POS (pos_visible === false)
-  const allProducts = useMemo(
-    () => categories.flatMap((category) => category.products).filter((p) => p.pos_visible !== false),
-    [categories]
-  );
-  const visibleProducts = useMemo(() => {
-    if (search) {
-      return allProducts.filter(
-        (product) =>
-          product.name_ar.includes(search) ||
-          product.ingredients_ar?.includes(search) ||
-          product.portion_note_ar?.includes(search)
-      );
-    }
-    if (activeCat === "الكل") return allProducts;
-    return (categories.find((category) => category.name_ar === activeCat)?.products ?? []).filter((p) => p.pos_visible !== false);
-  }, [categories, allProducts, activeCat, search]);
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
   const selectedZone = deliveryZones.find((zone) => zone.id === deliveryZoneId) ?? null;

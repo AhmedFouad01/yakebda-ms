@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Knex } from "knex";
+import { config } from "../config";
 import { err } from "../lib/errors";
 import { writeAudit } from "../lib/audit";
 import { requireApiToken } from "../middleware/auth";
@@ -62,7 +63,7 @@ export function bridgeRoutes(db: Knex): Router {
     }
   });
 
-  // Claim pending print jobs for the endpoints hosted on this bridge device
+  // Atomically claim pending print jobs for the endpoints hosted on this bridge device.
   r.get("/print-jobs", async (req, res, next) => {
     try {
       const q = z.object({ device_id: z.string().uuid() }).safeParse(req.query);
@@ -71,26 +72,44 @@ export function bridgeRoutes(db: Knex): Router {
       const device = await ownDevice(req, q.data.device_id);
       if (!device) throw err.notFound();
 
-      const jobs = await db("print_jobs as p")
-        .join("branches as b", "b.id", "p.branch_id")
-        .where("b.account_id", req.apiClient!.accountId)
-        .where({ "p.device_id": device.id, "p.status": "pending" })
-        .select("p.*")
-        .orderBy("p.created_at", "asc")
-        .limit(20);
+      const jobs = await db.transaction(async (trx) => {
+        const result = await trx.raw(
+          `
+            with claimable as (
+              select p.id
+                from print_jobs p
+                join branches b on b.id = p.branch_id
+               where b.account_id = ?
+                 and p.device_id = ?
+                 and p.status = 'pending'
+                 and p.attempts < ?
+               order by p.created_at asc, p.id asc
+               limit 20
+               for update of p skip locked
+            )
+            update print_jobs p
+               set status = 'printing',
+                   attempts = p.attempts + 1,
+                   error = null,
+                   updated_at = now()
+              from claimable c
+             where p.id = c.id
+            returning p.*;
+          `,
+          [req.apiClient!.accountId, device.id, config.maxPrintAttempts]
+        );
+        return (result.rows as Array<Record<string, unknown>>).sort(
+          (a, b) => new Date(String(a.created_at)).getTime() - new Date(String(b.created_at)).getTime()
+        );
+      });
 
-      if (jobs.length) {
-        await db("print_jobs")
-          .whereIn("id", jobs.map((j) => j.id))
-          .update({ status: "printing", attempts: db.raw("attempts + 1"), updated_at: db.fn.now() });
-      }
       res.json({ data: jobs });
     } catch (e) {
       next(e);
     }
   });
 
-  // Report print result (printed | failed)
+  // Report print result (printed | failed). Failed jobs return to pending until the retry budget is exhausted.
   r.post("/print-jobs/:id/result", async (req, res, next) => {
     try {
       const body = z
@@ -111,15 +130,25 @@ export function bridgeRoutes(db: Knex): Router {
         const device = await ownDevice(req, job.device_id);
         if (!device) throw err.notFound();
       }
+      if (job.status !== "printing") throw err.conflict();
 
-      await db("print_jobs")
-        .where({ id: job.id })
+      const nextStatus =
+        body.data.status === "printed"
+          ? "printed"
+          : Number(job.attempts) < config.maxPrintAttempts
+            ? "pending"
+            : "dead";
+
+      const updated = await db("print_jobs")
+        .where({ id: job.id, status: "printing" })
         .update({
-          status: body.data.status,
+          status: nextStatus,
           error: body.data.error ?? null,
-          printed_at: body.data.status === "printed" ? db.fn.now() : null,
+          printed_at: nextStatus === "printed" ? db.fn.now() : null,
           updated_at: db.fn.now(),
         });
+      if (!updated) throw err.conflict();
+
       await writeAudit(db, {
         accountId: req.apiClient!.accountId,
         branchId: job.branch_id,
@@ -128,9 +157,13 @@ export function bridgeRoutes(db: Knex): Router {
         action: `print_job.${body.data.status}`,
         entityType: "print_job",
         entityId: job.id,
-        meta: body.data.error ? { error: body.data.error } : {},
+        meta: {
+          attempt: Number(job.attempts),
+          final_status: nextStatus,
+          ...(body.data.error ? { error: body.data.error } : {}),
+        },
       });
-      res.json({ ok: true });
+      res.json({ ok: true, status: nextStatus, retry_scheduled: nextStatus === "pending" });
     } catch (e) {
       next(e);
     }

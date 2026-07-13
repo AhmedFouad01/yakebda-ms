@@ -35,6 +35,13 @@ const ORDER_INTEGRITY_CONSTRAINTS = new Set([
   "order_item_modifier_max_select_check",
 ]);
 
+const PAYMENT_INTEGRITY_MESSAGES: Record<string, string> = {
+  payments_amount_positive_guard: ar.errors.payment_amount_positive,
+  payments_already_paid_guard: ar.errors.payment_already_paid,
+  payments_over_remaining_guard: ar.errors.payment_over_remaining,
+  payments_unpaid_zero_guard: ar.errors.unpaid_amount_zero,
+};
+
 function isOrderIntegrityError(error: DatabaseError): boolean {
   if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) return true;
   return /Selected variant does not belong|same modifier cannot|Selected modifier does not belong|Required modifier selections are missing|Too many modifiers were selected/i.test(
@@ -91,6 +98,17 @@ export function createApp(db: Knex) {
     }
 
     const dbError = e as DatabaseError;
+    const paymentMessage = dbError.constraint
+      ? PAYMENT_INTEGRITY_MESSAGES[dbError.constraint]
+      : undefined;
+    if (paymentMessage) {
+      return res.status(422).json({
+        code: "validation",
+        message: ar.errors.validation,
+        details: { amount: paymentMessage },
+      });
+    }
+
     if (isOrderIntegrityError(dbError)) {
       return res.status(422).json({
         code: "validation",

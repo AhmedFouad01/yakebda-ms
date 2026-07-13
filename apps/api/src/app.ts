@@ -20,6 +20,7 @@ import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant"
 import { shiftRoutes } from "./modules/shifts";
 import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } from "./modules/settings";
 import { orderSourceRoutes } from "./modules/orderSources";
+import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
 
 type DatabaseError = Error & {
   code?: string;
@@ -82,8 +83,10 @@ export function createApp(db: Knex) {
   v1.use("/orders", orderRoutes(db));
   v1.use("/kitchen", kitchenRoutes(db));
   v1.use("/tables", tableRoutes(db));
+  v1.use("/customers", customerReadRoutes(db));
   v1.use("/customers", customerRoutes(db));
   v1.use("/shifts", shiftRoutes(db));
+  v1.use("/settings", settingsReadRoutes(db));
   v1.use("/settings", settingsRoutes(db));
   v1.use("/prep-stations", prepStationRoutes(db));
   v1.use("/delivery-zones", deliveryZoneRoutes(db));

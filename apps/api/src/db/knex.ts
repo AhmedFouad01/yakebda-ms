@@ -32,7 +32,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260710_007_ykms_02e_settings_architecture": m007,
   "20260710_008_ykms_02f_operational_ui": m008,
   "20260711_009_ykms_02g_bread_type": m009,
-  "20260711_010_ykms_02g_crM": m010,
+  "20260711_010_ykms_02g_crm": m010,
   "20260712_011_security_scope_stabilization": m011,
   "20260712_012_order_integrity_stabilization": m012,
   "20260712_013_order_sources_price_lists": m013,

@@ -17,6 +17,7 @@ import * as m014 from "./migrations/20260712_014_delivery_checkout_context";
 import * as m015 from "./migrations/20260713_015_payment_integrity";
 import * as m016 from "./migrations/20260713_016_auth_lockout";
 import * as m017 from "./migrations/20260713_017_read_permission_scoping";
+import * as m018 from "./migrations/20260713_018_print_job_reliability";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -40,6 +41,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260713_015_payment_integrity": m015,
   "20260713_016_auth_lockout": m016,
   "20260713_017_read_permission_scoping": m017,
+  "20260713_018_print_job_reliability": m018,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

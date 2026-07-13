@@ -4,37 +4,35 @@ import postcss from "postcss";
 const themePath = "apps/admin/src/theme.css";
 const globalPath = "apps/admin/src/global-colors.css";
 
-function replaceExact(source, oldValue, newValue, count = 1) {
-  let output = source;
-  for (let index = 0; index < count; index += 1) {
-    if (!output.includes(oldValue)) throw new Error(`Missing expected CSS fragment: ${oldValue}`);
-    output = output.replace(oldValue, newValue);
-  }
-  return output;
-}
+const logicalPropertyMap = new Map([
+  ["left", "inset-inline-end"],
+  ["right", "inset-inline-start"],
+  ["margin-left", "margin-inline-end"],
+  ["margin-right", "margin-inline-start"],
+  ["padding-left", "padding-inline-end"],
+  ["padding-right", "padding-inline-start"],
+]);
 
-function logicalize(source) {
-  let output = source;
-  output = replaceExact(output, "    left: 9px;", "    inset-inline-end: 9px;");
-  output = replaceExact(output, "    right: 9px;", "    inset-inline-start: 9px;");
-  output = replaceExact(output, "  right: auto;\n  bottom: auto;\n  left: auto;", "  inset-inline: auto;\n  bottom: auto;");
-  output = replaceExact(output, "  left: 12px;", "  inset-inline-end: 12px;");
-  output = replaceExact(output, "  right: 12px;\n  left: auto;", "  inset-inline-start: 12px;\n  inset-inline-end: auto;");
-  output = replaceExact(output, "    left: 0;\n    right: auto;", "    inset-inline-start: 0;\n    inset-inline-end: auto;");
-  output = replaceExact(output, "    right: 0;\n    bottom: 0;\n    left: 0;", "    inset-inline: 0;\n    bottom: 0;");
-  output = output.replaceAll("text-align: right;", "text-align: start;");
-  output = output.replaceAll("text-align: left;", "text-align: end;");
-  output = replaceExact(
-    output,
-    "@keyframes uif-drawer-in { from { transform: translateX(-24px); opacity: 0.4; }",
-    "@keyframes uif-drawer-in { from { transform: translateX(24px); opacity: 0.4; }",
-  );
-  output = replaceExact(
-    output,
-    "    box-shadow: 16px 0 44px rgba(0, 0, 0, 0.58);\n    transform: translateX(-105%);",
-    "    box-shadow: -16px 0 44px rgba(0, 0, 0, 0.58);\n    transform: translateX(105%);",
-  );
-  return output;
+function logicalize(root) {
+  root.walkDecls((decl) => {
+    const logicalProperty = logicalPropertyMap.get(decl.prop);
+    if (logicalProperty) decl.prop = logicalProperty;
+
+    if (decl.prop === "text-align") {
+      if (decl.value === "right") decl.value = "start";
+      if (decl.value === "left") decl.value = "end";
+    }
+
+    if (decl.prop === "transform") {
+      decl.value = decl.value
+        .replaceAll("translateX(-24px)", "translateX(24px)")
+        .replaceAll("translateX(-105%)", "translateX(105%)");
+    }
+
+    if (decl.prop === "box-shadow" && decl.value.includes("16px 0 44px rgba(0, 0, 0, 0.58)")) {
+      decl.value = decl.value.replace("16px 0 44px", "-16px 0 44px");
+    }
+  });
 }
 
 function prune(container) {
@@ -49,13 +47,15 @@ function prune(container) {
   }
 }
 
-function splitCascade(css, from) {
+function splitCascade(css, from, useLogicalProperties) {
   const root = postcss.parse(css, { from });
   const imports = [];
   root.walkAtRules("import", (rule) => {
     imports.push(rule.toString());
     rule.remove();
   });
+
+  if (useLogicalProperties) logicalize(root);
 
   const normal = root.clone();
   normal.walkDecls((decl) => {
@@ -77,8 +77,8 @@ function splitCascade(css, from) {
   };
 }
 
-const theme = splitCascade(logicalize(fs.readFileSync(themePath, "utf8")), themePath);
-const global = splitCascade(fs.readFileSync(globalPath, "utf8"), globalPath);
+const theme = splitCascade(fs.readFileSync(themePath, "utf8"), themePath, true);
+const global = splitCascade(fs.readFileSync(globalPath, "utf8"), globalPath, true);
 
 const layerOrder = "@layer p2_normal, p2_priority;";
 const themeOutput = [

@@ -1,212 +1,29 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { api, resolveAssetUrl } from "../../lib/api";
+import { api } from "../../lib/api";
 import { t } from "../../lib/t";
-import { Receipt, FullOrder } from "../../components/Receipt";
-import { OrderDetail } from "../../components/OrderDetail";
+import type { FullOrder } from "../../components/Receipt";
 import { useMe } from "../../lib/me";
-import { Drawer } from "../../components/ui/overlays";
-import { PosCartLine } from "../../components/pos/PosCartLine";
-
-interface MenuModifier {
-  id: string;
-  name_ar: string;
-  price_delta: string | number;
-}
-interface MenuGroup {
-  id: string;
-  name_ar: string;
-  min_select: number;
-  max_select: number;
-  is_required: boolean;
-  modifiers: MenuModifier[];
-}
-interface MenuVariant {
-  id: string;
-  name_ar: string;
-  price_delta: string | number;
-}
-interface MenuProduct {
-  id: string;
-  name_ar: string;
-  effective_price: number;
-  is_available: boolean;
-  pos_visible?: boolean;
-  image_url?: string | null;
-  ingredients_ar?: string | null;
-  portion_note_ar?: string | null;
-  availability_note_ar?: string | null;
-  variants: MenuVariant[];
-  modifier_groups: MenuGroup[];
-}
-interface MenuCategory {
-  id: string;
-  name_ar: string;
-  products: MenuProduct[];
-}
-interface Branch {
-  id: string;
-  name: string;
-}
-interface OrderSource {
-  id: string;
-  code: string;
-  name_ar: string;
-  supports_takeaway: boolean;
-  supports_delivery: boolean;
-}
-interface DeliveryZone {
-  id: string;
-  name_ar: string;
-  fee: string | number;
-  min_order: string | number;
-  is_active: boolean;
-}
-interface CustomerAddress {
-  label?: string | null;
-  area?: string | null;
-  landmark?: string | null;
-  floor?: string | null;
-  notes?: string | null;
-  is_default?: boolean;
-}
-interface PosCustomer {
-  id: string;
-  name: string;
-  phone?: string | null;
-  alt_phone?: string | null;
-  address?: string | null;
-  addresses?: CustomerAddress[] | string | null;
-}
-interface Shift {
-  id: string;
-  opened_at: string;
-  opening_cash: string | number;
-  totals?: {
-    cash_sales: number;
-    card_sales: number;
-    wallet_sales: number;
-    expected_cash: number;
-    orders_count: number;
-  };
-}
-interface ShiftOrderPreviewItem {
-  id: string;
-  name_ar: string;
-  variant_name_ar?: string | null;
-  qty: number;
-  image_url?: string | null;
-}
-interface ShiftOrderSummary {
-  id: string;
-  order_no: number;
-  order_prefix?: string | null;
-  order_type: string;
-  source_name?: string | null;
-  status: string;
-  kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
-  payment_status: "unpaid" | "partial" | "paid";
-  subtotal: string | number;
-  discount: string | number;
-  service_fee: string | number;
-  vat_amount: string | number;
-  delivery_fee: string | number;
-  rounding_adjustment: string | number;
-  total: string | number;
-  paid_amount: string | number;
-  item_count: number;
-  preview_items: ShiftOrderPreviewItem[];
-  created_at: string;
-  submitted_at?: string | null;
-  in_kitchen_at?: string | null;
-  ready_at?: string | null;
-  completed_at?: string | null;
-  cancelled_at?: string | null;
-}
-
-interface Settings {
-  show_product_images: boolean;
-  require_open_shift_for_cash: boolean;
-  enabled_payment_methods: string[];
-  receipt_printing_enabled: boolean;
-  allow_discounts: boolean;
-  // YKMS-02E — الإعدادات مصدر الحقيقة
-  order_type_takeaway_enabled: boolean;
-  order_type_delivery_enabled: boolean;
-  default_delivery_fee: number;
-  min_delivery_order: number;
-  max_discount_without_manager: number;
-  max_cashier_discount_percent: number;
-  discount_reason_required: boolean;
-  vat_enabled: boolean;
-  vat_percentage: number;
-  prices_include_vat: boolean;
-  service_fee_enabled: boolean;
-  service_fee_type: "percent" | "fixed";
-  service_fee_value: number;
-  rounding_rule: "none" | "nearest_050" | "nearest_1";
-  require_customer_for_delivery: boolean;
-  require_address_for_delivery: boolean;
-}
-interface OrderQuoteSummary {
-  subtotal: number;
-  discount: number;
-  delivery_fee: number;
-  service_fee: number;
-  vat_amount: number;
-  rounding_adjustment: number;
-  total: number;
-}
-interface CartLine {
-  key: string;
-  product: MenuProduct;
-  variant?: MenuVariant | null;
-  modifiers: MenuModifier[];
-  qty: number;
-  notes: string;
-}
-type OrderType = "takeaway" | "delivery";
-type AdminPanel = "shift" | null;
-type PaymentMethod = "cash" | "card" | "wallet" | "unpaid";
-
-const CAT_ORDER = ["الكل", "ساندوتشات", "أطباق", "وجبات", "الحواوشي", "البطاطس", "فواتح الشهية", "إضافات", "مشروبات"];
-const paymentLabels: Record<PaymentMethod, string> = {
-  cash: t.pos.cash,
-  card: t.pos.card,
-  wallet: t.pos.wallet,
-  unpaid: t.pos.unpaid,
-};
-
-const money = (v: number) => `${v.toFixed(2)} ${t.reports.egp}`;
-const unitPrice = (line: CartLine) =>
-  line.product.effective_price +
-  Number(line.variant?.price_delta ?? 0) +
-  line.modifiers.reduce((sum, mod) => sum + Number(mod.price_delta), 0);
-const cartLineKey = (product: MenuProduct, variant?: MenuVariant | null, modifiers: MenuModifier[] = []) =>
-  `${product.id}|${variant?.id ?? ""}|${modifiers.map((modifier) => modifier.id).sort().join(",")}`;
-const catRank = (name: string) => {
-  const index = CAT_ORDER.indexOf(name);
-  return index === -1 ? 99 : index;
-};
-
-function parseAddresses(customer: PosCustomer | null): CustomerAddress[] {
-  if (!customer?.addresses) return [];
-  if (Array.isArray(customer.addresses)) return customer.addresses;
-  try {
-    const parsed = JSON.parse(customer.addresses);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function addressText(address: CustomerAddress): string {
-  return [address.area, address.landmark, address.floor, address.notes]
-    .map((value) => value?.trim())
-    .filter(Boolean)
-    .join(" — ");
-}
+import type {
+  AdminPanel,
+  Branch,
+  CartLine,
+  CustomerAddress,
+  DeliveryZone,
+  MenuCategory,
+  MenuModifier,
+  MenuProduct,
+  MenuVariant,
+  OrderQuoteSummary,
+  OrderSource,
+  OrderType,
+  PaymentMethod,
+  PosCustomer,
+  Settings,
+  Shift,
+  ShiftOrderSummary,
+} from "./posTypes";
+import { addressText, cartLineKey, catRank, parseAddresses, unitPrice } from "./posUtils";
 
 export function usePosState() {
   const [params] = useSearchParams();

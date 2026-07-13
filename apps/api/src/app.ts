@@ -20,6 +20,7 @@ import { tableRoutes, customerRoutes, reportRoutes } from "./modules/restaurant"
 import { shiftRoutes } from "./modules/shifts";
 import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } from "./modules/settings";
 import { orderSourceRoutes } from "./modules/orderSources";
+import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
 
 type DatabaseError = Error & {
   code?: string;
@@ -34,6 +35,13 @@ const ORDER_INTEGRITY_CONSTRAINTS = new Set([
   "order_item_modifier_min_select_check",
   "order_item_modifier_max_select_check",
 ]);
+
+const PAYMENT_INTEGRITY_MESSAGES: Record<string, string> = {
+  payments_amount_positive_guard: ar.errors.payment_amount_positive,
+  payments_already_paid_guard: ar.errors.payment_already_paid,
+  payments_over_remaining_guard: ar.errors.payment_over_remaining,
+  payments_unpaid_zero_guard: ar.errors.unpaid_amount_zero,
+};
 
 function isOrderIntegrityError(error: DatabaseError): boolean {
   if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) return true;
@@ -75,8 +83,10 @@ export function createApp(db: Knex) {
   v1.use("/orders", orderRoutes(db));
   v1.use("/kitchen", kitchenRoutes(db));
   v1.use("/tables", tableRoutes(db));
+  v1.use("/customers", customerReadRoutes(db));
   v1.use("/customers", customerRoutes(db));
   v1.use("/shifts", shiftRoutes(db));
+  v1.use("/settings", settingsReadRoutes(db));
   v1.use("/settings", settingsRoutes(db));
   v1.use("/prep-stations", prepStationRoutes(db));
   v1.use("/delivery-zones", deliveryZoneRoutes(db));
@@ -91,6 +101,17 @@ export function createApp(db: Knex) {
     }
 
     const dbError = e as DatabaseError;
+    const paymentMessage = dbError.constraint
+      ? PAYMENT_INTEGRITY_MESSAGES[dbError.constraint]
+      : undefined;
+    if (paymentMessage) {
+      return res.status(422).json({
+        code: "validation",
+        message: ar.errors.validation,
+        details: { amount: paymentMessage },
+      });
+    }
+
     if (isOrderIntegrityError(dbError)) {
       return res.status(422).json({
         code: "validation",

@@ -78,6 +78,23 @@ afterAll(async () => {
 });
 
 describe("Atomic order numbering", () => {
+  it("keeps the database advisory-lock allocator installed", async () => {
+    const result = await db.raw(`
+      select
+        pg_get_triggerdef(t.oid) as trigger_def,
+        pg_get_functiondef(p.oid) as function_def
+      from pg_trigger t
+      join pg_proc p on p.oid = t.tgfoid
+      where t.tgname = 'orders_assign_number_before_insert'
+        and not t.tgisinternal
+    `);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].trigger_def).toContain("BEFORE INSERT");
+    expect(result.rows[0].function_def).toContain("pg_advisory_xact_lock");
+    expect(result.rows[0].function_def).toContain("v_numbering_key");
+  });
+
   it("assigns unique sequential numbers to concurrent orders in one branch", async () => {
     const responses = await Promise.all(
       Array.from({ length: 8 }, () => createOrder())

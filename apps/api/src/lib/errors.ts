@@ -18,4 +18,6 @@ export const err = {
   conflict: () => new ApiError(409, "conflict"),
   badCredentials: () => new ApiError(401, "bad_credentials"),
   badPin: () => new ApiError(401, "bad_pin"),
+  rateLimited: (details?: unknown) => new ApiError(429, "too_many_attempts", details),
+  locked: (details?: unknown) => new ApiError(423, "account_locked", details),
 };

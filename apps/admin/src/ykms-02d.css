@@ -47,9 +47,6 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .posx-cats { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; margin-bottom: 14px; position: sticky; top: 0; z-index: 2; background: linear-gradient(180deg, var(--yk-black) 70%, rgba(9,11,13,0)); padding-bottom: 8px; }
 .posx-cats button { background: var(--yk-panel); border: 1px solid var(--yk-line); color: var(--yk-text); border-radius: 999px; padding: 9px 17px; font-weight: 900; }
 .posx-cats button.active, .seg.dark button.active { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.posx-card { background: var(--yk-panel); border: 1px solid var(--yk-line); color: var(--yk-text); min-height: 212px; border-radius: 13px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
-.posx-card:hover { border-color: var(--yk-yellow); box-shadow: 0 0 0 1px rgba(246, 192, 38, 0.35); }
-.posx-card.off { opacity: .48; }
 .posx-card-img { width: 100%; aspect-ratio: 1 / 1; max-height: 74px; object-fit: cover; border-radius: 9px; }
 .posx-card-img.ph { display: grid; place-items: center; background: linear-gradient(135deg, #1e2328, #3c3210); color: var(--yk-yellow); font-size: 28px; font-weight: 900; }
 .posx-card-name { font-weight: 900; line-height: 1.25; }

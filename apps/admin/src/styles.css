@@ -299,13 +299,6 @@ button.wide { width: 100%; margin-top: 8px; }
   border-radius: 20px; padding: 8px 18px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13.5px;
 }
 .posx-cats button.active { background: var(--liver-hot); border-color: var(--liver-hot); color: #fff; }
-.posx-card {
-  background: var(--posx-panel); border: 1px solid var(--posx-line); border-radius: 12px;
-  padding: 10px; cursor: pointer; font-family: inherit; color: var(--posx-text);
-  display: flex; flex-direction: column; align-items: center; gap: 7px; min-height: 132px;
-  transition: border-color 0.12s;
-}
-.posx-card:hover { border-color: var(--liver-hot); }
 .posx-card-img { width: 100%; height: 64px; object-fit: cover; border-radius: 8px; }
 .posx-card-img.ph {
   display: flex; align-items: center; justify-content: center;
@@ -314,7 +307,6 @@ button.wide { width: 100%; margin-top: 8px; }
 }
 .posx-card-name { font-weight: 800; font-size: 14px; text-align: center; }
 .posx-card-price { color: var(--posx-amber); font-weight: 700; font-size: 13px; }
-.posx-card.off { opacity: 0.45; cursor: not-allowed; }
 .posx-card-off { color: #ff8f7a; font-size: 11.5px; }
 
 .posx-cart { background: var(--posx-panel); border-inline-start: 1px solid var(--posx-line); display: flex; flex-direction: column; padding: 14px; min-height: 0; }

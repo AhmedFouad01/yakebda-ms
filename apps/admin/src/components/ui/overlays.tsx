@@ -17,8 +17,8 @@ function focusableElements(container: HTMLElement): HTMLElement[] {
   );
 }
 
-export function useFocusTrap(open: boolean, onClose: () => void) {
-  const containerRef = useRef<HTMLElement | null>(null);
+export function useFocusTrap<T extends HTMLElement>(open: boolean, onClose: () => void) {
+  const containerRef = useRef<T | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export function Drawer({
   footer?: ReactNode;
   wide?: boolean;
 }) {
-  const dialogRef = useFocusTrap(open, onClose);
+  const dialogRef = useFocusTrap<HTMLElement>(open, onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +121,7 @@ export function Drawer({
 /* ——— Modal ——— */
 
 export function Modal({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode }) {
-  const dialogRef = useFocusTrap(open, onClose);
+  const dialogRef = useFocusTrap<HTMLDivElement>(open, onClose);
   if (!open) return null;
   return (
     <div className="uif-overlay center" onClick={onClose}>

@@ -27,30 +27,38 @@
 - Shared Drawer/Modal focus trap added and tested, including Tab containment, Escape close, and trigger-focus restoration.
 - Validation CI Run #297 passed on the exact R10 work head before squash into P2.
 
+### Visual baseline freeze
+
+- Captured POS, KDS, Orders detail, Menu, Customers, and Users.
+- Captured 1366×768 and 1920×1080 in both Light and Dark.
+- The pack contains 24 PNG files plus `manifest.json`.
+- POS contains four cart lines; KDS and Orders detail use a real submitted fixture order.
+- The complete pack is stored under `docs/engineering/visual-baseline/p2-before/`.
+- P2 Visual Baseline Run #6 generated and committed the pack.
+- Run #8 published the verified artifact on exact work head `00f5147162efbe1d7ce4b6cdc415d1044d530b98`.
+- Internal checkpoint PR #37 was squash-merged into P2 as `9e85fd18b8a75f3624314b3b38109616dc341244`.
+- Temporary capture workflow removed after the pack was verified.
+
 ## Current gate
 
-The visual baseline pack is still required before deleting or consolidating CSS rules.
+The visual freeze is complete. The next permitted code change is the incremental `.posx-head` consolidation.
 
-Required screens: POS, KDS, Orders detail, Menu, Customers, Users.
+Rules for the next checkpoint:
 
-Required viewports: 1366×768 and 1920×1080, Light and Dark where supported.
-
-Target directory: `docs/engineering/visual-baseline/p2-before/`.
-
-- P0 merged.
-- P1 merged.
+- Preserve the accepted screenshots exactly.
+- Do not change Product Grid or KDS geometry.
+- Do not delete unexplained rules.
+- Run Admin tests, Admin build, global color contract, and screenshot parity before accepting the checkpoint.
 - No API or migration changes are permitted in P2.
 - No visual redesign is permitted.
-- CSS duplicate removal remains blocked until the reference screenshot pack exists.
 
 ## Remaining checkpoints
 
-1. Capture and approve visual baseline pack.
-2. `.posx-head` consolidation.
-3. `.posx-grid` consolidation.
-4. `.posx-card` consolidation.
-5. CSS layer collapse.
-6. `!important` reduction.
-7. RTL drawer animation direction and logical properties.
-8. POS component extractions.
-9. Final metrics and parity report.
+1. `.posx-head` consolidation.
+2. `.posx-grid` consolidation.
+3. `.posx-card` consolidation.
+4. CSS layer collapse.
+5. `!important` reduction.
+6. RTL drawer animation direction and logical properties.
+7. POS component extractions.
+8. Final tests, metrics, and parity report.

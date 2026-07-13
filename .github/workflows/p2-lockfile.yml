@@ -6,22 +6,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lockfile:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout work branch
         uses: actions/checkout@v4
+        with:
+          ref: work/p2-r10-frontend-tests
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Generate package lock
         run: npm install --package-lock-only --ignore-scripts
-      - name: Upload package lock
-        uses: actions/upload-artifact@v4
-        with:
-          name: p2-package-lock
-          path: package-lock.json
+      - name: Commit package lock
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "test(admin): update dependency lockfile"
+          git push origin HEAD:work/p2-r10-frontend-tests

@@ -15,13 +15,12 @@ import type {
   PaymentMethod,
   PosCustomer,
   Settings,
-  Shift,
-  ShiftOrderSummary,
 } from "./types";
 import { addressText, parseAddresses } from "./utils";
 import { usePosCart } from "./usePosCart";
 import { usePosCatalog } from "./usePosCatalog";
 import { usePosShift } from "./usePosShift";
+import { usePosHistory } from "./usePosHistory";
 
 export function usePosController() {
   const [params] = useSearchParams();
@@ -91,15 +90,29 @@ export function usePosController() {
   const [quoteState, setQuoteState] = useState<{ key: string; data: OrderQuoteSummary } | null>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteError, setQuoteError] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyBusy, setHistoryBusy] = useState(false);
-  const [historyError, setHistoryError] = useState("");
-  const [history, setHistory] = useState<ShiftOrderSummary[]>([]);
-  const [historyOrder, setHistoryOrder] = useState<FullOrder | null>(null);
-  const [historyOrderBusy, setHistoryOrderBusy] = useState(false);
-  const [historyOrderError, setHistoryOrderError] = useState("");
-  const [historySearch, setHistorySearch] = useState("");
-  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const {
+    historyOpen,
+    setHistoryOpen,
+    historyBusy,
+    historyError,
+    history,
+    historyOrder,
+    setHistoryOrder,
+    historyOrderBusy,
+    historyOrderError,
+    historySearch,
+    setHistorySearch,
+    expandedHistoryId,
+    setExpandedHistoryId,
+    filteredHistory,
+    shiftOrdersCount,
+    refreshHistory,
+    openHistoryOrder,
+  } = usePosHistory({
+    branchId,
+    currentShiftOrderCount: shift?.totals?.orders_count,
+    applyShiftSnapshot,
+  });
 
   const [adminPanel, setAdminPanel] = useState<AdminPanel>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
@@ -267,38 +280,6 @@ export function usePosController() {
     return () => { cancelled = true; };
   }, [orderType, branchId]);
 
-  async function loadHistory(silent = false) {
-    if (!branchId) return;
-    if (!silent) setHistoryBusy(true);
-    setHistoryError("");
-    try {
-      const response = await api<{ data: { shift: Shift | null; orders: ShiftOrderSummary[] } }>(
-        `/orders/current-shift?branch_id=${branchId}`
-      );
-      applyShiftSnapshot(response.data.shift);
-      setHistory(response.data.orders);
-    } catch (e: any) {
-      setHistoryError(e.message);
-    } finally {
-      if (!silent) setHistoryBusy(false);
-    }
-  }
-
-  async function openHistoryOrder(id: string) {
-    if (historyOrderBusy) return;
-    setHistoryOrderBusy(true);
-    setHistoryOrderError("");
-    try {
-      const response = await api<{ data: FullOrder }>(`/orders/${id}`);
-      setHistoryOpen(false);
-      setHistoryOrder(response.data);
-    } catch (e: any) {
-      setHistoryOrderError(e.message);
-    } finally {
-      setHistoryOrderBusy(false);
-    }
-  }
-
   useEffect(() => {
     if (!branchId) return;
     setSourceId("");
@@ -333,14 +314,6 @@ export function usePosController() {
     return () => { cancelled = true; };
   }, [branchId, orderType]);
 
-
-  useEffect(() => {
-    if (!historyOpen || !branchId) return;
-    void loadHistory();
-    const timer = window.setInterval(() => void loadHistory(true), 10000);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyOpen, branchId]);
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
   const selectedZone = deliveryZones.find((zone) => zone.id === deliveryZoneId) ?? null;
@@ -506,19 +479,13 @@ export function usePosController() {
       setCartDrawerOpen(false);
       setMsg(`${t.pos.orderCreated} ${order.order_no}`);
       await refreshShift(branchId);
-      if (historyOpen) await loadHistory(true);
+      if (historyOpen) await refreshHistory(true);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setBusy(false);
     }
   }
-
-  const normalizedHistorySearch = historySearch.trim().replace(/^#/, "").toLocaleLowerCase("ar-EG");
-  const filteredHistory = normalizedHistorySearch
-    ? history.filter((order) => `${order.order_prefix ?? ""}${order.order_no}`.toLocaleLowerCase("ar-EG").includes(normalizedHistorySearch))
-    : history;
-  const shiftOrdersCount = shift?.totals?.orders_count ?? history.length;
 
   return {
     can,

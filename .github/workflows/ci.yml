@@ -130,6 +130,11 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/p2-maintainability
+
+      - name: Setup Node runtime
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -167,6 +172,10 @@ jobs:
                   script = script.replace(
                       'npm run admin:dev -- --host 127.0.0.1',
                       'npm --workspace @ykms/admin run dev -- --host 127.0.0.1',
+                  )
+                  script = script.replace(
+                      'http://127.0.0.1:3001/health',
+                      'http://127.0.0.1:3001/api/v1/health',
                   )
                   steps.append((current_name, script))
                   continue

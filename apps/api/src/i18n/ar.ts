@@ -30,6 +30,9 @@ export const ar = {
     payment_already_paid: "الطلب مدفوع بالكامل بالفعل.",
     payment_over_remaining: "المبلغ يتجاوز المتبقّي على الطلب.",
     unpaid_amount_zero: "مبلغ حالة غير مدفوع يجب أن يكون صفرًا.",
+    refund_amount_positive: "مبلغ الاسترداد يجب أن يكون أكبر من صفر.",
+    refund_exceeds_paid: "مبلغ الاسترداد يتجاوز صافي المدفوع على الطلب.",
+    refund_reference_required: "الاسترداد يتطلب دفعة أصلية وسببًا واضحًا.",
     order_type_disabled: "نوع الطلب هذا غير مفعل في الإعدادات.",
     delivery_customer_required: "طلب الدليفري يتطلب اختيار عميل.",
     delivery_address_required: "طلب الدليفري يتطلب عنوان توصيل.",
@@ -39,6 +42,9 @@ export const ar = {
     driver_inactive: "هذا السائق غير نشط.",
     order_cancel_disabled: "إلغاء الطلبات غير مفعل في الإعدادات.",
     receipt_printing_disabled: "طباعة الإيصالات غير مفعلة في الإعدادات.",
+  },
+  warnings: {
+    unsettled_orders: "يوجد طلبات غير مكتملة أو غير مسددة مرتبطة بهذا الشيفت.",
   },
   messages: {
     login_ok: "تم تسجيل الدخول بنجاح.",
@@ -50,5 +56,6 @@ export const ar = {
     shift_opened: "تم فتح الشيفت.",
     shift_closed: "تم إغلاق الشيفت.",
     print_job_queued: "تمت إضافة مهمة الطباعة إلى الطابور.",
+    refund_created: "تم تسجيل الاسترداد مع الاحتفاظ بسجل الدفع الأصلي.",
   },
 } as const;

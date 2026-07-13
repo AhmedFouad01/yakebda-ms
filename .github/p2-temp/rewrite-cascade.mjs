@@ -51,7 +51,8 @@ function splitCascade(css, from, useLogicalProperties) {
   const root = postcss.parse(css, { from });
   const imports = [];
   root.walkAtRules("import", (rule) => {
-    imports.push(rule.toString());
+    const serialized = rule.toString();
+    imports.push(serialized.endsWith(";") ? serialized : `${serialized};`);
     rule.remove();
   });
 

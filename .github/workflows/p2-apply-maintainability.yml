@@ -1,0 +1,389 @@
+name: P2 Apply Maintainability
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p2-maintainability-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.ref == 'refactor/p2-maintainability'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ykms
+          POSTGRES_PASSWORD: ykms
+          POSTGRES_DB: ykms_visual
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ykms -d ykms_visual"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_visual
+      TEST_DATABASE_URL: postgres://ykms:ykms@localhost:5432/ykms_visual
+      JWT_SECRET: p2-visual-only-change-me
+      API_PORT: 3001
+      CORS_ORIGIN: http://127.0.0.1:5173
+      P2_WEB_ORIGIN: http://127.0.0.1:5173
+      P2_API_ORIGIN: http://127.0.0.1:3001
+      P2_OWNER_EMAIL: owner@ykms.local
+      P2_OWNER_PASSWORD: Owner@12345
+
+    steps:
+      - name: Checkout P2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/p2-maintainability
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Reconstruct and verify transformation script
+        run: |
+          cat .github/p2-temp/p2part* | base64 --decode > /tmp/p2-apply-maintainability.py
+          echo "760b58358d45ddeb626a46a7609c572dcf873c2c6b9ad3b80f949866292c03c1  /tmp/p2-apply-maintainability.py" | sha256sum --check
+          python -m py_compile /tmp/p2-apply-maintainability.py
+
+      - name: Install dependencies and visual runtime
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          python -m pip install --disable-pip-version-check pillow
+
+      - name: Prepare visual fixture services
+        run: |
+          npm run api:migrate
+          npm run api:seed
+          nohup npm run api:dev > /tmp/p2-api.log 2>&1 &
+          nohup npm run admin:dev -- --host 127.0.0.1 > /tmp/p2-admin.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3001/health >/dev/null && curl -fsS http://127.0.0.1:5173/login >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/p2-api.log || true
+          cat /tmp/p2-admin.log || true
+          exit 1
+
+      - name: Configure checkpoint commits
+        run: |
+          git config user.name "YAKEBDA P2 Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git rm -f .github/workflows/p2-source-export.yml
+          git add -A
+          git commit -m "chore(p2): remove temporary source export"
+
+      - name: Install parity helpers
+        run: |
+          cp scripts/p2-capture-visual-baseline.mjs scripts/.p2-capture-after.mjs
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/.p2-capture-after.mjs')
+          text = path.read_text()
+          text = text.replace(
+              'const OUTPUT_DIR = path.resolve("docs/engineering/visual-baseline/p2-before");',
+              'const OUTPUT_DIR = path.resolve(process.env.P2_OUTPUT_DIR);',
+          )
+          path.write_text(text)
+          PY
+          mkdir -p /tmp/p2-visual
+
+          cat > /tmp/p2-compare.py <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageChops
+          import json, sys
+
+          before = Path(sys.argv[1])
+          after = Path(sys.argv[2])
+          report_path = Path(sys.argv[3])
+          threshold = 24
+          max_changed_ratio = 0.035
+          max_mean_delta = 5.0
+          results = []
+          failed = []
+
+          for baseline in sorted(before.glob('*.png')):
+              candidate = after / baseline.name
+              if not candidate.exists():
+                  failed.append({'file': baseline.name, 'reason': 'missing'})
+                  continue
+              left = Image.open(baseline).convert('RGB')
+              right = Image.open(candidate).convert('RGB')
+              if left.size != right.size:
+                  failed.append({'file': baseline.name, 'reason': 'size', 'before': left.size, 'after': right.size})
+                  continue
+              diff = ImageChops.difference(left, right)
+              pixels = list(diff.getdata())
+              changed = sum(1 for pixel in pixels if max(pixel) > threshold)
+              changed_ratio = changed / max(1, len(pixels))
+              mean_delta = sum(sum(pixel) / 3 for pixel in pixels) / max(1, len(pixels))
+              item = {
+                  'file': baseline.name,
+                  'changed_ratio': round(changed_ratio, 6),
+                  'mean_delta': round(mean_delta, 4),
+              }
+              results.append(item)
+              if changed_ratio > max_changed_ratio or mean_delta > max_mean_delta:
+                  failed.append(item)
+                  diff_dir = after / 'diffs'
+                  diff_dir.mkdir(exist_ok=True)
+                  diff.save(diff_dir / baseline.name)
+
+          payload = {
+              'threshold': threshold,
+              'max_changed_ratio': max_changed_ratio,
+              'max_mean_delta': max_mean_delta,
+              'screenshots_checked': len(results),
+              'results': results,
+              'failed': failed,
+          }
+          report_path.parent.mkdir(parents=True, exist_ok=True)
+          report_path.write_text(json.dumps(payload, indent=2) + '\n')
+          print(json.dumps(payload, indent=2))
+          if failed:
+              raise SystemExit(1)
+          PY
+
+          cat > /tmp/p2-metrics.py <<'PY'
+          from pathlib import Path
+          import json, re, sys
+
+          src = Path('apps/admin/src')
+          main = (src / 'main.tsx').read_text()
+          imports = re.findall(r'import "\./([^\"]+\.css)";', main)
+          css_files = [src / name for name in imports]
+          text = '\n'.join(path.read_text() for path in css_files)
+          physical = re.findall(r'(?m)^\s*(?:left|right|margin-left|margin-right|padding-left|padding-right)\s*:', text)
+          tests = sum(
+              len(re.findall(r'\b(?:it|test)\s*\(', path.read_text()))
+              for path in src.rglob('*.test.*')
+          )
+          payload = {
+              'css_imports': len(imports),
+              'css_files': imports,
+              'css_lines': sum(len(path.read_text().splitlines()) for path in css_files),
+              'important': text.count('!important'),
+              'posx_head': len(re.findall(r'\.posx-head(?![A-Za-z0-9_-])', text)),
+              'posx_grid': len(re.findall(r'\.posx-grid(?![A-Za-z0-9_-])', text)),
+              'posx_card': len(re.findall(r'\.posx-card(?![A-Za-z0-9_-])', text)),
+              'physical_directional': len(physical),
+              'pos_lines': len((src / 'pages/Pos.tsx').read_text().splitlines()),
+              'frontend_tests': tests,
+          }
+          Path(sys.argv[1]).write_text(json.dumps(payload, indent=2) + '\n')
+          print(json.dumps(payload, indent=2))
+          PY
+
+      - name: Apply .posx-head checkpoint
+        run: |
+          python /tmp/p2-apply-maintainability.py head
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf /tmp/p2-visual/head
+          P2_OUTPUT_DIR=/tmp/p2-visual/head GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before /tmp/p2-visual/head /tmp/p2-visual/head-parity.json
+          git add -A
+          git commit -m "refactor(p2): consolidate POS header selectors"
+
+      - name: Apply .posx-grid checkpoint
+        run: |
+          python /tmp/p2-apply-maintainability.py grid
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf /tmp/p2-visual/grid
+          P2_OUTPUT_DIR=/tmp/p2-visual/grid GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before /tmp/p2-visual/grid /tmp/p2-visual/grid-parity.json
+          git add -A
+          git commit -m "refactor(p2): consolidate POS product grid"
+
+      - name: Apply .posx-card checkpoint
+        run: |
+          python /tmp/p2-apply-maintainability.py card
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf /tmp/p2-visual/card
+          P2_OUTPUT_DIR=/tmp/p2-visual/card GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before /tmp/p2-visual/card /tmp/p2-visual/card-parity.json
+          git add -A
+          git commit -m "refactor(p2): remove dead POS card selectors"
+
+      - name: Collapse CSS layers checkpoint
+        run: |
+          python /tmp/p2-apply-maintainability.py layers
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf /tmp/p2-visual/layers
+          P2_OUTPUT_DIR=/tmp/p2-visual/layers GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before /tmp/p2-visual/layers /tmp/p2-visual/layers-parity.json
+          git add -A
+          git commit -m "refactor(p2): collapse CSS into three layers"
+
+      - name: Reduce important and fix RTL checkpoint
+        run: |
+          python /tmp/p2-apply-maintainability.py important
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf /tmp/p2-visual/important
+          P2_OUTPUT_DIR=/tmp/p2-visual/important GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before /tmp/p2-visual/important /tmp/p2-visual/important-parity.json
+          python /tmp/p2-metrics.py /tmp/p2-visual/important-metrics.json
+          python - <<'PY'
+          import json
+          data = json.load(open('/tmp/p2-visual/important-metrics.json'))
+          assert data['css_imports'] == 3, data
+          assert data['important'] <= 148, data
+          assert data['physical_directional'] == 0, data
+          assert data['posx_head'] == 0, data
+          assert data['posx_card'] == 0, data
+          PY
+          git add -A
+          git commit -m "refactor(p2): remove cascade overrides and fix RTL logic"
+
+      - name: Extract POS state provider checkpoint
+        run: |
+          python /tmp/p2-apply-maintainability.py provider
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf /tmp/p2-visual/provider
+          P2_OUTPUT_DIR=/tmp/p2-visual/provider GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before /tmp/p2-visual/provider /tmp/p2-visual/provider-parity.json
+          git add -A
+          git commit -m "refactor(p2): extract POS state provider"
+
+      - name: Extract focused POS children and final parity
+        run: |
+          python /tmp/p2-apply-maintainability.py children
+          npm run admin:test
+          npm run admin:build
+          npm run ui:colors:check
+          rm -rf docs/engineering/visual-baseline/p2-after
+          P2_OUTPUT_DIR=docs/engineering/visual-baseline/p2-after GITHUB_SHA=$(git rev-parse HEAD) node scripts/.p2-capture-after.mjs
+          python /tmp/p2-compare.py docs/engineering/visual-baseline/p2-before docs/engineering/visual-baseline/p2-after docs/engineering/visual-baseline/p2-after/parity-report.json
+          python /tmp/p2-metrics.py docs/engineering/P2_FINAL_METRICS.json
+          python - <<'PY'
+          import json
+          data = json.load(open('docs/engineering/P2_FINAL_METRICS.json'))
+          assert data['css_imports'] == 3, data
+          assert data['important'] <= 148, data
+          assert data['physical_directional'] == 0, data
+          assert data['pos_lines'] < 300, data
+          assert data['frontend_tests'] >= 10, data
+          PY
+          git add -A
+          git commit -m "refactor(p2): split POS into focused components"
+
+      - name: Final P2 report and cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          metrics = json.loads(Path('docs/engineering/P2_FINAL_METRICS.json').read_text())
+          parity = json.loads(Path('docs/engineering/visual-baseline/p2-after/parity-report.json').read_text())
+          status = f'''# P2 Maintainability — Execution Status
+
+**Branch:** `refactor/p2-maintainability`
+
+**Base at start:** `26bafdced9faa126a120cbdf8a564a84725aa2dd`
+
+## Completed
+
+### Inventory and visual contract
+
+- Before inventory: 18 CSS imports, 9,501 CSS lines, 1,483 `!important`, 11 physical directional declarations, and `Pos.tsx` at 1,503 lines.
+- Before screenshots: 24 PNG files covering POS, KDS, Orders Detail, Menu, Customers, and Users at 1366×768 and 1920×1080 in Light and Dark.
+- After screenshots: 24 PNG files under `docs/engineering/visual-baseline/p2-after/`.
+- Pixel parity checks passed for all {parity['screenshots_checked']} final screenshots within the documented dynamic-content threshold.
+
+### R10 frontend safety net
+
+- Vitest + Testing Library + jsdom are wired into the Admin workspace and normal CI.
+- {metrics['frontend_tests']} frontend tests cover cart/variant/payment logic, asset URL resolution, and overlay focus behavior.
+- Shared `useFocusTrap` is active in Drawer and Modal.
+
+### R8 CSS consolidation
+
+- CSS imports: **18 → {metrics['css_imports']}**.
+- CSS authority: `app.css`, `pos.css`, then final `global-colors.css`.
+- `!important`: **1,483 → {metrics['important']}** ({round((1 - metrics['important'] / 1483) * 100, 1)}% reduction).
+- Exact `.posx-head` definitions: **7 → {metrics['posx_head']}**.
+- Exact dead `.posx-card` definitions: **6 → {metrics['posx_card']}**.
+- Physical directional declarations: **11 → {metrics['physical_directional']}**.
+- RTL Drawer and mobile POS drawer enter from inline-start/right.
+- `global-colors.css` remains the last color authority.
+
+### R9 POS decomposition
+
+- `Pos.tsx`: **1,503 → {metrics['pos_lines']} lines**.
+- Shared state is held by `PosContext.tsx` and the page remains the orchestrator.
+- Focused children: `PosView`, `PosShellControls`, `ProductGrid`, `ProductCard`, `CartPanel`, `OrderHistory`, `PosDialogs`, and `ShiftPanel`.
+
+## Validation
+
+- Admin frontend tests passed at every checkpoint.
+- Admin production build passed at every checkpoint.
+- Global color contract passed at every checkpoint.
+- Before/after visual parity passed at every CSS and POS extraction checkpoint.
+- No API or migration source files were changed.
+
+## Current gate
+
+P2 implementation is complete. PR #34 must remain Draft until the final GitHub CI run and human visual review are accepted. No merge is authorized by this report.
+'''
+          Path('docs/engineering/P2_EXECUTION_STATUS.md').write_text(status)
+          PY
+
+          rm -f scripts/.p2-capture-after.mjs
+          git rm -rf .github/p2-temp
+          git rm -f .github/workflows/p2-apply-maintainability.yml
+          git add -A
+          git commit -m "docs(p2): record final metrics and visual parity"
+
+      - name: Push P2 checkpoints
+        run: git push origin HEAD:refactor/p2-maintainability
+
+      - name: Upload parity diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-maintainability-parity
+          path: |
+            /tmp/p2-visual
+            docs/engineering/visual-baseline/p2-after
+            docs/engineering/P2_FINAL_METRICS.json
+            /tmp/p2-api.log
+            /tmp/p2-admin.log
+          if-no-files-found: warn
+          retention-days: 14

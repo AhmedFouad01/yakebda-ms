@@ -47,7 +47,14 @@ jobs:
         run: npm ci
 
       - name: API typecheck
-        run: npm --workspace @ykms/api run build
+        run: npm --workspace @ykms/api run build 2>&1 | tee api-typecheck.log
+
+      - name: Upload typecheck diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-typecheck-diagnostics
+          path: api-typecheck.log
 
       - name: Migration idempotency
         run: |

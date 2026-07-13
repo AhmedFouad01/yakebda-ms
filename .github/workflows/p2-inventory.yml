@@ -3,6 +3,8 @@ name: P2 Inventory
 on:
   push:
     branches: [refactor/p2-maintainability]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

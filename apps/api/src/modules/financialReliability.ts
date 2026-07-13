@@ -6,6 +6,7 @@ import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
+import { renderReceiptPayload } from "../lib/receipt";
 import { getSettings } from "./settings";
 import { loadFullOrder } from "./orders";
 
@@ -213,6 +214,105 @@ async function handleCancellation(
 
 export function financialReliabilityRoutes(db: Knex): Router {
   const router = Router();
+
+  router.post(
+    "/:id/payments",
+    requireUser(db),
+    requirePermission("payments.record"),
+    async (req, res, next) => {
+      try {
+        const body = z.object({ method: z.enum(["cash", "card", "wallet", "unpaid"]), amount: z.number().nonnegative() }).safeParse(req.body);
+        if (!body.success) throw err.validation(body.error.flatten());
+
+        const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
+        if (!order) throw err.notFound();
+        if (!canAccessBranch(req.user!, order.branch_id)) throw err.forbidden();
+        if (order.status === "cancelled") throw err.validation({ status: ar.errors.bad_status_transition });
+
+        const settings = await getSettings(db, req.user!.accountId, order.branch_id);
+        if (!settings.enabled_payment_methods.includes(body.data.method)) {
+          throw err.validation({ method: ar.errors.payment_method_disabled });
+        }
+
+        let shiftId: string | null = null;
+        if (body.data.method !== "unpaid") {
+          const shift = await db("shifts")
+            .where({
+              account_id: req.user!.accountId,
+              branch_id: order.branch_id,
+              cashier_user_id: req.user!.id,
+              status: "open",
+            })
+            .first();
+          if (body.data.method === "cash" && settings.require_open_shift_for_cash && !shift) {
+            throw err.validation({ shift: ar.errors.shift_required_for_cash });
+          }
+          shiftId = shift?.id ?? null;
+        }
+
+        const paymentId = newId();
+        await db.transaction(async (trx) => {
+          await trx("payments").insert({
+            id: paymentId,
+            order_id: order.id,
+            branch_id: order.branch_id,
+            method: body.data.method,
+            amount: body.data.amount,
+            received_by: req.user!.id,
+            shift_id: shiftId,
+            kind: "payment",
+          });
+          await writeAudit(trx, {
+            accountId: req.user!.accountId,
+            branchId: order.branch_id,
+            userId: req.user!.id,
+            action: "payment.record",
+            entityType: "payment",
+            entityId: paymentId,
+            meta: { order_no: order.order_no, method: body.data.method, amount: body.data.amount },
+            ip: req.ip,
+          });
+        });
+
+        if (settings.auto_print_on_payment && settings.receipt_printing_enabled && body.data.method !== "unpaid") {
+          try {
+            const endpoint = await db("hardware_endpoints")
+              .where({ branch_id: order.branch_id, kind: "receipt_printer", is_active: true })
+              .first();
+            if (endpoint) {
+              const full = await loadFullOrder(db, req.user!.accountId, order.id);
+              await db("print_jobs").insert({
+                id: newId(),
+                branch_id: order.branch_id,
+                endpoint_id: endpoint.id,
+                device_id: endpoint.device_id ?? null,
+                type: "receipt",
+                payload: JSON.stringify(
+                  renderReceiptPayload(full!, {
+                    footer: settings.receipt_footer,
+                    paperWidthMm: settings.paper_width_mm,
+                    copies: settings.receipt_copies,
+                    taxDisplay: settings.receipt_tax_display,
+                  })
+                ),
+                status: "pending",
+                created_by: req.user!.id,
+              });
+            }
+          } catch {
+            // NFR-002: printing is best-effort and never rolls back committed money.
+          }
+        }
+
+        res.status(201).json({
+          data: await db("payments").where({ id: paymentId }).first(),
+          message: ar.messages.created,
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   router.post(
     "/:id/refund",

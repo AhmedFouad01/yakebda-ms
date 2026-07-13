@@ -46,8 +46,33 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: API typecheck
+        run: npm --workspace @ykms/api run build 2>&1 | tee api-typecheck.log
+
+      - name: Upload typecheck diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-typecheck-diagnostics
+          path: api-typecheck.log
+
+      - name: Migration idempotency
+        run: |
+          npm run api:migrate
+          npm run api:migrate
+
       - name: API tests
-        run: npm run api:test
+        run: npm run api:test 2>&1 | tee api-tests.log
+
+      - name: Upload API test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-diagnostics
+          path: api-tests.log
+
+      - name: Global color contract
+        run: npm run ui:colors:check
 
       - name: Admin build
         run: npm run admin:build

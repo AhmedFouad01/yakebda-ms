@@ -1,7 +1,7 @@
 name: P2 Visual Baseline
 
 on:
-  push:
+  pull_request:
     branches: [refactor/p2-maintainability]
   workflow_dispatch:
 
@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   capture:
-    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message != 'docs(p2): capture visual baseline screenshots'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -37,21 +36,34 @@ jobs:
       P2_API_ORIGIN: http://127.0.0.1:3001
 
     steps:
-      - name: Checkout P2 branch
+      - name: Checkout visual work branch
         uses: actions/checkout@v4
         with:
-          ref: refactor/p2-maintainability
+          ref: work/p2-visual-baseline
+
+      - name: Check whether baseline already exists
+        id: gate
+        shell: bash
+        run: |
+          if test -f docs/engineering/visual-baseline/p2-before/manifest.json; then
+            echo "capture=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "capture=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node
+        if: steps.gate.outputs.capture == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install project dependencies
+        if: steps.gate.outputs.capture == 'true'
         run: npm ci
 
       - name: Prepare database and capture seed credentials
+        if: steps.gate.outputs.capture == 'true'
         shell: bash
         run: |
           npm run api:migrate
@@ -63,13 +75,16 @@ jobs:
           echo "::add-mask::$owner_password"
           echo "P2_OWNER_EMAIL=$owner_email" >> "$GITHUB_ENV"
           echo "P2_OWNER_PASSWORD=$owner_password" >> "$GITHUB_ENV"
+          echo "P2_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Install Chromium capture runtime
+        if: steps.gate.outputs.capture == 'true'
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
 
       - name: Start API and Admin
+        if: steps.gate.outputs.capture == 'true'
         shell: bash
         run: |
           nohup npm run api:dev > /tmp/p2-api.log 2>&1 &
@@ -85,22 +100,25 @@ jobs:
           exit 1
 
       - name: Capture baseline pack
+        if: steps.gate.outputs.capture == 'true'
         run: node scripts/p2-capture-visual-baseline.mjs
 
       - name: Commit baseline screenshots
+        if: steps.gate.outputs.capture == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f docs/engineering/visual-baseline/p2-before/.capture-pending || true
           git add docs/engineering/visual-baseline/p2-before
           if git diff --cached --quiet; then
             exit 0
           fi
           git commit -m "docs(p2): capture visual baseline screenshots"
-          git push origin HEAD:refactor/p2-maintainability
+          git push origin HEAD:work/p2-visual-baseline
 
       - name: Upload diagnostics on failure
-        if: failure()
+        if: failure() && steps.gate.outputs.capture == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: p2-visual-baseline-diagnostics

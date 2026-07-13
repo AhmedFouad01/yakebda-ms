@@ -1,0 +1,27 @@
+name: P2 Inventory
+
+on:
+  push:
+    branches: [refactor/p2-maintainability]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate inventory
+        run: node scripts/p2-css-inventory.mjs
+      - name: Upload inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-css-inventory
+          path: docs/engineering/CSS_CONSOLIDATION_PLAN.md

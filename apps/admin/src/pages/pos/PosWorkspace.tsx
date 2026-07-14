@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { resolveAssetUrl } from "../../lib/api";
 import { t } from "../../lib/t";
 import { ProductCard } from "./ProductCard";
 import { PosCart } from "./PosCart";
@@ -14,6 +15,18 @@ export function PosWorkspace({ controller }: { controller: PosController }) {
     setCartDrawerOpen, itemCount, activeCat, categories, setActiveCat, visibleProducts,
     cart, settings, addProduct, quickRemove,
   } = controller;
+  const categoryOptions = [
+    {
+      id: "all",
+      name: "الكل",
+      imageUrl: categories.flatMap((category) => category.products).find((product) => product.image_url)?.image_url,
+    },
+    ...categories.map((category) => ({
+      id: category.id,
+      name: category.name_ar,
+      imageUrl: category.products.find((product) => product.image_url)?.image_url,
+    })),
+  ];
 
   return (
     <div className="posx" dir="rtl">
@@ -66,23 +79,34 @@ export function PosWorkspace({ controller }: { controller: PosController }) {
         <section className="posx-menu">
           <div className="posx-menu-top">
             <div className="posx-menu-tools">
-            <button
-              type="button"
-              className="posx-cart-toggle"
-              aria-controls="posx-cart-drawer"
-              aria-expanded={cartDrawerOpen}
-              onClick={() => setCartDrawerOpen(true)}
-            >
-              السلة <span>{itemCount}</span>
-            </button>
-            </div>
-            <div className="posx-cats">
-            <button className={activeCat === "الكل" && !search ? "active" : ""} onClick={() => { setActiveCat("الكل"); setSearch(""); }}>الكل</button>
-              {categories.map((category) => (
-                <button key={category.id} className={category.name_ar === activeCat && !search ? "active" : ""} onClick={() => { setActiveCat(category.name_ar); setSearch(""); }}>
-                  {category.name_ar}
-                </button>
-              ))}
+              <div className="posx-cats" aria-label="أقسام المنيو">
+                {categoryOptions.map((category) => {
+                  const imageSrc = resolveAssetUrl(category.imageUrl);
+                  return (
+                    <button
+                      type="button"
+                      key={category.id}
+                      className={category.name === activeCat && !search ? "active" : ""}
+                      onClick={() => { setActiveCat(category.name); setSearch(""); }}
+                    >
+                      <span className="posx-cat-media" aria-hidden="true">
+                        <span className="posx-cat-fallback">{category.name.trim().charAt(0)}</span>
+                        {imageSrc && <img src={imageSrc} alt="" onError={(event) => { event.currentTarget.hidden = true; }} />}
+                      </span>
+                      <span className="posx-cat-label">{category.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="posx-cart-toggle"
+                aria-controls="posx-cart-drawer"
+                aria-expanded={cartDrawerOpen}
+                onClick={() => setCartDrawerOpen(true)}
+              >
+                السلة <span>{itemCount}</span>
+              </button>
             </div>
           </div>
           <div className="posx-grid">

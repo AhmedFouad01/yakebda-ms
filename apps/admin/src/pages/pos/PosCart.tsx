@@ -66,8 +66,6 @@ export function PosCart({ controller }: { controller: PosController }) {
                   key={`${line.key}-${index}`}
                   line={line}
                   totalLabel={money(unitPrice(line) * line.qty)}
-                  onIncrease={() => setCart((rows) => rows.map((row, i) => i === index ? { ...row, qty: row.qty + 1 } : row))}
-                  onDecrease={() => setCart((rows) => rows.flatMap((row, i) => i !== index ? [row] : row.qty > 1 ? [{ ...row, qty: row.qty - 1 }] : []))}
                   onRemove={() => setCart((rows) => rows.filter((_, i) => i !== index))}
                   onNotesChange={(notes) => setCart((rows) => rows.map((row, i) => i === index ? { ...row, notes } : row))}
                 />

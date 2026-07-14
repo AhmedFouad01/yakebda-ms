@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
 import { OrderDetail } from "../components/OrderDetail";
+import { DialogLayer } from "../components/ui/overlays";
 import { useMe } from "../lib/me";
 
 interface OrderRow {
@@ -114,8 +115,12 @@ export function Orders() {
       </div>
 
       {current && (
-        <div className="modal-back" onClick={() => setCurrent(null)}>
-          <div className="modal wide od-modal" role="dialog" aria-modal="true" aria-labelledby="orders-detail-title" onClick={(e) => e.stopPropagation()}>
+        <DialogLayer
+          open
+          onClose={() => setCurrent(null)}
+          className="modal wide od-modal"
+          ariaLabelledBy="orders-detail-title"
+        >
             <header className="od-modal-head">
               <div className="od-modal-title">
                 <h3 id="orders-detail-title">{t.orders.details} #{current.order_prefix ?? ""}{current.order_no}</h3>
@@ -235,8 +240,7 @@ export function Orders() {
                 </aside>
               </div>
             </div>
-          </div>
-        </div>
+        </DialogLayer>
       )}
     </div>
   );

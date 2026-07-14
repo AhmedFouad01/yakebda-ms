@@ -6,7 +6,7 @@ import { setToken } from "../../lib/api";
 import { useMe, clearMe } from "../../lib/me";
 import { applyTheme, getActiveTheme, type AppTheme } from "../../lib/theme";
 import { ToggleSwitch } from "./primitives";
-import { Toaster } from "./overlays";
+import { Drawer, Toaster } from "./overlays";
 
 /**
  * YKMS-02F — AppShell: تنقّل نظامي موحد لكل الشاشات بما فيها POS.
@@ -157,31 +157,28 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className={`app2-main${isPos ? " full" : ""}`}>{children}</main>
       </div>
 
-      {drawerOpen && (
-        <div className="uif-overlay" onClick={() => setDrawerOpen(false)}>
-          <aside className="uif-drawer app2-navdrawer" dir="rtl" role="dialog" aria-modal onClick={(e) => e.stopPropagation()}>
-            <header className="uif-drawer-head">
-              <div className="uif-drawer-title">
-                <img src={brand.logoPath} alt="" width={26} height={26} style={{ verticalAlign: "middle", marginInlineEnd: 8 }} />
-                {brand.nameAr}
-              </div>
-              <button type="button" className="uif-x" aria-label="إغلاق" onClick={() => setDrawerOpen(false)}>
-                <ShellIcon name="close" />
-              </button>
-            </header>
-            <nav className="app2-navdrawer-links">
-              {links.map((l) => (
-                <NavLink key={l.to} to={l.to} end={l.to === "/"} className={({ isActive }) => (isActive ? "active" : "")}>
-                  {l.label()}
-                </NavLink>
-              ))}
-            </nav>
-            <footer className="uif-drawer-foot">
-              <button type="button" className="uif-btn ghost" onClick={logout}>{t.nav.logout}</button>
-            </footer>
-          </aside>
-        </div>
-      )}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        className="app2-navdrawer"
+        bodyClassName="app2-navdrawer-body"
+        closeContent={<ShellIcon name="close" />}
+        title={(
+          <>
+            <img src={brand.logoPath} alt="" width={26} height={26} style={{ verticalAlign: "middle", marginInlineEnd: 8 }} />
+            {brand.nameAr}
+          </>
+        )}
+        footer={<button type="button" className="uif-btn ghost" onClick={logout}>{t.nav.logout}</button>}
+      >
+        <nav className="app2-navdrawer-links">
+          {links.map((l) => (
+            <NavLink key={l.to} to={l.to} end={l.to === "/"} className={({ isActive }) => (isActive ? "active" : "")}>
+              {l.label()}
+            </NavLink>
+          ))}
+        </nav>
+      </Drawer>
 
       <Toaster />
     </div>

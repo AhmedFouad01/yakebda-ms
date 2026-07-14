@@ -4450,24 +4450,24 @@ tr {
 .app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2 :is(input, textarea)::placeholder,
 .uif-drawer :is(input, textarea)::placeholder,
 .modal :is(input, textarea)::placeholder {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
   opacity: 1;
 }
 
 .app2 :is(input, select, textarea):focus-visible,
 .uif-drawer :is(input, select, textarea):focus-visible,
 .modal :is(input, select, textarea):focus-visible {
-  outline: 3px solid var(--focus-ring) !important;
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 /* ---------- Buttons ---------- */
@@ -4497,25 +4497,25 @@ button.primary:not(.kds-action),
 .seg button.active,
 .uif-tabs button.active,
 .uif-radio button.active {
-  border-color: var(--brand) !important;
-  background: var(--brand) !important;
-  color: var(--on-brand) !important;
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .uif-btn.ghost,
 button.ghost,
 .btn.ghost {
-  border-color: transparent !important;
-  background: transparent !important;
-  color: var(--text-secondary) !important;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
 }
 
 .uif-btn.danger,
 button.danger,
 .btn.danger {
-  border-color: var(--danger) !important;
-  background: var(--danger) !important;
-  color: #ffffff !important;
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #ffffff;
 }
 
 .app2 button:hover:not(:disabled),
@@ -5097,11 +5097,11 @@ button.danger,
 .modal select {
   appearance: none;
   -webkit-appearance: none;
-  padding-inline: 12px 38px !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b9892' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: left 12px center !important;
-  background-size: 16px 16px !important;
+  padding-inline: 12px 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b9892' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  background-size: 16px 16px;
 }
 
 .app2 select option,
@@ -5135,13 +5135,13 @@ button.sm,
 .menu-row-actions button,
 .panel td > button:not(.menu-status) {
   min-width: 64px;
-  min-height: var(--control-h-sm) !important;
-  height: var(--control-h-sm) !important;
-  padding-inline: 12px !important;
+  min-height: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding-inline: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1 !important;
+  line-height: 1;
 }
 
 /* ---------- App shell icon controls ---------- */
@@ -5634,7 +5634,7 @@ button.sm,
   .app2 select,
   .uif-drawer select,
   .modal select {
-    background-image: none !important;
+    background-image: none;
   }
 
   .app2 select::picker-icon,
@@ -6519,14 +6519,14 @@ button.sm,
 
 /* Exact shared stepper geometry: no trailing blank cell or mismatched baseline. */
 .uif-number-stepper {
-  width: 176px !important;
+  width: 176px;
   max-width: 100%;
-  grid-template-columns: 38px 100px 38px !important;
+  grid-template-columns: 38px 100px 38px;
   grid-template-rows: 38px;
-  align-items: stretch !important;
+  align-items: stretch;
   justify-self: start;
-  min-height: 38px !important;
-  height: 38px !important;
+  min-height: 38px;
+  height: 38px;
   box-sizing: border-box;
 }
 
@@ -6577,8 +6577,8 @@ button.sm,
 
 /* Keep the joined settings stepper visually continuous. */
 .uif-number-stepper .uif-stepper-btn {
-  border-block: 0 !important;
-  border-radius: 0 !important;
+  border-block: 0;
+  border-radius: 0;
 }
 
 /* ---------- Menu toolbar / Excel controls ---------- */
@@ -6818,7 +6818,7 @@ button.sm,
   }
 
   .uif-number-stepper {
-    grid-template-columns: 40px minmax(0, 1fr) 40px !important;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
   }
 }
 
@@ -6878,30 +6878,30 @@ button.sm,
 
 button.secondary,
 .uif-btn.secondary {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 button.success,
 .uif-btn.success {
-  border-color: var(--success) !important;
-  background: var(--success) !important;
-  color: #08170f !important;
+  border-color: var(--success);
+  background: var(--success);
+  color: #08170f;
 }
 
 button.success:hover:not(:disabled),
 .uif-btn.success:hover:not(:disabled) {
-  border-color: var(--success) !important;
-  background: color-mix(in srgb, var(--success) 88%, white) !important;
-  color: #08170f !important;
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 88%, white);
+  color: #08170f;
 }
 
 button.danger:hover:not(:disabled),
 .uif-btn.danger:hover:not(:disabled) {
-  border-color: var(--danger) !important;
-  background: color-mix(in srgb, var(--danger) 86%, black) !important;
-  color: #ffffff !important;
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 86%, black);
+  color: #ffffff;
 }
 
 /* ---------- Active and selected states are never implicit ---------- */
@@ -6921,13 +6921,13 @@ button.danger:hover:not(:disabled),
 .app2-main:not(.full) .seg > button,
 .uif-tabs > button,
 .od-modal-tabs > button {
-  min-height: 34px !important;
-  padding-inline: 13px !important;
-  border-color: transparent !important;
-  border-radius: 8px !important;
-  background: transparent !important;
-  color: var(--text-secondary) !important;
-  box-shadow: none !important;
+  min-height: 34px;
+  padding-inline: 13px;
+  border-color: transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
 }
 
 .app2-main:not(.full) .seg > button.active,
@@ -6937,19 +6937,19 @@ button.danger:hover:not(:disabled),
 .od-modal-tabs > button.active,
 .od-modal-tabs > button[aria-selected="true"],
 .od-modal-tabs > button[data-state="active"] {
-  border-color: var(--brand) !important;
-  background: var(--brand) !important;
-  color: var(--on-brand) !important;
-  font-weight: 900 !important;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 28%, transparent) !important;
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-weight: 900;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 28%, transparent);
 }
 
 .app2-main:not(.full) .seg > button:not(.active):hover:not(:disabled),
 .uif-tabs > button:not(.active):hover:not(:disabled),
 .od-modal-tabs > button:not(.active):hover:not(:disabled) {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-raised) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
 }
 
 .rbac-role.active,
@@ -7400,11 +7400,11 @@ button.danger:hover:not(:disabled),
 .uif-drawer select,
 .modal select {
   min-height: 40px;
-  padding-block: 0 !important;
-  padding-inline: 12px 40px !important;
-  background-position: left 12px center !important;
-  background-size: 16px 16px !important;
-  text-align: right !important;
+  padding-block: 0;
+  padding-inline: 12px 40px;
+  background-position: left 12px center;
+  background-size: 16px 16px;
+  text-align: right;
   text-align-last: right;
   line-height: 1.35;
   white-space: nowrap;
@@ -7413,8 +7413,8 @@ button.danger:hover:not(:disabled),
 .app2 select:focus-visible,
 .uif-drawer select:focus-visible,
 .modal select:focus-visible {
-  border-color: var(--brand) !important;
-  outline: 3px solid var(--focus-ring) !important;
+  border-color: var(--brand);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -7994,29 +7994,29 @@ button.danger:hover:not(:disabled),
 .app2 select,
 .uif-drawer select,
 .modal select {
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  box-sizing: border-box !important;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
   min-height: var(--control-h, 40px);
   height: var(--control-h, 40px);
-  padding-block: 0 !important;
-  padding-inline: 14px 42px !important;
-  direction: rtl !important;
-  text-align: right !important;
-  text-align-last: right !important;
-  line-height: 1.35 !important;
+  padding-block: 0;
+  padding-inline: 14px 42px;
+  direction: rtl;
+  text-align: right;
+  text-align-last: right;
+  line-height: 1.35;
   vertical-align: middle;
-  background-color: var(--surface-1) !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b9892' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: left 14px center !important;
-  background-size: 16px 16px !important;
+  background-color: var(--surface-1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b9892' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 14px center;
+  background-size: 16px 16px;
 }
 
 .app2 select:focus,
 .uif-drawer select:focus,
 .modal select:focus {
-  background-position: left 14px center !important;
+  background-position: left 14px center;
 }
 
 .app2 select:disabled,
@@ -8040,8 +8040,8 @@ button.danger:hover:not(:disabled),
   .app2 select,
   .uif-drawer select,
   .modal select {
-    appearance: none !important;
-    -webkit-appearance: none !important;
+    appearance: none;
+    -webkit-appearance: none;
   }
 }
 

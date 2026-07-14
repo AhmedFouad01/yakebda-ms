@@ -4688,8 +4688,8 @@ button.danger,
 }
 
 .crm-name,
-.crm-kpi b { color: var(--brand) !important; }
-.crm-kpi span { color: var(--text-secondary) !important; }
+.crm-kpi b { color: var(--brand); }
+.crm-kpi span { color: var(--text-secondary); }
 
 .pill {
   background: var(--surface-2) !important;
@@ -4704,9 +4704,9 @@ button.danger,
 .od-modal.modal,
 .od-modal-head,
 .od-modal-body {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-raised) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
 }
 
 .od-modal-tabs button,
@@ -4719,9 +4719,9 @@ button.danger,
 }
 
 .od-modal-tabs button.active {
-  border-color: var(--brand) !important;
-  background: var(--brand) !important;
-  color: var(--on-brand) !important;
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .od-modal-x:hover,
@@ -5204,10 +5204,10 @@ button.sm,
 }
 
 .menu-row-actions {
-  display: grid !important;
+  display: grid;
   grid-template-columns: repeat(3, minmax(64px, 1fr));
   align-items: center;
-  gap: 6px !important;
+  gap: 6px;
   width: max-content;
 }
 
@@ -6583,10 +6583,10 @@ button.sm,
 
 /* ---------- Menu toolbar / Excel controls ---------- */
 .menu-toolbar {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(240px, 1fr) repeat(3, minmax(145px, 185px));
-  align-items: center !important;
-  gap: 8px !important;
+  align-items: center;
+  gap: 8px;
 }
 
 .menu-toolbar > :is(input, select) {
@@ -6596,23 +6596,23 @@ button.sm,
 
 .menu-toolbar-actions {
   grid-column: 1 / -1;
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-start;
-  gap: 8px !important;
+  gap: 8px;
   width: 100%;
-  margin: 0 !important;
+  margin: 0;
 }
 
 .menu-toolbar-actions > :is(button, .menu-import-btn) {
   flex: 0 0 auto;
   min-width: 108px;
   max-width: 100%;
-  min-height: var(--control-h) !important;
-  height: var(--control-h) !important;
-  padding-inline: 14px !important;
-  display: inline-flex !important;
+  min-height: var(--control-h);
+  height: var(--control-h);
+  padding-inline: 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
@@ -6628,13 +6628,13 @@ button.sm,
 
 .menu-import-btn input[type="file"],
 .menu-import-btn input[type="file"][hidden] {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  position: absolute !important;
-  overflow: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
+  display: none;
+  width: 0;
+  height: 0;
+  position: absolute;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ---------- POS cart final layout ---------- */
@@ -6865,9 +6865,9 @@ button.sm,
 .app2-main:not(.full) button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn):hover:not(:disabled),
 .modal button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled),
 .uif-drawer button:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled) {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
 }
 
 .app2-main:not(.full) button:active:not(:disabled),
@@ -7035,18 +7035,18 @@ button.danger:hover:not(:disabled),
 }
 
 .crm-name {
-  min-height: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--brand) !important;
-  font-weight: 900 !important;
-  text-align: start !important;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--brand);
+  font-weight: 900;
+  text-align: start;
 }
 
 .crm-name:hover {
-  color: var(--brand-hover) !important;
+  color: var(--brand-hover);
   text-decoration: underline;
 }
 
@@ -7124,11 +7124,11 @@ button.danger:hover:not(:disabled),
 }
 
 .od-modal-head {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px !important;
+  padding: 12px 14px;
 }
 
 .od-modal-title {
@@ -7504,7 +7504,7 @@ button.danger:hover:not(:disabled),
 }
 
 .report-summary-grid .num {
-  font-size: clamp(1.25rem, 1.8vw, 1.65rem) !important;
+  font-size: clamp(1.25rem, 1.8vw, 1.65rem);
   line-height: 1.2;
 }
 
@@ -7519,7 +7519,7 @@ button.danger:hover:not(:disabled),
 .report-panel {
   min-width: 0;
   max-width: 100%;
-  overflow: hidden !important;
+  overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   background: var(--surface-1);
@@ -7527,8 +7527,8 @@ button.danger:hover:not(:disabled),
 }
 
 .report-panel > table {
-  width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  min-width: 0;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;

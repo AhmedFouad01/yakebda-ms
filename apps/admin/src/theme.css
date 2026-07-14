@@ -4395,7 +4395,6 @@ body,
 .uif-card-foot,
 .uif-drawer-head,
 .uif-drawer-foot,
-.kds-meta,
 .od-items th,
 .rbac-roles-head,
 .settings-page .form-row,
@@ -4492,8 +4491,8 @@ button.danger,
   color: var(--text-primary);
 }
 
-.uif-btn.primary,
-button.primary,
+.uif-btn.primary:not(.kds-action),
+button.primary:not(.kds-action),
 .btn:not(.secondary, .ghost, .danger),
 .seg button.active,
 .uif-tabs button.active,
@@ -5382,111 +5381,111 @@ button.sm,
 }
 
 .kds-stats {
-  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)) !important;
-  gap: 6px !important;
-  margin-bottom: 10px !important;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .kds-stat {
-  gap: 2px !important;
-  padding: 7px 9px !important;
-  border-radius: 8px !important;
+  gap: 2px;
+  padding: 7px 9px;
+  border-radius: 8px;
 }
 
 .kds-stat b {
-  font-size: 17px !important;
+  font-size: 17px;
 }
 
 .kds-stat span {
-  font-size: 10.5px !important;
+  font-size: 10.5px;
 }
 
 .kds {
-  gap: 10px !important;
+  gap: 10px;
 }
 
 .kds-col-head {
   min-height: 40px;
-  margin-bottom: 6px !important;
-  padding: 7px 9px !important;
-  border-radius: 8px !important;
+  margin-bottom: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
 }
 
 .kds-col-list {
-  gap: 8px !important;
+  gap: 8px;
 }
 
 .kds-card {
-  padding: 9px !important;
-  border-radius: 10px !important;
-  box-shadow: 0 4px 14px var(--theme-shadow) !important;
+  padding: 9px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px var(--theme-shadow);
 }
 
 .kds-card-head {
-  gap: 7px !important;
-  margin-bottom: 7px !important;
+  gap: 7px;
+  margin-bottom: 7px;
 }
 
 .kds-order-identity > strong {
-  font-size: 15px !important;
-  line-height: 1.25 !important;
+  font-size: 15px;
+  line-height: 1.25;
 }
 
 .kds-sla {
-  min-width: 98px !important;
-  padding: 4px 6px !important;
-  border-radius: 8px !important;
+  min-width: 98px;
+  padding: 4px 6px;
+  border-radius: 8px;
 }
 
 .kds-sla-label {
-  font-size: 9.5px !important;
+  font-size: 9.5px;
 }
 
 .kds-timer {
-  min-width: 66px !important;
-  font-size: 12.5px !important;
+  min-width: 66px;
+  font-size: 12.5px;
 }
 
 .kds-meta {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 4px !important;
-  margin-bottom: 7px !important;
-  padding: 6px 7px !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 7px;
+  padding: 6px 7px;
 }
 
 .kds-meta > span {
-  font-size: 10.5px !important;
-  line-height: 1.3 !important;
+  font-size: 10.5px;
+  line-height: 1.3;
 }
 
 .kds-meta > span > b {
-  font-size: 9.5px !important;
+  font-size: 9.5px;
 }
 
 .kds-meta .kds-received {
-  grid-column: auto !important;
+  grid-column: auto;
 }
 
 .kds-items > li {
-  padding: 6px 0 !important;
+  padding: 6px 0;
 }
 
 .kds-item-main strong {
-  font-size: 13px !important;
-  line-height: 1.35 !important;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .kds-variant,
 .kds-mods {
-  margin-top: 3px !important;
-  padding: 4px 6px !important;
-  font-size: 11px !important;
-  line-height: 1.35 !important;
+  margin-top: 3px;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 /* Current modifier data represents the bread choice in KDS. */
 .kds-mods b {
-  font-size: 0 !important;
+  font-size: 0;
 }
 
 .kds-mods b::after {
@@ -5495,32 +5494,32 @@ button.sm,
 }
 
 .kds-station {
-  gap: 4px !important;
-  margin-top: 4px !important;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .kds-station > span {
-  padding: 3px 6px !important;
-  font-size: 10px !important;
+  padding: 3px 6px;
+  font-size: 10px;
 }
 
 .kds-note {
-  margin-top: 5px !important;
-  padding: 6px 8px !important;
-  font-size: 11px !important;
-  line-height: 1.4 !important;
+  margin-top: 5px;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .kds-card-actions {
-  margin-top: 7px !important;
-  padding-top: 7px !important;
+  margin-top: 7px;
+  padding-top: 7px;
 }
 
 .kds-card .kds-action {
-  min-width: 120px !important;
-  min-height: 36px !important;
-  height: 36px !important;
-  padding-inline: 16px !important;
+  min-width: 120px;
+  min-height: 36px;
+  height: 36px;
+  padding-inline: 16px;
 }
 
 @media (max-width: 1000px) {
@@ -5552,13 +5551,13 @@ button.sm,
   }
 
   .kds-meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 430px) {
   .kds-meta {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .kds-card .kds-action,
@@ -5599,11 +5598,11 @@ button.sm,
 
 /* Kitchen choices are split by data: size, bread, then real extras. */
 .kds-mods b {
-  font-size: inherit !important;
+  font-size: inherit;
 }
 
 .kds-mods b::after {
-  content: none !important;
+  content: none;
 }
 
 .kds-bread {
@@ -5887,10 +5886,10 @@ button.sm,
 }
 
 .kitchen-page .kds-stats {
-  display: grid !important;
-  grid-template-columns: repeat(6, minmax(95px, 1fr)) !important;
-  gap: 7px !important;
-  margin: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(95px, 1fr));
+  gap: 7px;
+  margin: 0;
 }
 
 .kitchen-page .kds-stat {
@@ -5900,65 +5899,65 @@ button.sm,
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 2px !important;
-  padding: 9px 11px !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-block-start: 3px solid var(--brand) !important;
-  border-radius: 10px !important;
-  background: var(--surface-2) !important;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-subtle);
+  border-block-start: 3px solid var(--brand);
+  border-radius: 10px;
+  background: var(--surface-2);
 }
 
 .kitchen-page .kds-stat b {
-  color: var(--text-primary) !important;
-  font-size: 19px !important;
+  color: var(--text-primary);
+  font-size: 19px;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 
 .kitchen-page .kds-stat span {
-  color: var(--text-secondary) !important;
-  font-size: 10px !important;
+  color: var(--text-secondary);
+  font-size: 10px;
   font-weight: 700;
 }
 
 .kitchen-page .kds-stat.is-info {
-  border-block-start-color: var(--info) !important;
+  border-block-start-color: var(--info);
 }
 
 .kitchen-page .kds-stat.is-info b {
-  color: var(--info) !important;
+  color: var(--info);
 }
 
 .kitchen-page .kds-stat.is-warning {
-  border-block-start-color: var(--warning) !important;
+  border-block-start-color: var(--warning);
 }
 
 .kitchen-page .kds-stat.is-warning b {
-  color: var(--warning) !important;
+  color: var(--warning);
 }
 
 .kitchen-page .kds-stat.is-ready {
-  border-block-start-color: var(--success) !important;
+  border-block-start-color: var(--success);
 }
 
 .kitchen-page .kds-stat.is-ready b {
-  color: var(--success) !important;
+  color: var(--success);
 }
 
 .kitchen-page .kds-stat.is-late {
-  border-block-start-color: var(--danger) !important;
-  background: var(--theme-danger-soft) !important;
+  border-block-start-color: var(--danger);
+  background: var(--theme-danger-soft);
 }
 
 .kitchen-page .kds-stat.is-late b {
-  color: var(--danger) !important;
+  color: var(--danger);
 }
 
 .kitchen-page .kds {
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
-  gap: 12px !important;
+  gap: 12px;
 }
 
 .kds-col.workflow-submitted,
@@ -5993,15 +5992,15 @@ button.sm,
   top: 0;
   z-index: 3;
   min-height: 58px;
-  margin-bottom: 8px !important;
-  padding: 9px 10px !important;
+  margin-bottom: 8px;
+  padding: 9px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border: 1px solid var(--kds-accent) !important;
-  border-radius: 11px !important;
-  background: var(--surface-raised) !important;
+  border: 1px solid var(--kds-accent);
+  border-radius: 11px;
+  background: var(--surface-raised);
   box-shadow: inset 0 3px 0 var(--kds-accent), 0 3px 10px var(--theme-shadow);
 }
 
@@ -6063,27 +6062,27 @@ button.sm,
 
 .kitchen-page .kds-col-list {
   display: grid;
-  gap: 9px !important;
+  gap: 9px;
 }
 
 .kitchen-page .kds-card {
   min-width: 0;
-  padding: 8px !important;
+  padding: 8px;
   overflow: hidden;
-  border: 1px solid var(--kds-accent) !important;
-  border-inline-start-width: 4px !important;
-  border-radius: 12px !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 5px 15px var(--theme-shadow) !important;
+  border: 1px solid var(--kds-accent);
+  border-inline-start-width: 4px;
+  border-radius: 12px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 5px 15px var(--theme-shadow);
 }
 
 .kitchen-page .kds-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px !important;
-  margin: -2px -2px 7px !important;
+  gap: 8px;
+  margin: -2px -2px 7px;
   padding: 7px;
   border: 1px solid color-mix(in srgb, var(--kds-accent) 42%, var(--border-subtle));
   border-radius: 9px;
@@ -6097,9 +6096,9 @@ button.sm,
 }
 
 .kds-order-identity > strong {
-  color: var(--text-primary) !important;
-  font-size: 15px !important;
-  line-height: 1.2 !important;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.2;
 }
 
 .kds-order-tags {
@@ -6123,13 +6122,13 @@ button.sm,
 }
 
 .kitchen-page .kds-sla {
-  min-width: 90px !important;
-  padding: 5px 7px !important;
+  min-width: 90px;
+  padding: 5px 7px;
   display: grid;
   justify-items: center;
   gap: 1px;
   border: 1px solid var(--success);
-  border-radius: 9px !important;
+  border-radius: 9px;
   background: var(--theme-success-soft);
   color: var(--success);
 }
@@ -6151,27 +6150,27 @@ button.sm,
   align-items: center;
   gap: 4px;
   color: currentColor;
-  font-size: 9px !important;
+  font-size: 9px;
   font-weight: 900;
   white-space: nowrap;
 }
 
 .kitchen-page .kds-timer {
-  min-width: 0 !important;
+  min-width: 0;
   color: currentColor;
-  font-size: 13px !important;
+  font-size: 13px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
 
 .kitchen-page .kds-meta {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 5px !important;
-  margin-bottom: 7px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .kitchen-page .kds-meta > span {
@@ -6186,12 +6185,12 @@ button.sm,
   border-radius: 8px;
   background: var(--surface-2);
   color: var(--text-primary);
-  font-size: 10px !important;
+  font-size: 10px;
 }
 
 .kitchen-page .kds-meta > span > b {
-  color: var(--text-secondary) !important;
-  font-size: 9px !important;
+  color: var(--text-secondary);
+  font-size: 9px;
 }
 
 .kitchen-page .kds-meta > span > :is(strong, time) {
@@ -6218,7 +6217,7 @@ button.sm,
 }
 
 .kitchen-page .kds-items > li {
-  padding: 7px !important;
+  padding: 7px;
   border: 1px solid var(--border-subtle);
   border-radius: 9px;
   background: var(--surface-2);
@@ -6241,9 +6240,9 @@ button.sm,
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--text-primary) !important;
-  font-size: 13px !important;
-  line-height: 1.3 !important;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .kds-item-qty {
@@ -6297,21 +6296,21 @@ button.sm,
 }
 
 .kitchen-page .kds-mods {
-  margin-top: 6px !important;
-  padding: 0 !important;
+  margin-top: 6px;
+  padding: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 5px;
-  border: 0 !important;
-  background: transparent !important;
-  color: var(--text-secondary) !important;
-  font-size: 9px !important;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 9px;
 }
 
 .kitchen-page .kds-mods > b {
   color: var(--text-secondary);
-  font-size: 9px !important;
+  font-size: 9px;
 }
 
 .kds-extra-list {
@@ -6333,55 +6332,66 @@ button.sm,
 .kitchen-page .kds-station {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px !important;
-  margin-top: 6px !important;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .kitchen-page .kds-station > span {
-  padding: 3px 6px !important;
+  padding: 3px 6px;
   border: 1px dashed var(--border-strong);
   border-radius: 6px;
   background: var(--surface-1);
   color: var(--text-secondary);
-  font-size: 9px !important;
+  font-size: 9px;
 }
 
 .kitchen-page .kds-note {
-  margin-top: 6px !important;
-  padding: 6px 7px !important;
+  margin-top: 6px;
+  padding: 6px 7px;
   border: 1px solid var(--warning);
   border-radius: 7px;
   background: var(--theme-warning-soft);
   color: var(--text-primary);
-  font-size: 10px !important;
-  line-height: 1.35 !important;
+  font-size: 10px;
+  line-height: 1.35;
 }
 
 .kitchen-page .kds-card-actions {
-  margin-top: 7px !important;
-  padding-top: 7px !important;
+  margin-top: 7px;
+  padding-top: 7px;
   border-top: 1px solid var(--border-subtle);
 }
 
 .kitchen-page .kds-card .kds-action {
   width: 100%;
-  min-width: 0 !important;
-  min-height: 36px !important;
-  height: 36px !important;
-  border-color: var(--kds-accent) !important;
-  background: var(--kds-accent) !important;
-  color: var(--surface-1) !important;
+  min-width: 0;
+  min-height: 36px;
+  height: 36px;
+  border-color: var(--kds-accent);
+  background: var(--kds-accent);
+  color: var(--surface-1);
+}
+
+/* The class is repeated to outrank the legacy raw-button reset
+   ((0,9,0) beats its (0,8,1)) without reintroducing !important. */
+.kitchen-page .kds-card .kds-action.kds-action.kds-action.kds-action.kds-action.kds-action.kds-action.kds-action {
+  min-height: 36px;
+  height: 36px;
+  padding-inline: 16px;
+  border-color: var(--kds-accent);
+  background: var(--kds-accent);
+  color: var(--surface-1);
 }
 
 @media (max-width: 1080px) {
   .kitchen-page .kds-stats {
-    grid-template-columns: repeat(3, minmax(105px, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(105px, 1fr));
   }
 }
 
 @media (max-width: 900px) {
   .kitchen-page .kds {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .kds-col-head-copy small {
@@ -6396,7 +6406,7 @@ button.sm,
   }
 
   .kitchen-page .kds-stats {
-    grid-template-columns: repeat(2, minmax(100px, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(100px, 1fr));
   }
 
   .settings-page .uif-number-field {

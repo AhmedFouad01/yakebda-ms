@@ -2412,7 +2412,7 @@ input[type="checkbox"] {
 
 .settings-page .uif-field.inline .uif-input {
   width: 100%;
-  max-width: none !important;
+  max-width: none;
 }
 
 .settings-page .uif-toggle,
@@ -5276,15 +5276,15 @@ button.sm,
   width: 100%;
   max-width: var(--content-box);
   margin-top: 14px;
-  border: 1px solid var(--border-strong) !important;
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  background: var(--surface-raised) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-raised);
+  color: var(--text-primary);
   box-shadow: 0 10px 28px var(--theme-shadow);
 }
 
 .settings-page .set-img {
-  display: grid !important;
+  display: grid;
   grid-template-columns: 44px minmax(160px, 1fr);
   align-items: center;
   gap: 8px;
@@ -5305,7 +5305,7 @@ button.sm,
 .settings-page .set-img input {
   width: 100%;
   min-width: 160px;
-  text-align: right !important;
+  text-align: right;
 }
 
 /* Permission summary: compact count instead of rows of empty-looking pills. */
@@ -5334,7 +5334,7 @@ button.sm,
 
 .settings-page .set-perms > .stub {
   counter-increment: permission-count;
-  display: none !important;
+  display: none;
 }
 
 .settings-page .set-perms::before {
@@ -5367,12 +5367,12 @@ button.sm,
 }
 
 .settings-page .set-perms > .stub:only-child {
-  display: inline-flex !important;
+  display: inline-flex;
   min-height: 28px;
   align-items: center;
-  border-color: var(--success) !important;
-  background: var(--theme-success-soft) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--theme-success-soft);
+  color: var(--success);
 }
 
 /* ---------- KDS density and hierarchy ---------- */
@@ -5569,31 +5569,31 @@ button.sm,
 /* ===== migrated from ui-polish-final.css ===== */
 /* Final corrections for the layout polish layer. */
 .settings-page .set-perms > .stub {
-  display: inline-flex !important;
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  clip: rect(0 0 0 0) !important;
-  clip-path: inset(50%) !important;
-  white-space: nowrap !important;
+  display: inline-flex;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .settings-page .set-perms > .stub:only-child {
-  position: static !important;
-  width: auto !important;
-  height: auto !important;
-  min-width: auto !important;
-  min-height: 28px !important;
-  padding: 3px 11px !important;
-  overflow: visible !important;
-  clip: auto !important;
-  clip-path: none !important;
-  white-space: normal !important;
+  position: static;
+  width: auto;
+  height: auto;
+  min-width: auto;
+  min-height: 28px;
+  padding: 3px 11px;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
 }
 
 /* Kitchen choices are split by data: size, bread, then real extras. */
@@ -5735,10 +5735,10 @@ button.sm,
 
 /* ---------- Settings number steppers ---------- */
 .settings-page .uif-number-field {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(150px, 1fr) auto;
   align-items: center;
-  gap: 8px 14px !important;
+  gap: 8px 14px;
   min-height: 48px;
   margin-bottom: 8px;
 }
@@ -5767,18 +5767,18 @@ button.sm,
 }
 
 .settings-page .uif-number-stepper .uif-num {
-  width: 100% !important;
-  max-width: none !important;
-  min-height: 36px !important;
-  height: 36px !important;
-  padding: 0 6px !important;
-  border: 0 !important;
-  border-inline: 1px solid var(--border-subtle) !important;
-  border-radius: 0 !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: none !important;
-  text-align: center !important;
+  width: 100%;
+  max-width: none;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: 0;
+  border-inline: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: none;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   appearance: textfield;
@@ -5793,22 +5793,22 @@ button.sm,
 }
 
 .settings-page .uif-stepper-btn {
-  width: 36px !important;
-  min-width: 36px !important;
-  min-height: 36px !important;
-  height: 36px !important;
-  padding: 0 !important;
-  display: grid !important;
-  place-items: center !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .settings-page .uif-stepper-btn:hover:not(:disabled) {
-  background: var(--theme-brand-soft) !important;
-  color: var(--brand) !important;
+  background: var(--theme-brand-soft);
+  color: var(--brand);
 }
 
 .settings-page .uif-stepper-btn:active:not(:disabled) {
@@ -6479,41 +6479,41 @@ button.sm,
   width: 100%;
   min-height: 42px;
   justify-content: flex-start;
-  padding-inline: 13px !important;
-  border: 1px solid transparent !important;
-  border-inline-start-width: 3px !important;
+  padding-inline: 13px;
+  border: 1px solid transparent;
+  border-inline-start-width: 3px;
   border-radius: 9px;
-  background: transparent !important;
-  color: var(--text-secondary) !important;
+  background: transparent;
+  color: var(--text-secondary);
   text-align: right;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .settings-page .setx2-nav .uif-btn.ghost:hover:not(:disabled) {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .settings-page .setx2-nav .uif-btn.ghost.active,
 .settings-page .setx2-nav .uif-btn.ghost[aria-current="page"] {
-  border-color: var(--brand) !important;
-  border-inline-start-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--brand);
+  border-inline-start-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
   font-weight: 900;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 18%, transparent);
 }
 
 .settings-page .setx2-nav .uif-btn.ghost:focus-visible {
-  border-color: var(--brand) !important;
-  outline: 3px solid var(--focus-ring) !important;
+  border-color: var(--brand);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .settings-page .uif-field.inline > .uif-select {
-  width: 180px !important;
-  max-width: min(180px, 100%) !important;
+  width: 180px;
+  max-width: min(180px, 100%);
   flex: 0 0 180px;
 }
 
@@ -6532,21 +6532,21 @@ button.sm,
 
 .settings-page .uif-number-stepper .uif-num,
 .settings-page .uif-stepper-btn {
-  min-height: 36px !important;
-  height: 36px !important;
+  min-height: 36px;
+  height: 36px;
   box-sizing: border-box;
 }
 
 .settings-page .uif-number-stepper .uif-num {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: none !important;
-  line-height: 36px !important;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  line-height: 36px;
 }
 
 .settings-page .uif-stepper-btn {
-  width: 38px !important;
-  min-width: 38px !important;
+  width: 38px;
+  min-width: 38px;
 }
 
 /* Use the same button language for every explicit stepper in the system. */
@@ -7208,12 +7208,12 @@ button.danger:hover:not(:disabled),
 
 .settings-page .uif-card-body > .uif-field.inline,
 .settings-page .uif-card-body > .uif-number-field {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(190px, 1fr) 176px;
   align-items: center;
-  gap: 12px !important;
+  gap: 12px;
   min-height: 54px;
-  margin: 0 !important;
+  margin: 0;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -7234,7 +7234,7 @@ button.danger:hover:not(:disabled),
 .settings-page .uif-card-body > .uif-field.inline > .uif-label,
 .settings-page .uif-card-body > .uif-number-field > .uif-label,
 .settings-page .uif-card-body > .uif-toggle .uif-toggle-label {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-weight: 800;
   line-height: 1.45;
 }
@@ -7323,8 +7323,8 @@ button.danger:hover:not(:disabled),
 
   .settings-page .uif-card-body > .uif-field.inline > .uif-select,
   .settings-page .uif-card-body > .uif-number-field > .uif-number-stepper {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: 100%;
+    max-width: 100%;
     justify-self: stretch;
   }
 
@@ -7420,26 +7420,26 @@ button.danger:hover:not(:disabled),
 
 /* Settings use the available viewport instead of clipping the content column. */
 .settings-page {
-  width: min(1480px, 100%) !important;
+  width: min(1480px, 100%);
   max-width: 100%;
   overflow-x: hidden;
 }
 
 .settings-page .setx2 {
-  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) !important;
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
   width: 100%;
   max-width: 100%;
-  justify-content: stretch !important;
+  justify-content: stretch;
 }
 
 .settings-page .setx2-body {
   width: 100%;
-  max-width: none !important;
+  max-width: none;
   overflow: hidden;
 }
 
 .settings-page .uif-card-body:has(.settings-menu-table) {
-  overflow-x: hidden !important;
+  overflow-x: hidden;
 }
 
 .settings-menu-table {
@@ -7709,7 +7709,7 @@ button.danger:hover:not(:disabled),
 
 @media (max-width: 1050px) {
   .settings-page .setx2 {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-page .setx2-nav {
@@ -7729,7 +7729,7 @@ button.danger:hover:not(:disabled),
 
 @media (max-width: 760px) {
   .settings-page .uif-card-body:has(.settings-menu-table) {
-    overflow-x: auto !important;
+    overflow-x: auto;
   }
 
   .settings-menu-table {
@@ -7812,22 +7812,22 @@ button.danger:hover:not(:disabled),
 }
 
 .settings-page .source-picker-card {
-  min-height: 88px !important;
-  display: grid !important;
+  min-height: 88px;
+  display: grid;
   justify-items: start;
   align-content: center;
   gap: 3px;
-  padding: 11px 13px !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: 11px !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
-  text-align: start !important;
+  padding: 11px 13px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-align: start;
 }
 
 .settings-page .source-picker-card.active {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
   box-shadow: inset 3px 0 0 var(--brand);
 }
 

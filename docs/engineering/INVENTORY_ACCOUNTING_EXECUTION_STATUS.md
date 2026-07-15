@@ -144,3 +144,26 @@ numbers and redesigned contracts; they are not cherry-picked.
 6. Backfill: dry-run reconciliation and explicit test-only write mode.
 
 No Inventory/Accounting branch push or PR is authorized in this run.
+
+## Phase 1 result - inventory foundation
+
+Status: **Complete**
+
+- Migration `20260716_021_inventory_foundation` creates scoped locations,
+  units/conversions, items, suppliers, and an append-only stock movement
+  ledger. Its down migration removes only these new objects and preserves P3
+  indexes.
+- Stock levels and value are derived from signed movements. No mutable balance
+  or average-cost field is authoritative.
+- Movement creation uses exact scaled-integer arithmetic, explicit unit
+  conversions, item-row serialization, idempotency keys, branch/location
+  authorization, and the block-negative policy.
+- The API exposes bounded Inventory foundation endpoints under
+  `/api/v1/inventory` with `inventory.view` and `inventory.manage` permissions.
+- Focused coverage: 7 tests for conversion/rounding, derived balances,
+  idempotency, invalid units, concurrent negative-stock protection,
+  account/branch isolation, and append-only enforcement.
+- Phase gate: API typecheck passed and the full API suite passed 151/151.
+- Isolated test database: `ykms_inventory_v2_test`; the pre-existing
+  `ykms_test` migration history was left untouched because it contains legacy
+  WIP migration names.

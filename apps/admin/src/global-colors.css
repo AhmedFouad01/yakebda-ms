@@ -318,39 +318,39 @@ body,
 .alert,
 .error-note,
 .dark-alert {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
 }
 
 .ok,
 .ok-note,
 .dark-ok {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
 }
 
 .stub.printing,
 .stub.st-submitted,
 .stub.st-in_kitchen {
-  border-color: var(--warning) !important;
-  background: var(--warning-surface) !important;
-  color: var(--warning) !important;
+  border-color: var(--warning);
+  background: var(--warning-surface);
+  color: var(--warning);
 }
 
 .stub.printed,
 .stub.on,
 .stub.st-ready,
 .stub.st-completed {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
 }
 
 .stub.failed,
 .stub.st-cancelled {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
 }

@@ -264,3 +264,24 @@ Status: **Complete**
 - Migration 025 down/up passed. Its rollback removed only accounting ledger
   objects and preserved `financial_events` plus the existing P3 order cursor
   index.
+
+## Accounting Phase 3 result - reconciliation and dry-run backfill
+
+Status: **Complete**
+
+- `npm --workspace @ykms/api run accounting:backfill` is dry-run by default and
+  reports operational sources missing outbox events, missing accounting
+  mappings, unbalanced journal queries, and payment/tender reconciliation.
+- Dry-run performs no outbox, journal, source, Git, or filesystem mutation.
+  Optional report output uses create-only file semantics and will not overwrite
+  an existing report.
+- Backfill write mode requires both `NODE_ENV=test` and
+  `--apply --confirm-test-db`. It creates only idempotent pending financial
+  events from immutable source snapshots; normal claiming/posting remains a
+  separate reviewed operation.
+- Payment, shift cash, and eligible stock movement sources are supported.
+  Re-running a confirmed test backfill creates no duplicate event.
+- Focused gate: API typecheck passed; 12 ledger/backfill tests passed. Four
+  dedicated tests prove no-write default, production rejection, explicit
+  test-only apply, idempotency, missing-mapping reporting, and reconciliation.
+- No production backfill or production database access was performed.

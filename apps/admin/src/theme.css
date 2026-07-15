@@ -5090,7 +5090,7 @@ button.danger,
 .app2 [dir="ltr"],
 .uif-drawer [dir="ltr"],
 .modal [dir="ltr"] {
-  text-align: right !important;
+  text-align: end;
 }
 
 .uif-btn,

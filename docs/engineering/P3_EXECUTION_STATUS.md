@@ -351,3 +351,26 @@ not claimed without separate `EXPLAIN` evidence.
 - Rows that change `created_at` or `sort_order` during traversal can move
   between pages because this is keyset pagination, not snapshot pagination.
 - Large exports may need a dedicated streaming/export path later.
+
+## R13 Node 22 and shared-contract revalidation
+
+Date: 2026-07-16
+
+| Area | Evidence | Classification | R13 action |
+| --- | --- | --- | --- |
+| Workspace support | Root `package.json` already includes `apps/*` and `packages/*`; `@ykms/bridge-contract` is an existing independent package. | Already fixed. | Reuse the existing npm workspace model. |
+| Node runtime declaration | `.nvmrc` and GitHub Actions both select Node 20; root package has no engine contract. | Confirmed. | Standardize on `node >=22 <23` with one `.nvmrc` and the existing CI setup-node mechanism. |
+| Node type declarations | API already uses `@types/node` 22. | Already fixed. | Preserve. |
+| Admin tests in CI | CI already runs Admin tests before the Admin build. | Already fixed. | Do not duplicate the step. |
+| Shared runtime contracts | No general API/Admin contract package exists. Bridge types are device-specific and intentionally side-effect free. | Confirmed. | Add a separate `@ykms/contracts` Zod workspace; do not expand bridge-contract. |
+| Pagination response | API `CursorPage<T>` and Admin `CursorResponse<T>` duplicate `data`, `next_cursor`, and `has_more`. | Confirmed. | Share schema and inferred generic response type without changing R12 wire output. |
+| Customer DTOs | Customer list/lookup/order-summary fields are repeated in API route types and the Customers/POS Admin code. | Confirmed. | Share only wire DTOs, preserving nullable historical fields. |
+| Order status and summary DTOs | Status literals and bounded order-summary fields are repeated across API and Admin; full order/domain models include workflow-specific fields. | Partially fixed. | Share status, monetary wire values, list summary, and customer-order summary only. Keep full order, quote, receipt, KDS, and POS domain models local. |
+| API Zod usage | API already validates request contracts with Zod. | Already fixed. | Reuse the installed major version. |
+| Admin Zod usage | Admin currently consumes handwritten response types and has no direct Zod dependency. | Confirmed for shared contract tests, invalid for broad runtime parsing in this milestone. | Use shared inferred types in production and validate schemas in the contracts package tests; do not add page-level parsing churn. |
+| Standalone app lockfiles | Root `package-lock.json` is the workspace install source; historical app lockfiles are not used by root CI. | Invalid for R13 modification. | Update only the authoritative root lock through npm. |
+
+R13 will not move Express, Knex, React, environment access, database rows,
+order workflow commands, quote logic, receipts, or full product/order domain
+models into the shared package. No wire format, SQL, permission, UI, migration,
+or business behavior change is authorized by this revalidation.

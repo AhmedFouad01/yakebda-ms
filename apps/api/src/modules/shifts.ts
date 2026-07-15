@@ -7,6 +7,7 @@ import { writeAudit } from "../lib/audit";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { enqueueFinancialEvent } from "./financialOutbox";
+import { renderShiftReportPayload } from "../lib/receipt";
 
 interface ShiftOrderRow {
   id: string;
@@ -256,6 +257,51 @@ export function shiftRoutes(db: Knex): Router {
       res.json({ data: summary });
     } catch (e) {
       next(e);
+    }
+  });
+
+  r.post("/:id/print", requirePermission("shifts.manage"), async (req, res, next) => {
+    try {
+      const summary = await summarizeShift(db, req.params.id);
+      if (!summary || summary.account_id !== req.user!.accountId) throw err.notFound();
+      if (!canAccessBranch(req.user!, summary.branch_id)) throw err.forbidden();
+      const endpoint = await db("hardware_endpoints")
+        .where({ branch_id: summary.branch_id, kind: "receipt_printer", is_active: true })
+        .first();
+      if (!endpoint) throw err.validation({ endpoint: ar.errors.no_receipt_printer });
+      const settings = await db("settings")
+        .where({ account_id: req.user!.accountId, branch_id: summary.branch_id })
+        .first();
+      const branch = await db("branches").where({ id: summary.branch_id, account_id: req.user!.accountId }).first();
+      const cashier = await db("users").where({ id: summary.cashier_user_id, account_id: req.user!.accountId }).first();
+      const payload = renderShiftReportPayload({
+        branch_name: branch?.name ?? "",
+        cashier_name: cashier?.name ?? null,
+        opened_at: summary.opened_at,
+        closed_at: summary.closed_at,
+        status: summary.status,
+        opening_cash: summary.opening_cash,
+        totals: summary.totals,
+        actual_cash: summary.actual_cash,
+        variance: summary.variance,
+        over_short: summary.over_short,
+        unsettled_count: summary.unsettled_orders.length,
+      }, settings?.paper_width_mm === 58 ? 58 : 80);
+      const id = newId();
+      await db("print_jobs").insert({
+        id,
+        branch_id: summary.branch_id,
+        endpoint_id: endpoint.id,
+        device_id: endpoint.device_id ?? null,
+        type: "shift_report",
+        payload: JSON.stringify(payload),
+        status: "pending",
+        created_by: req.user!.id,
+      });
+      await writeAudit(db, { accountId: req.user!.accountId, branchId: summary.branch_id, userId: req.user!.id, action: "shift.print_report", entityType: "print_job", entityId: id, meta: { shift_id: summary.id }, ip: req.ip });
+      res.status(201).json({ data: await db("print_jobs").where({ id }).first(), message: ar.messages.print_job_queued });
+    } catch (error) {
+      next(error);
     }
   });
 

@@ -45,12 +45,6 @@ const customerLookupCursor: CursorDefinition<CreatedAtCursorValues> = {
   values: createdAtCursorValues,
 };
 
-const customerListCursor: CursorDefinition<CreatedAtCursorValues> = {
-  endpoint: "customers.list",
-  sort: "created_at_desc_id_desc",
-  values: createdAtCursorValues,
-};
-
 const customerOrdersCursor: CursorDefinition<CreatedAtCursorValues> = {
   endpoint: "customers.orders",
   sort: "created_at_desc_id_desc",
@@ -216,36 +210,6 @@ export function customerRoutes(db: Knex): Router {
         ...result,
         data: result.data.map(({ created_at: _createdAt, ...row }) => row),
       });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  r.get("/", requirePermission("customers.manage"), async (req, res, next) => {
-    try {
-      const q = z.object({ search: z.string().optional() }).safeParse(req.query);
-      const page = parseCursorPage(req.query, customerListCursor);
-      // DTO خفيف للقائمة — بلا تحليلات ثقيلة لكل صف
-      const rows: CreatedAtRow[] = await db("customers")
-        .where({ account_id: req.user!.accountId })
-        .modify((qb) => {
-          if (q.success && q.data.search) {
-            qb.where((w) =>
-              w
-                .where("name", "ilike", `%${q.data.search}%`)
-                .orWhere("phone", "ilike", `%${q.data.search}%`)
-                .orWhere("alt_phone", "ilike", `%${q.data.search}%`)
-            );
-          }
-          applyCreatedAtCursor(qb, page.cursor);
-        })
-        .orderBy("created_at", "desc")
-        .orderBy("id", "desc")
-        .limit(page.limit + 1);
-      res.json(createCursorPage(rows, page.limit, customerListCursor, (row) => ({
-        created_at: cursorTimestamp(row.created_at),
-        id: row.id,
-      })));
     } catch (e) {
       next(e);
     }

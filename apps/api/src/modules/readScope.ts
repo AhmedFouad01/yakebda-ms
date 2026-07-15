@@ -3,7 +3,31 @@ import { Knex } from "knex";
 import { z } from "zod";
 import { err } from "../lib/errors";
 import { canAccessBranch, requireUser } from "../middleware/auth";
+import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 import { getSettings, Settings } from "./settings";
+
+const customerCursorValues = z.object({
+  created_at: z.string().datetime(),
+  id: z.string().uuid(),
+}).strict();
+
+type CustomerCursorValues = z.infer<typeof customerCursorValues>;
+
+interface CustomerReadRow {
+  id: string;
+  created_at: string | Date;
+  [key: string]: unknown;
+}
+
+const customerListCursor: CursorDefinition<CustomerCursorValues> = {
+  endpoint: "customers.list",
+  sort: "created_at_desc_id_desc",
+  values: customerCursorValues,
+};
+
+function customerCursorTimestamp(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
 
 const SETTINGS_RUNTIME_KEYS: Array<keyof Settings> = [
   "show_product_images",
@@ -105,8 +129,9 @@ export function customerReadRoutes(db: Knex): Router {
 
       const parsed = z.object({ search: z.string().optional() }).safeParse(req.query);
       if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const page = parseCursorPage(req.query, customerListCursor);
 
-      const rows = await db("customers")
+      const rows: CustomerReadRow[] = await db("customers")
         .where({ account_id: req.user!.accountId })
         .modify((query) => {
           const search = parsed.data.search?.trim();
@@ -117,11 +142,23 @@ export function customerReadRoutes(db: Knex): Router {
               .orWhere("phone", "ilike", `%${search}%`)
               .orWhere("alt_phone", "ilike", `%${search}%`)
           );
+          if (page.cursor) {
+            const cursor = page.cursor;
+            query.where((cursorQuery) => {
+              cursorQuery
+                .where("created_at", "<", cursor.created_at)
+                .orWhere((tie) => tie.where("created_at", cursor.created_at).andWhere("id", "<", cursor.id));
+            });
+          }
         })
         .orderBy("created_at", "desc")
-        .limit(200);
+        .orderBy("id", "desc")
+        .limit(page.limit + 1);
 
-      res.json({ data: rows });
+      res.json(createCursorPage(rows, page.limit, customerListCursor, (row) => ({
+        created_at: customerCursorTimestamp(row.created_at),
+        id: row.id,
+      })));
     } catch (error) {
       next(error);
     }

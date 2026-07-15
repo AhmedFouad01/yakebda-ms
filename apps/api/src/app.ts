@@ -25,6 +25,7 @@ import { financialReliabilityRoutes } from "./modules/financialReliability";
 import { inventoryRoutes } from "./modules/inventory";
 import { inventoryRecipeRoutes } from "./modules/inventoryRecipes";
 import { financialEventRoutes } from "./modules/financialEvents";
+import { accountingRoutes } from "./modules/accounting";
 import { config } from "./config";
 import { checkDatabaseReadiness } from "./lib/health";
 import {
@@ -203,6 +204,7 @@ export function createApp(db: Knex, options: AppOptions = {}) {
   v1.use("/inventory", inventoryRoutes(db));
   v1.use("/inventory", inventoryRecipeRoutes(db));
   v1.use("/accounting", financialEventRoutes(db));
+  v1.use("/accounting", accountingRoutes(db));
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));
 

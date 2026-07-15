@@ -98,3 +98,37 @@ Rules for the next checkpoint:
 6. RTL drawer animation direction and logical properties.
 7. POS component extractions.
 8. Final tests, metrics, and parity report.
+
+## Final local acceptance - 2026-07-15
+
+Validated CSS head: `20d02c611997738182c9991895934be2ea11f2ab`.
+
+- R8: PASS WITH DOCUMENTED EXCEPTIONS.
+  - Direct CSS imports: 2 (`theme.css`, then `global-colors.css`).
+  - Imported CSS LOC: 9,832.
+  - Source `!important`: 6 (`theme.css`: 6, `global-colors.css`: 0).
+  - Reduction from 1,483: 99.60%.
+  - `global-colors.css` remains the final import and contains semantic color roles only.
+  - No new raw color literals were introduced.
+  - Eleven physical directional declarations remain as accepted fixed-corner POS, cart/backdrop, and reset exceptions.
+- R9: PASS.
+  - `Pos.tsx`: 7 LOC.
+  - POS workflows are split into focused hooks/components.
+  - `usePosController.ts`: 404 LOC and is accepted as the composition/compatibility facade; no LOC-only split is required.
+- R10: PASS.
+  - 3 test files, 11 tests, all passing.
+- Final visual gate: PASS WITH INTENTIONAL DIFFERENCES.
+  - 24 base captures and 32 operational captures were reviewed at 1366x768 and 1920x1080, Light and Dark.
+  - No unexpected geometry, semantic-color, overlay, or RTL regression was found.
+  - Known missing stored product images remain a fixture/data defect and were not hidden with CSS.
+
+Evidence root:
+
+`C:\Users\10\Downloads\yakebda-p2-reverify-evidence-583cab7\round-26-final-4e-matrix-20d02c6`
+
+The prior waivers remain unchanged and are not PASS results:
+
+- Settings hover - Light: `NOT VERIFIED / USER-WAIVED`.
+- Keyboard focus-visible - Light/Dark: `NOT VERIFIED / USER-WAIVED`.
+
+PR #34 remains Draft. No merge was performed.

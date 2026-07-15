@@ -38,6 +38,8 @@ export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }>
   { key: "permissions.manage", name_ar: "إدارة خريطة الصلاحيات", group: "المستخدمون" },
   { key: "inventory.view", name_ar: "عرض المخزون", group: "المخزون" },
   { key: "inventory.manage", name_ar: "إدارة المخزون", group: "المخزون" },
+  { key: "accounting.view", name_ar: "عرض الأحداث المالية", group: "الحسابات" },
+  { key: "accounting.manage", name_ar: "إدارة معالجة الأحداث المالية", group: "الحسابات" },
 ];
 
 export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all" }> = [
@@ -76,6 +78,7 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
       "delivery.assign",
       "inventory.view",
       "inventory.manage",
+      "accounting.view",
     ],
   },
   {
@@ -86,7 +89,7 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
   { key: "waiter", name_ar: "الويتر", perms: ["orders.create", "tables.manage"] },
   { key: "kitchen", name_ar: "موظف المطبخ", perms: ["kitchen.view", "kitchen.update"] },
   { key: "inventory_clerk", name_ar: "مسؤول المخزون", perms: ["inventory.view", "inventory.manage"] },
-  { key: "accountant", name_ar: "المحاسب", perms: ["audit.view", "reports.view"] },
+  { key: "accountant", name_ar: "المحاسب", perms: ["audit.view", "reports.view", "accounting.view", "accounting.manage"] },
   { key: "driver", name_ar: "سائق", perms: [] },
   { key: "admin", name_ar: "أدمن النظام", perms: "all" },
   { key: "integrations_admin", name_ar: "مسؤول التكاملات", perms: ["api_clients.manage", "audit.view"] },

@@ -431,3 +431,23 @@ local by design. Moving them without a proven drift boundary is deferred.
 - `784991e` - POS customer lookup contract.
 - `5b20a29` - bounded order DTO contracts.
 - `b44cf77` - schema and cross-workspace compile coverage.
+
+## P3.4 documentation truth and final gate
+
+Date: 2026-07-16
+
+Implementation, roadmap, project status, milestone, and README documentation
+now reflect the merged P0-P2 baseline and the P3 release candidate. Refunds are
+documented as operational linked reversals. Observability, cursor semantics,
+Node 22, and shared-contract boundaries are explicit. Complete OpenAPI is not
+claimed. Order-list/export scaling, log transport/retention, and the
+`YKMS-02H`/`YKMS-11` naming map remain documented debt.
+
+The final local gate passed under Node `v22.23.1`: contracts 13/13, focused P3
+tests 38/38, full API 144/144, Admin 11/11, API typecheck, Admin build, color
+contract, fresh migrations 001-020, second migrate-latest, migration 020
+down/up, and `git diff --check`. No skipped test, Inventory/Accounting code,
+production database, or credential was introduced.
+
+See `docs/engineering/P3_FINAL_REPORT.md` for the release-candidate boundary,
+rollback notes, validation evidence, and remaining risks.

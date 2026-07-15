@@ -6,6 +6,7 @@ import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
+import { enqueueFinancialEvent } from "./financialOutbox";
 
 interface ShiftOrderRow {
   id: string;
@@ -154,8 +155,20 @@ export function shiftRoutes(db: Knex): Router {
       const shift = await db("shifts").where({ id: req.params.id, account_id: req.user!.accountId, status: "open" }).first();
       if (!shift) throw err.notFound();
       if (!canAccessBranch(req.user!, shift.branch_id)) throw err.forbidden();
-      await db("shift_cash_movements").insert({ id: newId(), shift_id: shift.id, type: "cash_in", amount: body.data.amount, reason: body.data.reason, created_by: req.user!.id });
-      await writeAudit(db, { accountId: req.user!.accountId, branchId: shift.branch_id, userId: req.user!.id, action: "shift.cash_in", entityType: "shift", entityId: shift.id, meta: body.data, ip: req.ip });
+      const movementId = newId();
+      await db.transaction(async (trx) => {
+        await trx("shift_cash_movements").insert({ id: movementId, shift_id: shift.id, type: "cash_in", amount: body.data.amount, reason: body.data.reason, created_by: req.user!.id });
+        await enqueueFinancialEvent(trx, {
+          accountId: req.user!.accountId,
+          branchId: shift.branch_id,
+          sourceType: "shift_cash_movement",
+          sourceId: movementId,
+          eventType: "cash.movement",
+          idempotencyKey: `shift-cash:${movementId}:v1`,
+          payload: { version: 1, movement_id: movementId, shift_id: shift.id, type: "cash_in", amount: body.data.amount, reason: body.data.reason },
+        });
+        await writeAudit(trx, { accountId: req.user!.accountId, branchId: shift.branch_id, userId: req.user!.id, action: "shift.cash_in", entityType: "shift", entityId: shift.id, meta: body.data, ip: req.ip });
+      });
       res.json({ data: await summarizeShift(db, shift.id), message: ar.messages.updated });
     } catch (e) {
       next(e);
@@ -169,8 +182,20 @@ export function shiftRoutes(db: Knex): Router {
       const shift = await db("shifts").where({ id: req.params.id, account_id: req.user!.accountId, status: "open" }).first();
       if (!shift) throw err.notFound();
       if (!canAccessBranch(req.user!, shift.branch_id)) throw err.forbidden();
-      await db("shift_cash_movements").insert({ id: newId(), shift_id: shift.id, type: "cash_out", amount: body.data.amount, reason: body.data.reason, created_by: req.user!.id });
-      await writeAudit(db, { accountId: req.user!.accountId, branchId: shift.branch_id, userId: req.user!.id, action: "shift.cash_out", entityType: "shift", entityId: shift.id, meta: body.data, ip: req.ip });
+      const movementId = newId();
+      await db.transaction(async (trx) => {
+        await trx("shift_cash_movements").insert({ id: movementId, shift_id: shift.id, type: "cash_out", amount: body.data.amount, reason: body.data.reason, created_by: req.user!.id });
+        await enqueueFinancialEvent(trx, {
+          accountId: req.user!.accountId,
+          branchId: shift.branch_id,
+          sourceType: "shift_cash_movement",
+          sourceId: movementId,
+          eventType: "cash.movement",
+          idempotencyKey: `shift-cash:${movementId}:v1`,
+          payload: { version: 1, movement_id: movementId, shift_id: shift.id, type: "cash_out", amount: body.data.amount, reason: body.data.reason },
+        });
+        await writeAudit(trx, { accountId: req.user!.accountId, branchId: shift.branch_id, userId: req.user!.id, action: "shift.cash_out", entityType: "shift", entityId: shift.id, meta: body.data, ip: req.ip });
+      });
       res.json({ data: await summarizeShift(db, shift.id), message: ar.messages.updated });
     } catch (e) {
       next(e);

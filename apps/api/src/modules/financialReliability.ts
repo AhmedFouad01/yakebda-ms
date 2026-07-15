@@ -9,6 +9,7 @@ import { ar } from "../i18n/ar";
 import { renderReceiptPayload } from "../lib/receipt";
 import { getSettings } from "./settings";
 import { loadFullOrder } from "./orders";
+import { enqueuePaymentFinancialEvent } from "./financialOutbox";
 
 type PaymentRow = {
   id: string;
@@ -95,6 +96,11 @@ async function createRefundRows(
       kind: "refund",
       reason,
       reversal_of_payment_id: original.id,
+    });
+    await enqueuePaymentFinancialEvent(trx, {
+      accountId: auditContext.accountId,
+      paymentId: refundId,
+      eventType: "refund.posted",
     });
     allocations.push({
       original_payment_id: original.id,
@@ -261,6 +267,11 @@ export function financialReliabilityRoutes(db: Knex): Router {
             received_by: req.user!.id,
             shift_id: shiftId,
             kind: "payment",
+          });
+          await enqueuePaymentFinancialEvent(trx, {
+            accountId: req.user!.accountId,
+            paymentId,
+            eventType: "payment.captured",
           });
           await writeAudit(trx, {
             accountId: req.user!.accountId,

@@ -10,6 +10,7 @@ import { ar } from "../i18n/ar";
 import { renderReceiptPayload, renderKitchenTicketPayload } from "../lib/receipt";
 import { getSettings, Settings } from "./settings";
 import { transitionOrderStatus } from "./orderStatus";
+import { enqueuePaymentFinancialEvent } from "./financialOutbox";
 /**
  * YKMS-02/03-lite — Orders & POS flow.
  * Prices are ALWAYS computed server-side from the branch menu (never trusted from the client).
@@ -490,6 +491,11 @@ export function orderRoutes(db: Knex): Router {
             received_by: req.user!.id,
             shift_id: paymentShiftId,
           });
+          await enqueuePaymentFinancialEvent(trx, {
+            accountId,
+            paymentId,
+            eventType: "payment.captured",
+          });
         }
       });
 
@@ -623,14 +629,21 @@ export function orderRoutes(db: Knex): Router {
         shiftId = shift?.id ?? null;
       }
       const id = newId();
-      await db("payments").insert({
-        id,
-        order_id: order.id,
-        branch_id: order.branch_id,
-        method: body.data.method,
-        amount: body.data.amount,
-        received_by: req.user!.id,
-        shift_id: shiftId,
+      await db.transaction(async (trx) => {
+        await trx("payments").insert({
+          id,
+          order_id: order.id,
+          branch_id: order.branch_id,
+          method: body.data.method,
+          amount: body.data.amount,
+          received_by: req.user!.id,
+          shift_id: shiftId,
+        });
+        await enqueuePaymentFinancialEvent(trx, {
+          accountId: req.user!.accountId,
+          paymentId: id,
+          eventType: "payment.captured",
+        });
       });
       // YKMS-02E: طباعة تلقائية عند الدفع (لو مفعلة) — الفشل لا يوقف الدفع
       if (settings.auto_print_on_payment && settings.receipt_printing_enabled && body.data.method !== "unpaid") {

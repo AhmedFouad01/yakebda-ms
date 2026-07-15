@@ -8,6 +8,7 @@ import {
   parseDecimal,
   valueFromQuantity,
 } from "../lib/inventoryMath";
+import { enqueueFinancialEvent } from "./financialOutbox";
 
 interface InventoryItemRow {
   id: string;
@@ -165,6 +166,25 @@ async function createStockMovementInTransaction(
       transfer_group_id: input.transferGroupId ?? null,
     };
     await trx("stock_movements").insert(row);
+    const financialEventType: Partial<Record<CreateMovementInput["movementType"], string>> = {
+      receipt: "inventory.receipt",
+      waste: "inventory.waste",
+      count_adjustment: "inventory.adjustment",
+      consumption: "inventory.consumption",
+      reversal: "inventory.reversal",
+    };
+    const eventType = financialEventType[input.movementType];
+    if (eventType) {
+      await enqueueFinancialEvent(trx, {
+        accountId: input.accountId,
+        branchId: location.branch_id,
+        sourceType: "stock_movement",
+        sourceId: id,
+        eventType,
+        idempotencyKey: `stock-movement:${id}:${eventType}:v1`,
+        payload: { version: 1, ...row },
+      });
+    }
     return { ...row, idempotent_replay: false };
 }
 

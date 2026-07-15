@@ -4344,8 +4344,8 @@ body,
 .app2,
 .app2-main,
 .login-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 * {
@@ -4567,9 +4567,9 @@ button.danger,
 
 /* ---------- AppShell ---------- */
 .app2-bar {
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  border-bottom-color: var(--brand) !important;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-bottom-color: var(--brand);
   box-shadow: 0 2px 10px var(--theme-shadow);
 }
 
@@ -4585,11 +4585,11 @@ button.danger,
   color: var(--text-primary);
 }
 
-.app2-brand { color: var(--brand) !important; }
+.app2-brand { color: var(--brand); }
 .app2-crumb,
 .app2-user,
-.app2-logout { color: var(--text-secondary) !important; }
-.app2-user-dot { background: var(--success) !important; }
+.app2-logout { color: var(--text-secondary); }
+.app2-user-dot { background: var(--success); }
 
 .app2-side,
 .app2-navdrawer {

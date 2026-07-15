@@ -167,3 +167,30 @@ Status: **Complete**
 - Isolated test database: `ykms_inventory_v2_test`; the pre-existing
   `ykms_test` migration history was left untouched because it contains legacy
   WIP migration names.
+
+## Phase 2 result - recipes and durable consumption
+
+Status: **Complete**
+
+- Migration `20260716_022_inventory_recipes_consumption` creates immutable
+  recipe versions, one active recipe per product/optional variant, durable
+  consumption events, and traceable event items.
+- Every operational route to `completed` now uses one row-locked status
+  transition owner. The order update, status history, and consumption snapshot
+  are atomic.
+- Events process idempotently into append-only stock movements. Partial work is
+  safe to retry because each event item owns a stable movement key.
+- Negative-stock or processing failures remain visible as `failed` events with
+  attempts and safe error metadata. Retry is explicit; no exception is silently
+  discarded.
+- No-recipe completion records a posted zero-movement event with the missing
+  recipe preserved in the snapshot.
+- Later recipe activation cannot alter prior event snapshots. Variant-specific
+  recipes take precedence over generic product recipes.
+- Financial refunds do not change inventory. An approved, audited explicit
+  reversal creates linked positive movements; original movements remain
+  untouched.
+- Focused gate: API typecheck passed; 65 order/inventory/security tests passed,
+  including 7 dedicated consumption tests for snapshots, concurrent completion,
+  no-recipe behavior, durable retry, refunds, reversal, and tenant isolation.
+- Migration 022 down/up passed while migration 021 foundation remained intact.

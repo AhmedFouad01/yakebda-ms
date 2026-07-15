@@ -237,3 +237,30 @@ Status: **Complete**
   source snapshot immutability, duplicate prevention, concurrent claims,
   retry/dead state, stale recovery, and tenant isolation.
 - Migration 024 down/up passed while Inventory objects remained intact.
+
+## Accounting Phase 2 result - mappings and immutable journals
+
+Status: **Complete**
+
+- Migration `20260716_025_accounting_ledger` creates account-scoped chart
+  mappings, accounting periods, immutable journal headers/lines, and database
+  enforcement for tenant ownership, balanced non-empty entries, one journal
+  per financial event, one reversal per entry, and period locks.
+- Payment capture recognizes revenue and VAT from the final server-owned order
+  totals. Partial and multi-tender payments allocate exact minor units; the
+  final tender absorbs the remainder. `unpaid` and zero-value markers do not
+  create financial events.
+- Refund journals follow `reversal_of_payment_id` and reverse that payment's
+  recorded revenue/VAT/tender allocation. They never recalculate from current
+  mutable order data.
+- Cash movements, inventory receipts, consumption/COGS, waste, count
+  adjustments, and stock reversals use explicit mappings. A missing mapping or
+  locked period leaves the outbox event visible as failed/retryable.
+- Posted entries cannot be updated or deleted. Approved corrections create a
+  balanced immutable reversal. Branch-bound operators can only process/read
+  their branch and cannot lock account-wide periods.
+- Focused gate: API typecheck passed; the dedicated ledger suite passed 8/8;
+  45 payment, refund, outbox, Inventory, and accounting tests passed together.
+- Migration 025 down/up passed. Its rollback removed only accounting ledger
+  objects and preserved `financial_events` plus the existing P3 order cursor
+  index.

@@ -5,6 +5,7 @@ import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
 import { requirePermission, requireUser } from "../middleware/auth";
+import { ensureInventoryDefaults } from "./inventoryService";
 import { ar } from "../i18n/ar";
 
 const branchSchema = z.object({
@@ -45,6 +46,7 @@ export function branchRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const id = newId();
       await db("branches").insert({ id, account_id: req.user!.accountId, ...body.data });
+      await ensureInventoryDefaults(db, req.user!.accountId);
       await writeAudit(db, {
         accountId: req.user!.accountId,
         userId: req.user!.id,

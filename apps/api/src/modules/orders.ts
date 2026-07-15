@@ -9,6 +9,7 @@ import { AuthUser, canAccessBranch, requirePermission, requireUser } from "../mi
 import { ar } from "../i18n/ar";
 import { renderReceiptPayload, renderKitchenTicketPayload } from "../lib/receipt";
 import { getSettings, Settings } from "./settings";
+import { transitionOrderStatus } from "./orderStatus";
 /**
  * YKMS-02/03-lite — Orders & POS flow.
  * Prices are ALWAYS computed server-side from the branch menu (never trusted from the client).
@@ -16,14 +17,6 @@ import { getSettings, Settings } from "./settings";
  */
 
 export { ORDER_STATUSES };
-const TRANSITIONS: Record<string, string[]> = {
-  draft: ["submitted", "cancelled"],
-  submitted: ["in_kitchen", "ready", "cancelled"],
-  in_kitchen: ["ready", "cancelled"],
-  ready: ["completed", "cancelled"],
-  completed: [],
-  cancelled: [],
-};
 
 const createOrderSchema = z.object({
   branch_id: z.string().uuid(),
@@ -83,42 +76,6 @@ export async function loadFullOrder(db: Knex, accountId: string, orderId: string
     items: items.map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),
     payments,
   };
-}
-
-async function setStatus(
-  db: Knex,
-  order: { id: string; status: string; branch_id: string; account_id: string; table_id?: string | null },
-  to: string,
-  userId: string | null,
-  cancelReason?: string
-) {
-  if (!TRANSITIONS[order.status]?.includes(to)) throw err.validation({ status: ar.errors.bad_status_transition });
-  const patch: Record<string, unknown> = { status: to, updated_at: db.fn.now() };
-  if (to === "submitted") patch.submitted_at = db.fn.now();
-  if (to === "in_kitchen") patch.in_kitchen_at = db.fn.now(); // YKMS-02F: مصدر مؤقت المطبخ
-  if (to === "ready") patch.ready_at = db.fn.now();
-  if (to === "completed") patch.completed_at = db.fn.now();
-  if (to === "cancelled") {
-    patch.cancelled_at = db.fn.now();
-    if (cancelReason) patch.cancel_reason = cancelReason;
-  }
-  await db("orders").where({ id: order.id }).update(patch);
-  await db("order_status_history").insert({
-    id: newId(),
-    order_id: order.id,
-    from_status: order.status,
-    to_status: to,
-    changed_by: userId,
-  });
-  // Table light-sync: occupy on submit, free on complete/cancel
-  if (order.table_id) {
-    if (to === "submitted" || to === "in_kitchen") {
-      await db("dining_tables").where({ id: order.table_id }).update({ status: "occupied", updated_at: db.fn.now() });
-    }
-    if (to === "completed" || to === "cancelled") {
-      await db("dining_tables").where({ id: order.table_id }).update({ status: "cleaning", updated_at: db.fn.now() });
-    }
-  }
 }
 
 /** YKMS-02E: ضرائب/رسوم خدمة/تقريب من الإعدادات — تُحفظ snapshot على الطلب. */
@@ -538,7 +495,12 @@ export function orderRoutes(db: Knex): Router {
 
       const created = (await db("orders").where({ id: orderId }).first())!;
       if (d.submit) {
-        await setStatus(db, created, "submitted", req.user!.id);
+        await transitionOrderStatus(db, {
+          orderId: created.id,
+          accountId,
+          to: "submitted",
+          userId: req.user!.id,
+        });
         // YKMS-02E: تذكرة مطبخ تلقائية عند الإرسال (لو مفعلة وفيه طابعة مطبخ)
         if (settings.auto_print_on_kitchen_send && settings.kitchen_printer_enabled) {
           try {
@@ -610,7 +572,13 @@ export function orderRoutes(db: Knex): Router {
           throw err.forbidden();
         }
       }
-      await setStatus(db, order, body.data.status, req.user!.id, body.data.cancel_reason);
+      await transitionOrderStatus(db, {
+        orderId: order.id,
+        accountId: req.user!.accountId,
+        to: body.data.status,
+        userId: req.user!.id,
+        cancelReason: body.data.cancel_reason,
+      });
       await writeAudit(db, {
         accountId: req.user!.accountId,
         branchId: order.branch_id,
@@ -915,7 +883,13 @@ export function kitchenRoutes(db: Knex): Router {
       if (!body.success) throw err.validation(body.error.flatten());
       const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
       if (!order) throw err.notFound();
-      await setStatus(db, order, body.data.status, req.user!.id);
+      if (!canAccessBranch(req.user!, order.branch_id)) throw err.forbidden();
+      await transitionOrderStatus(db, {
+        orderId: order.id,
+        accountId: req.user!.accountId,
+        to: body.data.status,
+        userId: req.user!.id,
+      });
       res.json({ data: await db("orders").where({ id: order.id }).first(), message: ar.messages.updated });
     } catch (e) {
       next(e);

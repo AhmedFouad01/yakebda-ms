@@ -39,7 +39,16 @@ export interface CreateMovementInput {
   accountId: string;
   locationId: string;
   itemId: string;
-  movementType: "receipt" | "issue" | "adjustment";
+  movementType:
+    | "receipt"
+    | "issue"
+    | "adjustment"
+    | "transfer_in"
+    | "transfer_out"
+    | "waste"
+    | "count_adjustment"
+    | "consumption"
+    | "reversal";
   quantity: string | number;
   unitId?: string;
   unitCost?: string | number;
@@ -49,6 +58,8 @@ export interface CreateMovementInput {
   idempotencyKey: string;
   reason?: string;
   createdBy?: string;
+  reversalOfMovementId?: string;
+  transferGroupId?: string;
 }
 
 export interface MovementResult {
@@ -79,7 +90,7 @@ export async function createStockMovement(db: Knex, input: CreateMovementInput):
     if (!item) throw err.notFound();
 
     let quantity = parseDecimal(input.quantity, 6);
-    if (input.movementType !== "adjustment" && quantity <= 0n) {
+    if (!new Set(["adjustment", "count_adjustment", "reversal"]).has(input.movementType) && quantity <= 0n) {
       throw err.validation({ quantity: "يجب أن تكون الكمية أكبر من صفر" });
     }
     if (quantity === 0n) throw err.validation({ quantity: "الكمية لا يمكن أن تكون صفرًا" });
@@ -96,7 +107,7 @@ export async function createStockMovement(db: Knex, input: CreateMovementInput):
       quantity = convertQuantity(quantity, parseDecimal(conversion.factor, 8));
     }
 
-    if (input.movementType === "issue") quantity = -quantity;
+    if (new Set(["issue", "transfer_out", "waste", "consumption"]).has(input.movementType)) quantity = -quantity;
     const balance = await trx("stock_movements")
       .where({ account_id: input.accountId, location_id: input.locationId, item_id: input.itemId })
       .select(
@@ -148,6 +159,8 @@ export async function createStockMovement(db: Knex, input: CreateMovementInput):
       idempotency_key: input.idempotencyKey,
       reason: input.reason ?? null,
       created_by: input.createdBy ?? null,
+      reversal_of_movement_id: input.reversalOfMovementId ?? null,
+      transfer_group_id: input.transferGroupId ?? null,
     };
     await trx("stock_movements").insert(row);
     return { ...row, idempotent_replay: false };

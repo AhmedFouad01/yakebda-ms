@@ -50,7 +50,7 @@ export async function enqueueFinancialEvent(
 export async function enqueuePaymentFinancialEvent(
   trx: Knex.Transaction,
   input: { accountId: string; paymentId: string; eventType: "payment.captured" | "refund.posted" }
-): Promise<string> {
+): Promise<string | null> {
   const row = await trx("payments as payment")
     .join("orders as order", "order.id", "payment.order_id")
     .where({ "payment.id": input.paymentId, "order.account_id": input.accountId })
@@ -75,6 +75,7 @@ export async function enqueuePaymentFinancialEvent(
     )
     .first();
   if (!row) throw err.notFound();
+  if (row.method === "unpaid" || Number(row.amount) === 0) return null;
   return enqueueFinancialEvent(trx, {
     accountId: input.accountId,
     branchId: row.branch_id,
@@ -88,7 +89,7 @@ export async function enqueuePaymentFinancialEvent(
 
 export async function claimFinancialEvents(
   db: Knex,
-  input: { workerId: string; limit: number; accountId?: string }
+  input: { workerId: string; limit: number; accountId?: string; branchId?: string }
 ) {
   return db.transaction(async (trx) => {
     const rows = await trx("financial_events")
@@ -96,6 +97,7 @@ export async function claimFinancialEvents(
       .where((query) => query.whereNull("next_attempt_at").orWhere("next_attempt_at", "<=", trx.fn.now()))
       .modify((query) => {
         if (input.accountId) query.where("account_id", input.accountId);
+        if (input.branchId) query.where("branch_id", input.branchId);
       })
       .orderBy([{ column: "created_at", order: "asc" }, { column: "id", order: "asc" }])
       .forUpdate()
@@ -120,12 +122,13 @@ export async function claimFinancialEvents(
 export async function failFinancialEvent(
   db: Knex,
   input: { eventId: string; workerId: string; error: string; maxAttempts?: number }
-) {
+): Promise<{ id: string; status: "failed" | "dead" }> {
   const current = await db("financial_events")
     .where({ id: input.eventId, status: "processing", claimed_by: input.workerId })
     .first();
   if (!current) throw err.conflict();
-  const status = Number(current.attempts) >= (input.maxAttempts ?? 5) ? "dead" : "failed";
+  const status: "failed" | "dead" =
+    Number(current.attempts) >= (input.maxAttempts ?? 5) ? "dead" : "failed";
   await db("financial_events").where({ id: current.id }).update({
     status,
     last_error: input.error.slice(0, 500),

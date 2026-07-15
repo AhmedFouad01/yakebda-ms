@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { newId } from "../lib/ids";
 import { ensureDefaultOrderSource } from "../modules/orderSources";
 import { ensureInventoryDefaults } from "../modules/inventoryService";
+import { ensureAccountingDefaults } from "../modules/accountingLedger";
 
 export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }> = [
   { key: "users.manage", name_ar: "إدارة المستخدمين", group: "المستخدمون" },
@@ -163,6 +164,7 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
     const branch = await db("branches").where({ account_id: existing.id }).first();
     await ensureDefaultOrderSource(db, existing.id);
     await ensureInventoryDefaults(db, existing.id);
+    await ensureAccountingDefaults(db, existing.id);
     return { accountId: existing.id, branchId: branch?.id, ownerEmail, ownerPassword };
   }
 
@@ -257,6 +259,7 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
   await seedMvp(db, { accountId, branchId, branch2Id, cashierId });
   await seedBreadGroups(db, accountId);
   await ensureInventoryDefaults(db, accountId);
+  await ensureAccountingDefaults(db, accountId);
 
   return { accountId, branchId, branch2Id, ownerEmail, ownerPassword };
 }

@@ -303,3 +303,23 @@ Status: **Reimplemented safely; legacy commit not cherry-picked**
   cherry-pick was used.
 - Focused gate: 15 shift-report, print reliability, and bridge security tests
   passed, including payload decoding plus pending/printing/printed/dead paths.
+
+## Final local gate
+
+Status: **Pass - local commits only**
+
+- Runtime: Node `v22.23.1`, npm `10.9.8`; lockfile-compatible `npm ci` passed.
+- API typecheck passed with zero errors. Full API suite passed 186/186 across
+  27 files with no skipped tests added.
+- Focused P3 regression gate passed 43/43 for observability, security scope,
+  pagination, payment integrity/concurrency, order numbering, print claims,
+  and refunds.
+- Shared contracts passed 13/13. Admin passed 11/11; production build and UI
+  color contract passed. `git diff --check` passed.
+- Fresh migration from 001 through 025 passed; a second `latest` had no pending
+  migrations. Down/up checks for 021, 022, 023, 024, and 025 each passed and
+  preserved the preceding layer. PostgreSQL exposed 55 expected Inventory,
+  outbox, and accounting indexes; the P3 order cursor index survived all
+  Inventory rollback checks.
+- All database validation used `ykms_inventory_v2_test`. No production data,
+  Drive, deployment, or remote Inventory branch was touched.

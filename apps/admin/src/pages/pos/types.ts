@@ -52,22 +52,8 @@ export interface DeliveryZone {
   min_order: string | number;
   is_active: boolean;
 }
-export interface CustomerAddress {
-  label?: string | null;
-  area?: string | null;
-  landmark?: string | null;
-  floor?: string | null;
-  notes?: string | null;
-  is_default?: boolean;
-}
-export interface PosCustomer {
-  id: string;
-  name: string;
-  phone?: string | null;
-  alt_phone?: string | null;
-  address?: string | null;
-  addresses?: CustomerAddress[] | string | null;
-}
+export type CustomerAddress = SharedCustomerAddress;
+export type PosCustomer = CustomerLookup;
 export interface Shift {
   id: string;
   opened_at: string;
@@ -158,3 +144,7 @@ export interface CartLine {
 export type OrderType = "takeaway" | "delivery";
 export type AdminPanel = "shift" | null;
 export type PaymentMethod = "cash" | "card" | "wallet" | "unpaid";
+import type {
+  CustomerAddress as SharedCustomerAddress,
+  CustomerLookup,
+} from "@ykms/contracts";

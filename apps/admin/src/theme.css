@@ -456,8 +456,6 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .modal h3, .modal .muted, .modal .mod-group-name { color: #111; }
 .modal .seg button { color: #111; background: #fff; border-color: #d6d6d6; }
 .modal .seg button.active, .modal button.primary { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.receipt, .receipt * { color: #111 !important; }
-.receipt { background: #fff; border-color: #111; }
 .dark-alert { background: #351616; color: #ffd4d4; border-color: #7a2a2a; }
 .dark-ok { background: #123321; color: #c6ffd7; border-color: #276c43; }
 .posx-admin-modal { width: min(1100px, 94vw); max-height: 88vh; overflow: auto; }
@@ -4708,11 +4706,12 @@ button.danger,
 }
 
 /* Receipt paper is deliberately independent from the application theme. */
-.receipt,
-.receipt * { color: #111111 !important; }
-.receipt {
-  border-color: #111111 !important;
-  background: #ffffff !important;
+.modal .receipt,
+.modal .receipt *,
+.modal .receipt .receipt-row { color: #111111; }
+.modal .receipt {
+  border-color: #111111;
+  background: #ffffff;
 }
 
 .receipt-modal .pos-actions,

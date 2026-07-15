@@ -587,7 +587,7 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .uif-drawer.wide { inline-size: min(720px, 96vw); }
 .uif-drawer-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--yk-line); }
 .uif-drawer-title { font-size: 15.5px; font-weight: 800; }
-.uif-x { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--yk-line); background: transparent; color: var(--yk-muted); cursor: pointer; font-size: 13px; }
+.uif-x { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--yk-line); background: transparent; color: var(--yk-muted); cursor: pointer; font-size: var(--type-body); }
 .uif-x:hover { color: #ff9c8a; border-color: #ff9c8a; }
 .uif-drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-4); }
 .uif-drawer-foot {
@@ -915,7 +915,7 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .crm-table th { color: var(--yk-muted); font-size: 11.5px; font-weight: 800; }
 .crm-name { background: none; border: 0; color: var(--yk-yellow-2); font-weight: 800; font-family: inherit; font-size: 13.5px; cursor: pointer; padding: 0; text-align: start; }
 .crm-name:hover { text-decoration: underline; }
-.app2-main:not(.full) .crm-name { color: #8a6d10; }
+:where(.app2-main:not(.full)) .crm-name { color: #8a6d10; }
 .crm-badge { display: inline-block; margin-inline-end: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #eef0ee; color: #444; }
 .crm-badge.vip { background: linear-gradient(135deg, var(--yk-yellow), var(--yk-yellow-2)); color: #111; }
 .crm-badge.blocked { background: #fbeeed; color: #9a3a34; }
@@ -941,7 +941,7 @@ button.sm:hover { border-color: var(--yk-yellow); }
 /* شاشات الإدارة الفاتحة: توحيد ألوان الحقول الخام إلى نظام التصميم */
 .app2-main:not(.full) select,
 .app2-main:not(.full) input[type="text"],
-.app2-main:not(.full) input[type="number"],
+.app2-main:not(.full) input[type="number"]:not(.uif-num),
 .app2-main:not(.full) input[type="email"],
 .app2-main:not(.full) input[type="password"],
 .app2-main:not(.full) input[type="date"],
@@ -954,8 +954,8 @@ button.sm:hover { border-color: var(--yk-yellow); }
   outline: none; border-color: var(--yk-yellow); box-shadow: 0 0 0 3px rgba(246,192,38,0.18);
 }
 /* أزرار الصفوف الصغيرة على الشاشات الفاتحة */
-.app2-main:not(.full) button.sm { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) button.sm.primary { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
+:where(.app2-main:not(.full)) button:where(.sm) { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) button:where(.sm.primary) { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
 /* منع فيض المودالات */
 .modal.wide { max-width: min(920px, 96vw); max-height: 92dvh; overflow-y: auto; }
 
@@ -3417,6 +3417,7 @@ input[type="checkbox"] {
   border-radius: 10px;
   background: var(--surface-1);
   color: var(--text-primary);
+  font-size: var(--type-body);
 }
 
 .od-modal-x:hover {
@@ -3785,7 +3786,7 @@ input[type="checkbox"] {
   background: var(--surface-1);
 }
 
-.od-modal .order-actions button:not(.primary, .danger),
+.od-modal .order-actions button:not(.primary, .danger, .success),
 .od-modal .order-actions input,
 .od-modal .order-actions select {
   border-color: var(--border-strong);
@@ -4411,13 +4412,16 @@ body,
 .empty,
 .uif-sub,
 .uif-hint,
-.uif-label,
 .kds-stat span,
 .kds-meta b,
 .od-summary-label,
 .od-row-label,
 .od-modal-meta {
   color: var(--text-secondary) !important;
+}
+
+.uif-label {
+  color: var(--text-secondary);
 }
 
 .set-card h3,
@@ -4483,39 +4487,12 @@ button.primary,
 button.secondary,
 button.ghost,
 button.danger,
-.app2-main:not(.full) button:not(.primary):not(.danger):not(.ghost):not(.uif-btn):not(.menu-status),
-.uif-drawer button:not(.primary):not(.danger):not(.ghost):not(.uif-btn):not(.posx-history-card),
-.modal button:not(.primary):not(.danger):not(.ghost):not(.uif-btn) {
+.app2-main:not(.full) button:where(:not(.primary):not(.danger):not(.ghost):not(.uif-btn):not(.menu-status):not(.crm-name)),
+.uif-drawer button:where(:not(.primary):not(.danger):not(.ghost):not(.uif-btn):not(.posx-history-card):not(.crm-name)),
+.modal button:where(:not(.primary):not(.danger):not(.ghost):not(.uif-btn):not(.crm-name)) {
   border-color: var(--border-strong);
   background: var(--surface-2);
   color: var(--text-primary);
-}
-
-.uif-btn.primary:not(.kds-action),
-button.primary:not(.kds-action),
-.btn:not(.secondary, .ghost, .danger),
-.seg button.active,
-.uif-tabs button.active,
-.uif-radio button.active {
-  border-color: var(--brand);
-  background: var(--brand);
-  color: var(--on-brand);
-}
-
-.uif-btn.ghost,
-button.ghost,
-.btn.ghost {
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.uif-btn.danger,
-button.danger,
-.btn.danger {
-  border-color: var(--danger);
-  background: var(--danger);
-  color: #ffffff;
 }
 
 .app2 button:hover:not(:disabled),
@@ -4710,9 +4687,9 @@ button.danger,
 }
 
 .od-modal-tabs button,
-.order-actions > button:not(.primary):not(.danger),
-.order-actions .cancel-box > button:not(.primary):not(.danger),
-.pos-actions button:not(.primary):not(.danger) {
+.order-actions > button:where(:not(.primary):not(.danger):not(.success)),
+.order-actions .cancel-box > button:where(:not(.primary):not(.danger):not(.success)),
+.pos-actions button:where(:not(.primary):not(.danger):not(.success)) {
   border-color: var(--border-strong);
   background: var(--surface-2);
   color: var(--text-primary);
@@ -5085,9 +5062,9 @@ button.danger,
   font-family: var(--font);
 }
 
-.app2 :is(input:not([type="checkbox"]):not([type="radio"]), select),
-.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select),
-.modal :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+.app2 :is(input:not([type="checkbox"]):not([type="radio"]):not(.uif-num), select),
+.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not(.uif-num), select),
+.modal :is(input:not([type="checkbox"]):not([type="radio"]):not(.uif-num), select) {
   min-height: var(--control-h);
   text-align: right;
 }
@@ -5216,6 +5193,7 @@ button.sm,
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: var(--type-body);
 }
 
 /* ---------- Generic inline forms / API clients ---------- */
@@ -5804,6 +5782,8 @@ button.sm,
   border-radius: 0;
   background: var(--surface-2);
   color: var(--text-primary);
+  font-size: var(--type-body);
+  line-height: 1;
 }
 
 .settings-page .uif-stepper-btn:hover:not(:disabled) {
@@ -6550,7 +6530,7 @@ button.sm,
 }
 
 /* Use the same button language for every explicit stepper in the system. */
-:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) button:not(.rm) {
+:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) :where(button:not(.rm)) {
   display: inline-grid;
   place-items: center;
   min-width: 34px;
@@ -6564,13 +6544,13 @@ button.sm,
   line-height: 1;
 }
 
-:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) button:not(.rm):hover:not(:disabled) {
+:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) :where(button:not(.rm):hover:not(:disabled)) {
   border-color: var(--brand);
   background: var(--theme-brand-soft);
   color: var(--brand);
 }
 
-:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) button:not(.rm):focus-visible {
+:is(.uif-number-stepper, .posx-card2-stepper, .cart-line-actions, .posx-line-actions) :where(button:not(.rm):focus-visible) {
   outline: 3px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -6864,9 +6844,9 @@ button.sm,
   transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease, box-shadow 130ms ease, transform 80ms ease;
 }
 
-.app2-main:not(.full) button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn):hover:not(:disabled),
-.modal button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled),
-.uif-drawer button:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled) {
+.app2-main:not(.full) button:where(:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn):hover:not(:disabled)),
+.modal button:where(:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled)),
+.uif-drawer button:where(:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn):hover:not(:disabled)) {
   border-color: var(--brand);
   background: var(--theme-brand-soft);
   color: var(--text-primary);
@@ -7017,8 +6997,7 @@ button.danger:hover:not(:disabled),
   white-space: nowrap;
 }
 
-.table-actions-cell,
-.menu-row-actions {
+.table-actions-cell {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -7026,14 +7005,60 @@ button.danger:hover:not(:disabled),
 }
 
 .table-action,
-:is(.data-table-shell, .panel, .uif-card-body) > table button:not(.crm-name):not(.menu-status):not(.uif-stepper-btn) {
-  min-height: var(--ui-control-h-sm) !important;
-  height: var(--ui-control-h-sm) !important;
+:is(.data-table-shell, .panel, .uif-card-body) > table button.sm,
+:is(.data-table-shell, .panel, .uif-card-body) > table button:where(:not(.crm-name):not(.menu-status):not(.uif-stepper-btn)) {
+  min-height: var(--ui-control-h-sm);
+  height: var(--ui-control-h-sm);
   min-width: 96px;
-  padding-inline: 12px !important;
-  border-radius: 8px !important;
-  font-size: 12px !important;
+  padding-inline: 12px;
+  border-radius: 8px;
+  font-size: 12px;
   white-space: nowrap;
+}
+
+:is(.app2-main, .modal, .uif-drawer) button.sm {
+  min-width: 64px;
+  min-height: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding-inline: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.form-row > :is(button.btn, button.uif-btn, button) {
+  min-height: 44px;
+  align-self: end;
+}
+
+.uif-btn.primary:not(.kds-action),
+button.primary.sm,
+button.primary:not(.kds-action),
+.btn:not(.secondary, .ghost, .danger),
+.seg button.active,
+.uif-tabs button.active,
+.uif-radio button.active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.uif-btn.ghost,
+button.ghost,
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.uif-btn.danger,
+button.danger.sm,
+button.danger,
+.btn.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #ffffff;
 }
 
 .crm-name {
@@ -7043,7 +7068,9 @@ button.danger:hover:not(:disabled),
   border-radius: 0;
   background: transparent;
   color: var(--brand);
+  font-size: var(--type-body);
   font-weight: 900;
+  line-height: 1;
   text-align: start;
 }
 
@@ -7380,7 +7407,7 @@ button.danger:hover:not(:disabled),
   line-height: 1.45 !important;
 }
 
-:is(.app2-main:not(.full), .settings-page, .reports-page, .uif-drawer, .modal) :is(button, input, select, textarea) {
+:is(.app2-main:not(.full), .settings-page, .reports-page, .uif-drawer, .modal) :is(input, select, textarea) {
   font-size: var(--type-body);
 }
 
@@ -7813,12 +7840,12 @@ button.danger:hover:not(:disabled),
   margin-top: 14px;
 }
 
-.settings-page .source-picker-card {
+.settings-page button.source-picker-card {
   min-height: 88px;
   display: grid;
   justify-items: start;
   align-content: center;
-  gap: 3px;
+  gap: 7px;
   padding: 11px 13px;
   border: 1px solid var(--border-subtle);
   border-radius: 11px;
@@ -7939,9 +7966,12 @@ button.danger:hover:not(:disabled),
   max-width: 520px;
 }
 
-.app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
-.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
-.modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+.app2 :is(input:not([type="checkbox"]):not([type="radio"]):not(.uif-num), textarea),
+.uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]):not(.uif-num), textarea),
+.modal :is(input:not([type="checkbox"]):not([type="radio"]):not(.uif-num), textarea),
+.app2 select,
+.uif-drawer select,
+.modal select {
   box-sizing: border-box;
   font-size: var(--type-body);
   line-height: 1.4;

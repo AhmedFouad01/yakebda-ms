@@ -39,7 +39,6 @@ body,
 .card,
 .panel,
 .form-row,
-.modal,
 .option-modal,
 .receipt-modal,
 .uif-card,
@@ -51,6 +50,24 @@ body,
   border-color: var(--border-subtle) !important;
   background: var(--surface-1) !important;
   color: var(--text-primary) !important;
+}
+
+.modal {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+:where(.app2, .uif-drawer, .modal) button.sm:where(:not(.primary):not(.danger)) {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+:where(.app2, .uif-drawer, .modal) button.btn:not(.secondary):not(.ghost):not(.danger) {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),

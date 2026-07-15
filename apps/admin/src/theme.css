@@ -4438,16 +4438,16 @@ body,
 }
 
 /* ---------- Tables ---------- */
-table { color: var(--text-primary) !important; }
+table { color: var(--text-primary); }
 th {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 td,
 tr {
-  border-color: var(--border-subtle) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
 }
 
 /* ---------- Inputs and native controls ---------- */

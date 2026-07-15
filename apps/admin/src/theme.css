@@ -4529,40 +4529,40 @@ button.danger,
 }
 
 .stub {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-1);
 }
 
 .stub.printed,
 .stub.on,
 .stub.st-ready,
 .stub.st-completed {
-  border-color: var(--success) !important;
-  background: var(--theme-success-soft) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--theme-success-soft);
+  color: var(--success);
 }
 
 .stub.printing,
 .stub.st-submitted,
 .stub.st-in_kitchen {
-  border-color: var(--warning) !important;
-  background: var(--theme-warning-soft) !important;
-  color: var(--warning) !important;
+  border-color: var(--warning);
+  background: var(--theme-warning-soft);
+  color: var(--warning);
 }
 
 .stub.failed,
 .stub.st-cancelled {
-  border-color: var(--danger) !important;
-  background: var(--theme-danger-soft) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--theme-danger-soft);
+  color: var(--danger);
 }
 
 .stub.pending,
 .stub.off,
 .stub.st-draft {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 /* ---------- AppShell ---------- */

@@ -1,3 +1,9 @@
+import type {
+  CustomerAddress as SharedCustomerAddress,
+  CustomerLookup,
+  OrderStatus,
+} from "@ykms/contracts";
+
 export interface MenuModifier {
   id: string;
   name_ar: string;
@@ -79,7 +85,7 @@ export interface ShiftOrderSummary {
   order_prefix?: string | null;
   order_type: string;
   source_name?: string | null;
-  status: string;
+  status: OrderStatus;
   kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
   payment_status: "unpaid" | "partial" | "paid";
   subtotal: string | number;
@@ -144,7 +150,3 @@ export interface CartLine {
 export type OrderType = "takeaway" | "delivery";
 export type AdminPanel = "shift" | null;
 export type PaymentMethod = "cash" | "card" | "wallet" | "unpaid";
-import type {
-  CustomerAddress as SharedCustomerAddress,
-  CustomerLookup,
-} from "@ykms/contracts";

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Knex } from "knex";
+import { ORDER_STATUSES } from "@ykms/contracts";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
@@ -14,7 +15,7 @@ import { getSettings, Settings } from "./settings";
  * Status flow: draft → submitted → in_kitchen → ready → completed | cancelled.
  */
 
-export const ORDER_STATUSES = ["draft", "submitted", "in_kitchen", "ready", "completed", "cancelled"] as const;
+export { ORDER_STATUSES };
 const TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
   submitted: ["in_kitchen", "ready", "cancelled"],

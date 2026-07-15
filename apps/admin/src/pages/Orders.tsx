@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { OrderListSummary } from "@ykms/contracts";
 import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Receipt, FullOrder } from "../components/Receipt";
@@ -6,16 +7,7 @@ import { OrderDetail } from "../components/OrderDetail";
 import { DialogLayer } from "../components/ui/overlays";
 import { useMe } from "../lib/me";
 
-interface OrderRow {
-  id: string;
-  order_no: number;
-  order_prefix?: string | null;
-  order_type: string;
-  status: string;
-  total: string | number;
-  created_at: string;
-  branch_id: string;
-}
+type OrderRow = OrderListSummary;
 
 interface Driver {
   id: string;

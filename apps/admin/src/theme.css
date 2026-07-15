@@ -7563,11 +7563,11 @@ button.danger,
   border-spacing: 0;
 }
 
-.report-panel table :is(th, td) {
-  width: auto !important;
-  min-width: 0 !important;
-  padding: 10px 11px !important;
-  white-space: normal !important;
+.reports-page .report-panel table :is(th, td) {
+  width: auto;
+  min-width: 0;
+  padding: 10px 11px;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 

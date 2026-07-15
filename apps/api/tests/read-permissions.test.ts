@@ -14,6 +14,7 @@ let managerToken = "";
 let kitchenToken = "";
 let cashierToken = "";
 let driverToken = "";
+let branchSettingsViewerToken = "";
 let branchId = "";
 let branch2Id = "";
 
@@ -62,6 +63,38 @@ beforeAll(async () => {
   });
   await db("user_roles").insert({ user_id: driverId, role_id: driverRole.id });
   driverToken = await login("driver.permissions@ykms.local", driverPassword);
+
+  const branchSettingsRoleId = newId();
+  const branchSettingsUserId = newId();
+  const branchSettingsPassword = "BranchSettings@12345";
+  await db("roles").insert({
+    id: branchSettingsRoleId,
+    account_id: account.id,
+    key: "branch_settings_viewer_test",
+    name_ar: "Ø¹Ø±Ø¶ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ÙØ±Ø¹",
+    is_system: false,
+  });
+  await db("role_permissions").insert({
+    role_id: branchSettingsRoleId,
+    permission_key: "settings.view",
+  });
+  await db("users").insert({
+    id: branchSettingsUserId,
+    account_id: account.id,
+    branch_id: branchId,
+    name: "Ù…Ø±Ø§Ø¬Ø¹ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ÙØ±Ø¹",
+    email: "branch-settings-viewer@ykms.local",
+    password_hash: bcrypt.hashSync(branchSettingsPassword, 10),
+    is_active: true,
+  });
+  await db("user_roles").insert({
+    user_id: branchSettingsUserId,
+    role_id: branchSettingsRoleId,
+  });
+  branchSettingsViewerToken = await login(
+    "branch-settings-viewer@ykms.local",
+    branchSettingsPassword
+  );
 });
 
 afterAll(async () => {
@@ -110,15 +143,30 @@ describe("Read permission scoping", () => {
     expect(kitchenSettings.body.data.tax_number).toBeUndefined();
   });
 
-  it("blocks unrelated roles and cross-branch settings reads", async () => {
+  it("blocks unrelated roles from settings reads", async () => {
     const driver = await request(app)
       .get(`/api/v1/settings?branch_id=${branchId}`)
       .set(auth(driverToken));
     expect(driver.status).toBe(403);
+  });
 
+  it("allows account-wide branch managers to read managed branch settings", async () => {
     const crossBranch = await request(app)
       .get(`/api/v1/settings?branch_id=${branch2Id}`)
       .set(auth(managerToken));
+    expect(crossBranch.status).toBe(200);
+    expect(crossBranch.body.data.tax_number).toBeDefined();
+  });
+
+  it("limits branch-scoped settings viewers to their assigned branch", async () => {
+    const assignedBranch = await request(app)
+      .get(`/api/v1/settings?branch_id=${branchId}`)
+      .set(auth(branchSettingsViewerToken));
+    expect(assignedBranch.status).toBe(200);
+
+    const crossBranch = await request(app)
+      .get(`/api/v1/settings?branch_id=${branch2Id}`)
+      .set(auth(branchSettingsViewerToken));
     expect(crossBranch.status).toBe(403);
   });
 

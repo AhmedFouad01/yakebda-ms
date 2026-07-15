@@ -5159,16 +5159,6 @@ button.sm,
   gap: 8px;
 }
 
-.menu-toolbar :is(input, select, button, .menu-import-btn),
-.menu-toolbar-actions :is(button, .menu-import-btn) {
-  min-height: var(--control-h) !important;
-  height: var(--control-h) !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1 !important;
-}
-
 .menu-toolbar-actions {
   align-items: center;
   gap: 7px;
@@ -7974,6 +7964,16 @@ button.danger,
   box-sizing: border-box;
   font-size: var(--type-body);
   line-height: 1.4;
+}
+
+.app2-main:not(.full) .menu-toolbar > :is(input.menu-search, select),
+.app2-main:not(.full) .menu-toolbar-actions :is(button, .menu-import-btn) {
+  min-height: var(--control-h);
+  height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 @media (max-width: 1050px) {

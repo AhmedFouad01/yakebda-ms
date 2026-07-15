@@ -194,3 +194,24 @@ Status: **Complete**
   including 7 dedicated consumption tests for snapshots, concurrent completion,
   no-recipe behavior, durable retry, refunds, reversal, and tenant isolation.
 - Migration 022 down/up passed while migration 021 foundation remained intact.
+
+## Phase 3 result - operations and valuation
+
+Status: **Complete**
+
+- Migration `20260716_023_inventory_operations` adds immutable stock-count
+  evidence and prevents multiple reversals of one stock movement.
+- Purchase receipts require a scoped supplier, reference, unit cost, and
+  idempotency key.
+- Waste movements require a reason and use the current moving weighted-average
+  unit cost.
+- Transfers post one atomic outbound/inbound movement pair with one group ID,
+  matching cost snapshots, branch authorization on both locations, and replay
+  protection.
+- Stock counts preserve expected, observed, and difference quantities and post
+  only the difference as an append-only adjustment.
+- Perpetual moving weighted average remains derived from movement quantity and
+  value. Consumption, waste, transfer, and count tests confirm the valuation
+  snapshots required before COGS posting.
+- Focused gate: API typecheck passed; 20 Inventory tests passed, including 6
+  operations/valuation tests. Migration 023 down/up preserved recipe objects.

@@ -4593,27 +4593,27 @@ button.danger,
 
 .app2-side,
 .app2-navdrawer {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-side { border-inline-end: 1px solid var(--border-subtle); }
 .app2-side a,
-.app2-navdrawer-links a { color: var(--text-secondary) !important; }
+.app2-navdrawer-links a { color: var(--text-secondary); }
 .app2-side a:hover,
 .app2-navdrawer-links a:hover,
 .app2-navdrawer-links a:focus-visible {
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 .app2-side a.active,
 .app2-navdrawer-links a.active {
-  background: var(--theme-brand-soft) !important;
-  color: var(--text-primary) !important;
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
 }
 .app2-side a.active {
-  box-shadow: inset 3px 0 0 var(--brand) !important;
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 .app2-navdrawer-links a.active { border-inline-end-color: var(--brand); }
 

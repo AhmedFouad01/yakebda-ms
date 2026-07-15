@@ -178,6 +178,43 @@ body,
   color: var(--text-primary);
 }
 
+/* Menu and CRM semantic roles */
+.menu-toolbar select,
+.menu-search,
+.menu-price-input,
+.app2-main:not(.full) input.menu-price-input:not(.uif-num),
+.menu-import-btn,
+.stack input,
+.stack select,
+.crm-search input,
+.imgup-box,
+.json-import {
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.menu-status.on,
+.crm-badge:not(.blocked):not(.vip) {
+  border-color: var(--success);
+  background: var(--theme-success-soft);
+  color: var(--success);
+}
+
+.menu-status.off,
+.crm-badge.blocked {
+  border-color: var(--danger);
+  background: var(--theme-danger-soft);
+  color: var(--danger);
+}
+
+.crm-badge.vip,
+.menu-thumb.ph {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
 /* POS workspace */
 .app2-pos .app2-body,
 .app2-pos .posx,

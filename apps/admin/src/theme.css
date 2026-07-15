@@ -4562,41 +4562,6 @@ button.danger,
 .app2-navdrawer-links a.active { border-inline-end-color: var(--brand); }
 
 /* ---------- Menu / CRM / settings legacy reconciliation ---------- */
-.menu-toolbar select,
-.menu-search,
-.menu-price-input,
-.menu-import-btn,
-.stack input,
-.stack select,
-.crm-search input,
-.imgup-box,
-.json-import {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-}
-
-.menu-status.on,
-.crm-badge:not(.blocked):not(.vip) {
-  border-color: var(--success) !important;
-  background: var(--theme-success-soft) !important;
-  color: var(--success) !important;
-}
-
-.menu-status.off,
-.crm-badge.blocked {
-  border-color: var(--danger) !important;
-  background: var(--theme-danger-soft) !important;
-  color: var(--danger) !important;
-}
-
-.crm-badge.vip,
-.menu-thumb.ph {
-  border-color: var(--brand) !important;
-  background: var(--brand) !important;
-  color: var(--on-brand) !important;
-}
-
 .crm-kpi,
 .crm-recent-item,
 .perm-chips .uif-checkbox,

@@ -1,16 +1,27 @@
 import { makeKnex } from "./knex";
 import { seedFoundation } from "./seedData";
+import { createStructuredLogger, unexpectedErrorFields } from "../lib/observability";
+
+const logger = createStructuredLogger();
 
 async function main() {
   const db = makeKnex(process.env.DATABASE_URL);
-  const r = await seedFoundation(db);
-  console.log("Seeded demo account:");
-  console.log("  owner email   :", r.ownerEmail);
-  console.log("  owner password:", r.ownerPassword);
-  console.log("  cashier PIN   : 1234");
+  const result = await seedFoundation(db);
+  logger.write({
+    timestamp: new Date().toISOString(),
+    level: "info",
+    event: "database.seed.completed",
+    account_id: result.accountId,
+    branch_id: result.branchId,
+  });
   await db.destroy();
 }
 main().catch((e) => {
-  console.error(e);
+  logger.write({
+    timestamp: new Date().toISOString(),
+    level: "error",
+    event: "database.seed.failed",
+    ...unexpectedErrorFields(e),
+  });
   process.exit(1);
 });

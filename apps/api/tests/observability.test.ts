@@ -85,12 +85,15 @@ describe("R11 request correlation and structured logging", () => {
       authorization: "Bearer top-secret",
       nested: { password: "secret-password", note: "token=secret-token" },
       payment: { card_number: "4111111111111111", cvv: "123" },
+      bank: { iban: "EG000000000000000000000000000", account_number: "123456789" },
     });
     const serialized = JSON.stringify(redacted);
     expect(serialized).not.toContain("top-secret");
     expect(serialized).not.toContain("secret-password");
     expect(serialized).not.toContain("secret-token");
     expect(serialized).not.toContain("4111111111111111");
+    expect(serialized).not.toContain("EG000000000000000000000000000");
+    expect(serialized).not.toContain("123456789");
     expect(serialized).not.toContain('"123"');
   });
 
@@ -125,13 +128,76 @@ describe("R11 request correlation and structured logging", () => {
   });
 
   it("keeps expected Arabic API errors unchanged", async () => {
-    const response = await request(createApp(fakeDb(), { logSink: captureLogs().sink })).get(
-      "/api/v1/branches"
-    );
+    const logs = captureLogs();
+    const response = await request(createApp(fakeDb(), { logSink: logs.sink })).get("/api/v1/branches");
     expect(response.status).toBe(401);
     expect(response.body).toEqual({
       code: "unauthorized",
       message: ar.errors.unauthorized,
     });
+    expect(logs.entries.some((entry) => entry.event === "http.request.failed")).toBe(false);
+  });
+});
+
+describe("R11 liveness and readiness", () => {
+  it("keeps liveness independent from the database", async () => {
+    const db = fakeDb();
+    const response = await request(createApp(db, { logSink: captureLogs().sink })).get(
+      "/api/v1/health/live"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, status: "live", locale: "ar", dir: "rtl" });
+    expect(db.raw).not.toHaveBeenCalled();
+  });
+
+  it("reports ready only after the database check succeeds", async () => {
+    const db = fakeDb();
+    const response = await request(createApp(db, { logSink: captureLogs().sink })).get(
+      "/api/v1/health/ready"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, status: "ready" });
+    expect(db.raw).toHaveBeenCalledWith("select 1 as ready");
+  });
+
+  it("returns a safe 503 when the database check fails", async () => {
+    const db = fakeDb();
+    vi.mocked(db.raw).mockRejectedValueOnce(new Error("password=database-secret"));
+    const logs = captureLogs();
+    const response = await request(createApp(db, { logSink: logs.sink }))
+      .get("/api/v1/health/ready")
+      .set("x-request-id", "readiness-failure-123");
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      ok: false,
+      status: "not_ready",
+      request_id: "readiness-failure-123",
+    });
+    expect(logs.entries).toContainEqual(
+      expect.objectContaining({
+        event: "health.readiness.failed",
+        request_id: "readiness-failure-123",
+        reason: "database_unavailable",
+      })
+    );
+    expect(JSON.stringify(response.body)).not.toContain("database-secret");
+    expect(JSON.stringify(logs.entries)).not.toContain("database-secret");
+  });
+
+  it("bounds the database readiness check with a timeout", async () => {
+    const db = fakeDb();
+    vi.mocked(db.raw).mockReturnValueOnce(new Promise(() => {}) as ReturnType<Knex["raw"]>);
+    const logs = captureLogs();
+    const response = await request(
+      createApp(db, { logSink: logs.sink, readinessTimeoutMs: 5 })
+    ).get("/api/v1/health/ready");
+
+    expect(response.status).toBe(503);
+    expect(logs.entries).toContainEqual(
+      expect.objectContaining({ event: "health.readiness.failed", reason: "timeout" })
+    );
   });
 });

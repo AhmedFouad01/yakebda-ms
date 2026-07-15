@@ -22,6 +22,8 @@ import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } f
 import { orderSourceRoutes } from "./modules/orderSources";
 import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
 import { financialReliabilityRoutes } from "./modules/financialReliability";
+import { config } from "./config";
+import { checkDatabaseReadiness } from "./lib/health";
 import {
   createStructuredLogger,
   normalizeRoute,
@@ -63,6 +65,19 @@ function isOrderIntegrityError(error: DatabaseError): boolean {
 
 export interface AppOptions {
   logSink?: StructuredLogSink;
+  readinessTimeoutMs?: number;
+}
+
+function orderIntegrityReason(error: DatabaseError): string {
+  if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) {
+    return error.constraint;
+  }
+  if (/Selected variant does not belong/i.test(error.message)) return "variant_product_mismatch";
+  if (/same modifier cannot/i.test(error.message)) return "duplicate_modifier";
+  if (/Selected modifier does not belong/i.test(error.message)) return "modifier_product_mismatch";
+  if (/Required modifier selections are missing/i.test(error.message)) return "modifier_minimum_missing";
+  if (/Too many modifiers were selected/i.test(error.message)) return "modifier_maximum_exceeded";
+  return "order_configuration";
 }
 
 export function createApiErrorHandler(logger: StructuredLogSink) {
@@ -89,7 +104,7 @@ export function createApiErrorHandler(logger: StructuredLogSink) {
         message: ar.errors.validation,
         details: {
           order_configuration: dbError.constraint ?? "order_configuration",
-          reason: dbError.message,
+          reason: orderIntegrityReason(dbError),
         },
       });
     }
@@ -126,9 +141,31 @@ export function createApp(db: Knex, options: AppOptions = {}) {
   const v1 = express.Router();
   app.use("/api/v1", v1);
 
-  v1.get("/health", (_req, res) =>
-    res.json({ ok: true, app: ar.app.name, locale: ar.app.locale, dir: ar.app.dir })
-  );
+  const livePayload = { ok: true, app: ar.app.name, locale: ar.app.locale, dir: ar.app.dir };
+  v1.get("/health", (_req, res) => res.json(livePayload));
+  v1.get("/health/live", (_req, res) => res.json({ ...livePayload, status: "live" }));
+  v1.get("/health/ready", async (req, res) => {
+    const result = await checkDatabaseReadiness(
+      db,
+      options.readinessTimeoutMs ?? config.readinessDbTimeoutMs
+    );
+    if (result.ready) {
+      return res.json({ ...livePayload, status: "ready" });
+    }
+
+    logger.write({
+      timestamp: new Date().toISOString(),
+      level: "warn",
+      event: "health.readiness.failed",
+      request_id: req.requestId,
+      reason: result.reason,
+    });
+    return res.status(503).json({
+      ok: false,
+      status: "not_ready",
+      request_id: req.requestId,
+    });
+  });
   v1.use("/auth", authRoutes(db));
   v1.use("/branches", branchRoutes(db));
   v1.use("/branches", branchMenuRoutes(db));

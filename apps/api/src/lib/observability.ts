@@ -4,7 +4,7 @@ import { NextFunction, Request, Response } from "express";
 const REQUEST_ID_MAX_LENGTH = 128;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const SECRET_KEY_PATTERN =
-  /authorization|cookie|password|passphrase|pin|token|api[_-]?key|private[_-]?key|secret|card[_-]?number|card[_-]?holder|cvv|cvc|\bpan\b/i;
+  /authorization|cookie|password|passphrase|pin|token|api[_-]?key|private[_-]?key|secret|card[_-]?number|card[_-]?holder|account[_-]?number|routing[_-]?number|iban|cvv|cvc|\bpan\b/i;
 const REDACTED = "[REDACTED]";
 
 export type LogLevel = "info" | "warn" | "error";

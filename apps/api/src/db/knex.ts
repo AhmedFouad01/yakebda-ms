@@ -22,6 +22,7 @@ import * as m019 from "./migrations/20260713_019_refunds_shift_variance";
 import * as m020 from "./migrations/20260716_020_cursor_pagination_indexes";
 import * as m021 from "./migrations/20260716_021_inventory_foundation";
 import * as m022 from "./migrations/20260716_022_inventory_recipes_consumption";
+import * as m023 from "./migrations/20260716_023_inventory_operations";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -50,6 +51,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260716_020_cursor_pagination_indexes": m020,
   "20260716_021_inventory_foundation": m021,
   "20260716_022_inventory_recipes_consumption": m022,
+  "20260716_023_inventory_operations": m023,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

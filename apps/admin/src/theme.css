@@ -7471,16 +7471,16 @@ button.danger,
   overflow-x: hidden;
 }
 
-.settings-menu-table {
-  width: 100% !important;
-  min-width: 0 !important;
+.settings-page table.settings-menu-table {
+  width: 100%;
+  min-width: 0;
   table-layout: fixed;
 }
 
-.settings-menu-table :is(th, td) {
-  min-width: 0 !important;
-  padding-inline: 8px !important;
-  white-space: normal !important;
+.settings-page .settings-menu-table :is(th, td) {
+  min-width: 0;
+  padding-inline: 8px;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
@@ -7492,9 +7492,9 @@ button.danger,
 .settings-menu-table th:nth-child(6) { width: 19%; }
 .settings-menu-table th:nth-child(7) { width: 10%; }
 
-.settings-menu-table .set-img {
-  grid-template-columns: 40px minmax(0, 1fr) !important;
-  min-width: 0 !important;
+.settings-page .settings-menu-table .set-img {
+  grid-template-columns: 40px minmax(0, 1fr);
+  min-width: 0;
 }
 
 .settings-menu-table .set-img > :is(img, span) {
@@ -7502,10 +7502,10 @@ button.danger,
   height: 40px;
 }
 
-.settings-menu-table :is(input, select, .uif-input) {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+.settings-page .settings-menu-table :is(input, select, .uif-input) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-menu-table td:nth-child(3),
@@ -7761,8 +7761,8 @@ button.danger,
     overflow-x: auto;
   }
 
-  .settings-menu-table {
-    min-width: 760px !important;
+  .settings-page table.settings-menu-table {
+    min-width: 760px;
   }
 
   .posx-history-toolbar,

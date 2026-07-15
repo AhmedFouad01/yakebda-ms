@@ -4348,19 +4348,6 @@ body,
   color: var(--text-primary);
 }
 
-* {
-  scrollbar-color: var(--theme-scroll-thumb) var(--theme-scroll-track) !important;
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--theme-scroll-track) !important;
-}
-
-*::-webkit-scrollbar-thumb {
-  border-color: var(--theme-scroll-track) !important;
-  background: var(--theme-scroll-thumb) !important;
-}
-
 /* ---------- Shared surfaces ---------- */
 .card,
 .panel,
@@ -4466,7 +4453,6 @@ button.danger,
 .app2 :is(button, input, select, textarea):disabled,
 .uif-drawer :is(button, input, select, textarea):disabled,
 .modal :is(button, input, select, textarea):disabled {
-  color: var(--text-disabled) !important;
   filter: none;
   cursor: not-allowed;
 }

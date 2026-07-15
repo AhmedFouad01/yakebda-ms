@@ -25,6 +25,19 @@
   background: var(--theme-overlay);
 }
 
+* {
+  scrollbar-color: var(--theme-scroll-thumb) var(--theme-scroll-track);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--theme-scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  border-color: var(--theme-scroll-track);
+  background: var(--theme-scroll-thumb);
+}
+
 html,
 body,
 #root,
@@ -476,4 +489,11 @@ body,
   border-color: var(--danger);
   background: var(--danger-surface);
   color: var(--danger);
+}
+
+.app2 :is(.uif-btn, .btn, button, input, select, textarea):disabled,
+.app2-main:not(.full) :is(.uif-btn, .btn, button, input, select, textarea):disabled,
+.uif-drawer :is(.uif-btn, .btn, button, input, select, textarea):disabled,
+.modal :is(.uif-btn, .btn, button, input, select, textarea):disabled {
+  color: var(--text-disabled);
 }

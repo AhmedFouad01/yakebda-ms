@@ -63,3 +63,80 @@ observability revalidation may proceed.
 Revalidate the P3 audit against the merged tree, then implement only P3.1 R11:
 request correlation, structured safe logging, redaction, and separate liveness
 and readiness checks. R12 and R13 remain deferred.
+
+## R11 revalidation
+
+The requested files `YKMS-P3-PLATFORM-FIXES.md`,
+`EXECUTION_PLAN__YAKEBDA_MS__AUDIT_REMEDIATION_P0_P4`, and
+`docs/engineering/AUDIT_REMEDIATION_LEDGER.md` are not present in the merged
+repository or its local Git history. The revalidation therefore used the
+merged source, CI workflow, `RUNTIME_RELIABILITY_AUDIT.md`, and current
+implementation documentation as authoritative evidence.
+
+| R11 area | Pre-change classification | Evidence | Result |
+| --- | --- | --- | --- |
+| Request correlation | Confirmed | No request middleware or `x-request-id` handling existed. | Implemented with bounded incoming IDs, UUID replacement, response propagation, and error correlation. |
+| Structured request logs | Confirmed | Runtime used `console.error`; no normalized access event existed. | Implemented JSON events with method, normalized route, status, duration, request ID, and authenticated identity when available. |
+| Secret redaction | Partially fixed | Auth audit events excluded attempted credentials, but runtime errors were raw and the seed command printed a password and PIN. | Implemented recursive key/value redaction; request headers/bodies are not logged; seed output no longer prints credentials. |
+| Safe error handling | Partially fixed | Client 500 responses were generic, but server output contained raw errors and no correlation ID. | Unexpected errors emit safe structured metadata and return the request ID. Expected API and integrity responses remain separate from server-failure events. |
+| Liveness/readiness | Partially fixed | `/api/v1/health` existed as a process-only check; no database readiness signal existed. | Preserved `/health`, added `/health/live`, and added timeout-bounded `/health/ready`. |
+| Business audit logging | Already fixed | Sensitive state changes use the database-backed audit log. | Preserved unchanged and separate from operational logs. |
+| Logging dependency | Already fixed | No logging package was required for the bounded local implementation. | No dependency or lockfile change. |
+
+## R11 implementation
+
+Commits:
+
+- `0da16b8` - request correlation, structured access/error events, route
+  normalization, authoritative identity metadata, and redaction tests.
+- `7fca88a` - liveness/readiness, readiness timeout, safe readiness failures,
+  additional payment-data redaction, safe seed output, and tests.
+
+Runtime contract:
+
+- A valid incoming `x-request-id` is accepted only when it is 1-128 characters
+  and uses the bounded identifier character set. Other values are replaced by
+  a UUID.
+- `x-request-id` is returned on every response and exposed through CORS.
+- Access logs never include request bodies, query strings, authorization,
+  cookies, passwords, PINs, tokens, API keys, or payment-sensitive fields.
+- Account, branch, and user metadata comes only from authenticated request
+  context, never caller-supplied identity headers.
+- Unexpected client responses contain no stack, SQL, connection details, or
+  secret values.
+- `/api/v1/health/live` does not query PostgreSQL.
+- `/api/v1/health/ready` runs `select 1` with the configured
+  `READINESS_DB_TIMEOUT_MS` (default 1500 ms) and returns a safe 503 when the
+  database is unavailable or slow.
+
+## R11 validation
+
+Date: 2026-07-15
+
+| Gate | Result |
+| --- | --- |
+| R11 focused tests | PASS - 11/11. |
+| Existing foundation and order-integrity tests | PASS - 19/19. |
+| Complete isolated API suite | BASELINE FAIL - 18/19 files and 135/136 tests passed; only the pre-existing manager cross-branch expectation failed. |
+| API TypeScript check | BASELINE FAIL - only the same three pre-existing implicit-`any` errors in `orderSources.ts` and `shifts.ts`. |
+| Migration run 1 | PASS - no pending migrations. |
+| Migration run 2 | PASS - no pending migrations. |
+| Admin tests | PASS - 11/11. |
+| Admin build | PASS. |
+| UI color contract | PASS. |
+| Live liveness check | PASS on isolated API port 3011. |
+| Live readiness check | PASS on isolated API port 3011. |
+| `git diff --check` | PASS. |
+
+No UI, API business workflow, migration, Inventory, Accounting, R12, or R13
+change is included. No push or pull-request update was performed.
+
+## Remaining blockers
+
+- Decide whether managers with `branches.manage` should read settings across
+  branches, then align either the authorization contract or the stale test.
+- Add explicit callback types in `orderSources.ts` and `shifts.ts` so the local
+  strict TypeScript gate matches the CI expectation.
+- Review production log transport/retention before deployment. The current
+  implementation emits local JSON lines and intentionally adds no external
+  service or logging dependency.

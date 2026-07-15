@@ -59,6 +59,52 @@ body,
   color: var(--text-primary);
 }
 
+.uif-card-head,
+.uif-card-foot,
+.uif-drawer-head,
+.uif-drawer-foot,
+.od-items th,
+.rbac-roles-head,
+.settings-page .form-row,
+.settings-page .uif-field.inline {
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.card .num { color: var(--brand); }
+.card .lbl,
+.set-card p,
+.muted,
+.empty,
+.uif-sub,
+.uif-hint,
+.kds-stat span,
+.kds-meta b,
+.od-summary-label,
+.od-row-label,
+.od-modal-meta {
+  color: var(--text-secondary);
+}
+
+.uif-label {
+  color: var(--text-secondary);
+}
+
+.set-card h3,
+.page-head h1,
+.modal h3,
+.modal p,
+.uif-card h3,
+.app2-main:not(.full) .uif-card h3,
+.uif-drawer-title,
+.kds-card,
+.od-modal-title,
+.od-summary-value,
+.od-row-value {
+  color: var(--text-primary);
+}
+
 :where(.app2, .uif-drawer, .modal) button.sm:where(:not(.primary):not(.danger)) {
   border-color: var(--border-strong);
   background: var(--surface-2);

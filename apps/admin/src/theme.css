@@ -4390,51 +4390,6 @@ body,
   color: var(--text-primary);
 }
 
-.uif-card-head,
-.uif-card-foot,
-.uif-drawer-head,
-.uif-drawer-foot,
-.od-items th,
-.rbac-roles-head,
-.settings-page .form-row,
-.settings-page .uif-field.inline {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
-}
-
-.card .num { color: var(--brand) !important; }
-.card .lbl,
-.set-card p,
-.muted,
-.empty,
-.uif-sub,
-.uif-hint,
-.kds-stat span,
-.kds-meta b,
-.od-summary-label,
-.od-row-label,
-.od-modal-meta {
-  color: var(--text-secondary) !important;
-}
-
-.uif-label {
-  color: var(--text-secondary);
-}
-
-.set-card h3,
-.page-head h1,
-.modal h3,
-.modal p,
-.uif-card h3,
-.uif-drawer-title,
-.kds-card,
-.od-modal-title,
-.od-summary-value,
-.od-row-value {
-  color: var(--text-primary) !important;
-}
-
 /* ---------- Tables ---------- */
 table { color: var(--text-primary); }
 th {
@@ -4517,22 +4472,6 @@ button.danger,
 }
 
 /* ---------- Feedback and statuses ---------- */
-.alert,
-.error-note,
-.dark-alert {
-  border-color: var(--danger) !important;
-  background: var(--theme-danger-soft) !important;
-  color: var(--danger) !important;
-}
-
-.ok,
-.ok-note,
-.dark-ok {
-  border-color: var(--success) !important;
-  background: var(--theme-success-soft) !important;
-  color: var(--success) !important;
-}
-
 .stub {
   border-color: var(--border-strong);
   background: var(--surface-1);

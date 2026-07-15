@@ -22,6 +22,7 @@ import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } f
 import { orderSourceRoutes } from "./modules/orderSources";
 import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
 import { financialReliabilityRoutes } from "./modules/financialReliability";
+import { inventoryRoutes } from "./modules/inventory";
 import { config } from "./config";
 import { checkDatabaseReadiness } from "./lib/health";
 import {
@@ -197,6 +198,7 @@ export function createApp(db: Knex, options: AppOptions = {}) {
   v1.use("/delivery-zones", deliveryZoneRoutes(db));
   v1.use("/drivers", driverRoutes(db));
   v1.use("/reports", reportRoutes(db));
+  v1.use("/inventory", inventoryRoutes(db));
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));
 

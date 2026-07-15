@@ -192,47 +192,47 @@ body,
 
 /* Product cards */
 .app2-pos .posx-card2 {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 8px 24px var(--theme-shadow) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px var(--theme-shadow);
 }
 
 .app2-pos .posx-card2:hover {
-  border-color: var(--brand) !important;
+  border-color: var(--brand);
 }
 
 .app2-pos .posx-card2-media,
 .app2-pos .posx-card2-info,
 .app2-pos .posx-card2-options {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-card2-name {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-card2-opt-label,
 .app2-pos .posx-card2-direct {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-card2-img.ph {
   background:
     radial-gradient(circle at 72% 20%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 28%),
-    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px) !important;
+    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px);
 }
 
 .app2-pos .posx-card2-img.ph::before {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
 }
 
 .app2-pos .posx-card2-img.ph::after {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 /* Fast Rail cart lines */

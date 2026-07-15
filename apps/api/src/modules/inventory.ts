@@ -5,7 +5,7 @@ import { writeAudit } from "../lib/audit";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
-import { createStockMovement } from "./inventoryService";
+import { createStockMovement, recordStockCount, transferStock } from "./inventoryService";
 
 const decimalInput = z.union([z.string().trim().regex(/^[+-]?\d+(?:\.\d+)?$/), z.number().finite()]);
 
@@ -222,6 +222,137 @@ export function inventoryRoutes(db: Knex): Router {
         )
         .orderBy([{ column: "location.name_ar", order: "asc" }, { column: "item.name_ar", order: "asc" }]);
       res.json({ data: rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/purchase-receipts", requirePermission("inventory.manage"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        location_id: z.string().uuid(),
+        item_id: z.string().uuid(),
+        supplier_id: z.string().uuid(),
+        quantity: decimalInput,
+        unit_id: z.string().uuid().optional(),
+        unit_cost: decimalInput,
+        receipt_reference: z.string().trim().min(1).max(160),
+        idempotency_key: z.string().trim().min(8).max(180),
+      }).safeParse(req.body);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const location = await accessibleLocation(db, req.user!.accountId, parsed.data.location_id);
+      if (!location) throw err.notFound();
+      if (!canAccessBranch(req.user!, location.branch_id)) throw err.forbidden();
+      const movement = await createStockMovement(db, {
+        accountId: req.user!.accountId,
+        locationId: parsed.data.location_id,
+        itemId: parsed.data.item_id,
+        movementType: "receipt",
+        quantity: parsed.data.quantity,
+        unitId: parsed.data.unit_id,
+        unitCost: parsed.data.unit_cost,
+        supplierId: parsed.data.supplier_id,
+        sourceType: "purchase_receipt",
+        sourceId: parsed.data.receipt_reference,
+        idempotencyKey: parsed.data.idempotency_key,
+        createdBy: req.user!.id,
+      });
+      res.status(movement.idempotent_replay ? 200 : 201).json({ data: movement });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/waste", requirePermission("inventory.manage"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        location_id: z.string().uuid(),
+        item_id: z.string().uuid(),
+        quantity: decimalInput,
+        unit_id: z.string().uuid().optional(),
+        reason: z.string().trim().min(1).max(500),
+        idempotency_key: z.string().trim().min(8).max(180),
+      }).safeParse(req.body);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const location = await accessibleLocation(db, req.user!.accountId, parsed.data.location_id);
+      if (!location) throw err.notFound();
+      if (!canAccessBranch(req.user!, location.branch_id)) throw err.forbidden();
+      const movement = await createStockMovement(db, {
+        accountId: req.user!.accountId,
+        locationId: parsed.data.location_id,
+        itemId: parsed.data.item_id,
+        movementType: "waste",
+        quantity: parsed.data.quantity,
+        unitId: parsed.data.unit_id,
+        sourceType: "inventory_waste",
+        idempotencyKey: parsed.data.idempotency_key,
+        reason: parsed.data.reason,
+        createdBy: req.user!.id,
+      });
+      res.status(movement.idempotent_replay ? 200 : 201).json({ data: movement });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/transfers", requirePermission("inventory.manage"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        source_location_id: z.string().uuid(),
+        destination_location_id: z.string().uuid(),
+        item_id: z.string().uuid(),
+        quantity: decimalInput,
+        unit_id: z.string().uuid().optional(),
+        reason: z.string().trim().min(1).max(500),
+        idempotency_key: z.string().trim().min(8).max(180),
+      }).safeParse(req.body);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const [source, destination] = await Promise.all([
+        accessibleLocation(db, req.user!.accountId, parsed.data.source_location_id),
+        accessibleLocation(db, req.user!.accountId, parsed.data.destination_location_id),
+      ]);
+      if (!source || !destination) throw err.notFound();
+      if (!canAccessBranch(req.user!, source.branch_id) || !canAccessBranch(req.user!, destination.branch_id)) throw err.forbidden();
+      const transfer = await transferStock(db, {
+        accountId: req.user!.accountId,
+        sourceLocationId: source.id,
+        destinationLocationId: destination.id,
+        itemId: parsed.data.item_id,
+        quantity: parsed.data.quantity,
+        unitId: parsed.data.unit_id,
+        idempotencyKey: parsed.data.idempotency_key,
+        reason: parsed.data.reason,
+        createdBy: req.user!.id,
+      });
+      res.status(transfer.idempotent_replay ? 200 : 201).json({ data: transfer });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/stock-counts", requirePermission("inventory.manage"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        location_id: z.string().uuid(),
+        item_id: z.string().uuid(),
+        counted_quantity: decimalInput,
+        reason: z.string().trim().min(1).max(500),
+        idempotency_key: z.string().trim().min(8).max(180),
+      }).safeParse(req.body);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const location = await accessibleLocation(db, req.user!.accountId, parsed.data.location_id);
+      if (!location) throw err.notFound();
+      if (!canAccessBranch(req.user!, location.branch_id)) throw err.forbidden();
+      const count = await recordStockCount(db, {
+        accountId: req.user!.accountId,
+        locationId: location.id,
+        itemId: parsed.data.item_id,
+        countedQuantity: parsed.data.counted_quantity,
+        idempotencyKey: parsed.data.idempotency_key,
+        reason: parsed.data.reason,
+        createdBy: req.user!.id,
+      });
+      res.status(count.idempotent_replay ? 200 : 201).json({ data: count });
     } catch (error) {
       next(error);
     }

@@ -71,8 +71,10 @@ export interface MovementResult {
   idempotent_replay: boolean;
 }
 
-export async function createStockMovement(db: Knex, input: CreateMovementInput): Promise<MovementResult> {
-  return db.transaction(async (trx) => {
+async function createStockMovementInTransaction(
+  trx: Knex.Transaction,
+  input: CreateMovementInput
+): Promise<MovementResult> {
     const replay = await trx("stock_movements")
       .where({ account_id: input.accountId, idempotency_key: input.idempotencyKey })
       .first();
@@ -163,6 +165,142 @@ export async function createStockMovement(db: Knex, input: CreateMovementInput):
       transfer_group_id: input.transferGroupId ?? null,
     };
     await trx("stock_movements").insert(row);
+    return { ...row, idempotent_replay: false };
+}
+
+export async function createStockMovement(db: Knex, input: CreateMovementInput): Promise<MovementResult> {
+  return db.transaction((trx) => createStockMovementInTransaction(trx, input));
+}
+
+export interface TransferStockInput {
+  accountId: string;
+  sourceLocationId: string;
+  destinationLocationId: string;
+  itemId: string;
+  quantity: string | number;
+  unitId?: string;
+  idempotencyKey: string;
+  reason: string;
+  createdBy: string;
+}
+
+export async function transferStock(db: Knex, input: TransferStockInput) {
+  if (input.sourceLocationId === input.destinationLocationId) {
+    throw err.validation({ destination_location_id: "يجب اختيار موقع مخزون مختلف" });
+  }
+  return db.transaction(async (trx) => {
+    const existingOut = await trx("stock_movements")
+      .where({ account_id: input.accountId, idempotency_key: `${input.idempotencyKey}:out` })
+      .first();
+    if (existingOut) {
+      const existingIn = await trx("stock_movements")
+        .where({ account_id: input.accountId, idempotency_key: `${input.idempotencyKey}:in` })
+        .first();
+      if (!existingIn) throw err.conflict();
+      return { transfer_group_id: existingOut.transfer_group_id, out: existingOut, in: existingIn, idempotent_replay: true };
+    }
+
+    const transferGroupId = newId();
+    const outbound = await createStockMovementInTransaction(trx, {
+      accountId: input.accountId,
+      locationId: input.sourceLocationId,
+      itemId: input.itemId,
+      movementType: "transfer_out",
+      quantity: input.quantity,
+      unitId: input.unitId,
+      sourceType: "inventory_transfer",
+      sourceId: transferGroupId,
+      idempotencyKey: `${input.idempotencyKey}:out`,
+      reason: input.reason,
+      createdBy: input.createdBy,
+      transferGroupId,
+    });
+    const inbound = await createStockMovementInTransaction(trx, {
+      accountId: input.accountId,
+      locationId: input.destinationLocationId,
+      itemId: input.itemId,
+      movementType: "transfer_in",
+      quantity: input.quantity,
+      unitId: input.unitId,
+      unitCost: outbound.unit_cost,
+      sourceType: "inventory_transfer",
+      sourceId: transferGroupId,
+      idempotencyKey: `${input.idempotencyKey}:in`,
+      reason: input.reason,
+      createdBy: input.createdBy,
+      transferGroupId,
+    });
+    return { transfer_group_id: transferGroupId, out: outbound, in: inbound, idempotent_replay: false };
+  });
+}
+
+export interface StockCountInput {
+  accountId: string;
+  locationId: string;
+  itemId: string;
+  countedQuantity: string | number;
+  idempotencyKey: string;
+  reason: string;
+  createdBy: string;
+}
+
+export async function recordStockCount(db: Knex, input: StockCountInput) {
+  return db.transaction(async (trx) => {
+    const replay = await trx("inventory_stock_counts")
+      .where({ account_id: input.accountId, idempotency_key: input.idempotencyKey })
+      .first();
+    if (replay) return { ...replay, idempotent_replay: true };
+
+    const item = await trx<InventoryItemRow>("inventory_items")
+      .where({ id: input.itemId, account_id: input.accountId, is_active: true })
+      .forUpdate()
+      .first();
+    if (!item) throw err.notFound();
+    const location = await trx<InventoryLocationRow>("inventory_locations")
+      .where({ id: input.locationId, account_id: input.accountId, is_active: true })
+      .first();
+    if (!location) throw err.notFound();
+
+    const balance = await trx("stock_movements")
+      .where({ account_id: input.accountId, location_id: input.locationId, item_id: input.itemId })
+      .select(trx.raw("coalesce(sum(quantity_base), 0)::text as quantity"))
+      .first<{ quantity: string }>();
+    const expected = parseDecimal(balance?.quantity ?? "0", 6);
+    const counted = parseDecimal(input.countedQuantity, 6);
+    if (counted < 0n) throw err.validation({ counted_quantity: "الكمية الفعلية لا يمكن أن تكون سالبة" });
+    const difference = counted - expected;
+    const countId = newId();
+    let movementId: string | null = null;
+    if (difference !== 0n) {
+      const movement = await createStockMovementInTransaction(trx, {
+        accountId: input.accountId,
+        locationId: input.locationId,
+        itemId: input.itemId,
+        movementType: "count_adjustment",
+        quantity: formatDecimal(difference, 6),
+        sourceType: "inventory_stock_count",
+        sourceId: countId,
+        idempotencyKey: `${input.idempotencyKey}:movement`,
+        reason: input.reason,
+        createdBy: input.createdBy,
+      });
+      movementId = movement.id;
+    }
+    const row = {
+      id: countId,
+      account_id: input.accountId,
+      branch_id: location.branch_id,
+      location_id: location.id,
+      item_id: item.id,
+      expected_quantity: formatDecimal(expected, 6),
+      counted_quantity: formatDecimal(counted, 6),
+      difference_quantity: formatDecimal(difference, 6),
+      idempotency_key: input.idempotencyKey,
+      reason: input.reason,
+      movement_id: movementId,
+      created_by: input.createdBy,
+    };
+    await trx("inventory_stock_counts").insert(row);
     return { ...row, idempotent_replay: false };
   });
 }

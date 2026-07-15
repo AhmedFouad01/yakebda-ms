@@ -7386,14 +7386,15 @@ button.danger,
 }
 
 :is(.uif-pagehead h1, .page-head h1, .reports-page h1, .settings-page > .uif-pagehead h1) {
-  font-size: var(--type-xl) !important;
-  line-height: 1.35 !important;
-  font-weight: 900 !important;
+  font-size: var(--type-xl);
+  line-height: 1.35;
+  font-weight: 900;
 }
 
-:is(.uif-card-head h3, .report-panel thead th:first-child, .uif-drawer-title, .modal h3) {
-  font-size: var(--type-md) !important;
-  line-height: 1.45 !important;
+:is(.uif-card-head h3, .uif-drawer-title, .modal h3),
+.reports-page .report-panel thead th:first-child {
+  font-size: var(--type-md);
+  line-height: 1.45;
 }
 
 :is(.app2-main:not(.full), .settings-page, .reports-page, .uif-drawer, .modal) :is(input, select, textarea) {

@@ -4435,12 +4435,6 @@ button.danger,
   color: var(--text-primary);
 }
 
-.app2 button:hover:not(:disabled),
-.uif-drawer button:hover:not(:disabled),
-.modal button:hover:not(:disabled) {
-  border-color: var(--brand) !important;
-}
-
 :is(button, a, input, select, textarea, summary, [role="button"]):focus-visible {
   outline: 3px solid var(--focus-ring) !important;
   outline-offset: 2px;
@@ -4827,31 +4821,6 @@ button.danger,
  * Loaded after theme.css so legacy hover rules cannot inject dark colors into
  * the light theme. This file only consumes theme tokens; it owns no palette.
  */
-
-/* Shared secondary/neutral controls. */
-.app2 :is(
-  .uif-btn,
-  button.secondary,
-  button.ghost,
-  .seg button,
-  .menu-import-btn,
-  button.sm
-):hover:not(:disabled):not(.active):not(.primary):not(.danger),
-.uif-drawer :is(.uif-btn, button.secondary, button.ghost):hover:not(:disabled):not(.active):not(.primary):not(.danger),
-.modal :is(.uif-btn, button.secondary, button.ghost):hover:not(:disabled):not(.active):not(.primary):not(.danger) {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Primary controls keep readable foregrounds while hovering. */
-.app2 :is(.uif-btn.primary, button.primary, .btn:not(.secondary, .ghost, .danger)):hover:not(:disabled),
-.uif-drawer :is(.uif-btn.primary, button.primary):hover:not(:disabled),
-.modal :is(.uif-btn.primary, button.primary):hover:not(:disabled) {
-  border-color: var(--brand-hover) !important;
-  background: var(--brand-hover) !important;
-  color: var(--on-brand) !important;
-}
 
 /* POS neutral controls, including the option chips shown on product cards. */
 .app2-pos :is(

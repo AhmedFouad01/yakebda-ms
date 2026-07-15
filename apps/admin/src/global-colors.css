@@ -497,3 +497,34 @@ body,
 .modal :is(.uif-btn, .btn, button, input, select, textarea):disabled {
   color: var(--text-disabled);
 }
+
+.app2 button:hover:not(:disabled),
+.uif-drawer button:hover:not(:disabled),
+.modal button:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+/* Shared secondary/neutral controls. */
+.app2 :is(
+  .uif-btn,
+  button.secondary,
+  button.ghost,
+  .seg button,
+  .menu-import-btn,
+  button.sm
+):hover:not(:disabled):not(.active):not(.primary):not(.danger),
+.uif-drawer :is(.uif-btn, button.secondary, button.ghost):hover:not(:disabled):not(.active):not(.primary):not(.danger),
+.modal :is(.uif-btn, button.secondary, button.ghost):hover:not(:disabled):not(.active):not(.primary):not(.danger) {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
+}
+
+/* Primary controls keep readable foregrounds while hovering. */
+.app2 :is(.uif-btn.primary, button.primary, .btn:not(.secondary, .ghost, .danger)):hover:not(:disabled),
+.uif-drawer :is(.uif-btn.primary, button.primary):hover:not(:disabled),
+.modal :is(.uif-btn.primary, button.primary):hover:not(:disabled) {
+  border-color: var(--brand-hover);
+  background: var(--brand-hover);
+  color: var(--on-brand);
+}

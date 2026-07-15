@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PaginationResponse } from "@ykms/contracts";
 import { ApiError } from "./errors";
 
 export const DEFAULT_PAGE_LIMIT = 50;
@@ -25,11 +26,7 @@ export interface CursorPageRequest<TValues> {
   cursor: TValues | null;
 }
 
-export interface CursorPage<T> {
-  data: T[];
-  next_cursor: string | null;
-  has_more: boolean;
-}
+export type CursorPage<T> = PaginationResponse<T>;
 
 interface PageLimits {
   defaultLimit?: number;

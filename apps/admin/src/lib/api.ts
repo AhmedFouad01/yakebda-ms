@@ -1,3 +1,5 @@
+import type { PaginationResponse } from "@ykms/contracts";
+
 const BASE = "/api/v1";
 const ASSET_ORIGIN = String(import.meta.env.VITE_API_ORIGIN ?? "").replace(/\/$/, "");
 const AUTH_PATHS = new Set(["/auth/login", "/auth/pin-login"]);
@@ -51,12 +53,6 @@ export async function api<T = any>(
   return data;
 }
 
-interface CursorResponse<T> {
-  data: T[];
-  next_cursor: string | null;
-  has_more: boolean;
-}
-
 function withCursor(path: string, limit: number, cursor: string | null): string {
   const url = new URL(path, "http://local.invalid");
   url.searchParams.set("limit", String(limit));
@@ -70,7 +66,7 @@ export async function apiAllPages<T>(path: string, limit = 100): Promise<{ data:
   let cursor: string | null = null;
 
   for (let page = 0; page < 1000; page += 1) {
-    const response: CursorResponse<T> = await api<CursorResponse<T>>(withCursor(path, limit, cursor));
+    const response: PaginationResponse<T> = await api<PaginationResponse<T>>(withCursor(path, limit, cursor));
     data.push(...response.data);
     if (!response.has_more) return { data };
     if (!response.next_cursor || seen.has(response.next_cursor)) {

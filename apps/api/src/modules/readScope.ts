@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Knex } from "knex";
 import { z } from "zod";
+import type { CustomerListItem } from "@ykms/contracts";
 import { err } from "../lib/errors";
 import { canAccessBranch, requireUser } from "../middleware/auth";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
@@ -13,9 +14,9 @@ const customerCursorValues = z.object({
 
 type CustomerCursorValues = z.infer<typeof customerCursorValues>;
 
-interface CustomerReadRow {
-  id: string;
+interface CustomerReadRow extends Omit<CustomerListItem, "created_at" | "updated_at"> {
   created_at: string | Date;
+  updated_at: string | Date;
   [key: string]: unknown;
 }
 

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Knex } from "knex";
+import type { CustomerLookup, CustomerOrderSummary } from "@ykms/contracts";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { requirePermission, requireUser } from "../middleware/auth";
@@ -23,20 +24,10 @@ interface CreatedAtRow {
   created_at: string | Date;
 }
 
-interface CustomerLookupRow extends CreatedAtRow {
-  name: string;
-  phone: string | null;
-  alt_phone: string | null;
-  address: string | null;
-  addresses: unknown;
-}
+interface CustomerLookupRow extends CustomerLookup, CreatedAtRow {}
 
-interface CustomerOrderRow extends CreatedAtRow {
-  order_no: number;
-  order_prefix: string | null;
-  order_type: string;
-  status: string;
-  total: string | number;
+interface CustomerOrderRow extends Omit<CustomerOrderSummary, "created_at">, CreatedAtRow {
+  created_at: string | Date;
 }
 
 const customerLookupCursor: CursorDefinition<CreatedAtCursorValues> = {

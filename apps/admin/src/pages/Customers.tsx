@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import type { CustomerListItem, CustomerOrderSummary } from "@ykms/contracts";
 import { api, apiAllPages } from "../lib/api";
 import { t } from "../lib/t";
 import { Drawer, toast } from "../components/ui/overlays";
 import { PageHeader, FormField, TextInput, TextArea, Select, ToggleSwitch, Tabs, SectionCard, EmptyState } from "../components/ui/primitives";
 import { useMe } from "../lib/me";
 
-interface Customer {
-  id: string; name: string; phone?: string | null; alt_phone?: string | null; email?: string | null;
-  address?: string | null;
-  addresses?: Array<{ label?: string | null; area?: string | null; landmark?: string | null; floor?: string | null; notes?: string | null; is_default?: boolean }> | string | null;
-  birthday?: string | null; gender?: string | null; preferred_language?: string | null;
-  preferred_order_type?: string | null; preferred_payment_method?: string | null;
-  marketing_opt_in?: boolean; sms_opt_in?: boolean; whatsapp_opt_in?: boolean;
-  is_blocked?: boolean; block_reason?: string | null; is_vip?: boolean; tags?: string | null;
-  allergy_note?: string | null; delivery_instructions?: string | null; notes?: string | null; created_at: string;
-}
+type Customer = CustomerListItem;
+type CustomerForm = Omit<
+  Customer,
+  "id" | "account_id" | "addresses" | "loyalty_points" | "loyalty_tier" | "created_at" | "updated_at"
+>;
 
 interface Analytics {
   total_orders: number; completed_orders: number; cancelled_orders: number; total_spend: number;
@@ -100,14 +96,14 @@ export function Customers() {
   );
 }
 
-const emptyForm: Customer = { id: "", name: "", phone: "", alt_phone: "", email: "", address: "", birthday: "", gender: "", preferred_language: "ar", preferred_order_type: "", preferred_payment_method: "", marketing_opt_in: false, sms_opt_in: false, whatsapp_opt_in: false, is_blocked: false, block_reason: "", is_vip: false, tags: "", allergy_note: "", delivery_instructions: "", notes: "", created_at: "" };
+const emptyForm: CustomerForm = { name: "", phone: "", alt_phone: "", email: "", address: "", birthday: "", gender: "", preferred_language: "ar", preferred_order_type: "", preferred_payment_method: "", marketing_opt_in: false, sms_opt_in: false, whatsapp_opt_in: false, is_blocked: false, block_reason: "", is_vip: false, tags: "", allergy_note: "", delivery_instructions: "", notes: "" };
 
 function CustomerEditor({ customer, onClose, onSaved }: { customer: Customer | null; onClose: () => void; onSaved: () => void }) {
   const [tab, setTab] = useState("identity");
-  const [form, setForm] = useState<Customer>(customer ? { ...emptyForm, ...customer } : emptyForm);
+  const [form, setForm] = useState<CustomerForm>(customer ? { ...emptyForm, ...customer } : emptyForm);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const set = <K extends keyof Customer>(k: K, v: Customer[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof CustomerForm>(k: K, v: CustomerForm[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
     setBusy(true);
@@ -192,7 +188,7 @@ function CustomerEditor({ customer, onClose, onSaved }: { customer: Customer | n
 
 function CustomerProfile({ id, canManage, onClose, onEdit }: { id: string; canManage: boolean; onClose: () => void; onEdit: (c: Customer) => void }) {
   const [data, setData] = useState<(Customer & { analytics: Analytics }) | null>(null);
-  const [orders, setOrders] = useState<Array<{ id: string; order_no: number; order_prefix?: string | null; order_type: string; status: string; total: string | number; created_at: string }>>([]);
+  const [orders, setOrders] = useState<CustomerOrderSummary[]>([]);
   const [tab, setTab] = useState("overview");
   const [err, setErr] = useState("");
 

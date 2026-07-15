@@ -6569,8 +6569,8 @@ button.sm,
 }
 
 .menu-toolbar > :is(input, select) {
-  width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  min-width: 0;
 }
 
 .menu-toolbar-actions {
@@ -6967,8 +6967,8 @@ button.danger:hover:not(:disabled),
   z-index: 1;
   padding: 11px 14px;
   border-bottom: 1px solid var(--border-strong);
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  background: var(--surface-2);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -7174,7 +7174,7 @@ button.danger,
 }
 
 .order-detail {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(250px, 290px);
   align-items: start;
   gap: 14px;
@@ -7273,7 +7273,7 @@ button.danger,
 }
 
 .settings-page .uif-card-body > table :is(input, select, .uif-input) {
-  width: 100% !important;
+  width: 100%;
   min-width: 120px;
   max-width: 190px;
 }
@@ -7321,7 +7321,7 @@ button.danger,
 /* ---------- Responsive system-wide rules ---------- */
 @media (max-width: 900px) {
   .order-detail {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .order-actions {
@@ -7415,7 +7415,7 @@ button.danger,
 }
 
 :is(.data-table-shell, .report-panel, .settings-page .uif-card-body) table thead th {
-  font-size: var(--type-sm) !important;
+  font-size: var(--type-sm);
 }
 
 :is(.uif-hint, .muted, .uif-sub, .posx-history-main span, .posx-history-item-copy small) {
@@ -7826,9 +7826,9 @@ button.danger,
 
 .source-field > :is(input, select),
 .source-price-field > input {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
 }
 
@@ -7999,7 +7999,7 @@ button.danger,
   .source-product-row,
   .source-menu-toolbar,
   .print-jobs-page .form-row {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .source-field.compact {

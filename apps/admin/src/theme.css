@@ -4726,8 +4726,8 @@ button.danger,
 
 .od-modal-x:hover,
 .uif-x:hover {
-  border-color: var(--danger) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /* Receipt paper is deliberately independent from the application theme. */
@@ -5220,8 +5220,8 @@ button.sm,
 
 /* ---------- Generic inline forms / API clients ---------- */
 .form-row {
-  align-items: end !important;
-  gap: 10px !important;
+  align-items: end;
+  gap: 10px;
 }
 
 .form-row > .field {
@@ -5231,7 +5231,7 @@ button.sm,
 }
 
 .form-row > :is(.btn, .uif-btn, button) {
-  min-height: 44px !important;
+  min-height: 44px;
   align-self: end;
 }
 
@@ -6812,8 +6812,8 @@ button.sm,
 
   .settings-page .uif-field.inline > .uif-select,
   .uif-number-stepper {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: 100%;
+    max-width: 100%;
     flex-basis: auto;
   }
 
@@ -6836,9 +6836,11 @@ button.sm,
 }
 
 /* ---------- Legacy raw buttons become real design-system controls ---------- */
-.app2-main:not(.full) button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn),
-.modal button:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn),
-.uif-drawer button:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn) {
+/* :where() keeps the reset at (0,2,1) so scoped component rules win by
+   specificity instead of needing !important. */
+.app2-main:not(.full) button:where(:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-back):not(.uif-stepper-btn)),
+.modal button:where(:not(.crm-name):not(.menu-status):not(.od-modal-x):not(.uif-x):not(.uif-stepper-btn)),
+.uif-drawer button:where(:not(.crm-name):not(.menu-status):not(.uif-x):not(.uif-stepper-btn)) {
   appearance: none;
   -webkit-appearance: none;
   min-height: var(--ui-control-h);
@@ -7073,18 +7075,18 @@ button.danger:hover:not(:disabled),
 
 .modal > .form-row,
 .modal .modal-actions {
-  display: flex !important;
-  align-items: center !important;
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 8px !important;
-  margin: 16px 0 0 !important;
-  padding: 14px 0 0 !important;
-  border: 0 !important;
-  border-top: 1px solid var(--border-subtle) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .modal > .form-row > button,
@@ -7160,14 +7162,14 @@ button.danger:hover:not(:disabled),
 .order-actions {
   position: sticky;
   top: 0;
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  padding: 12px !important;
-  border: 1px solid var(--border-subtle) !important;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  background: var(--surface-1) !important;
+  background: var(--surface-1);
 }
 
 .order-actions > button,
@@ -7178,16 +7180,16 @@ button.danger:hover:not(:disabled),
 }
 
 .order-actions > button {
-  min-height: 40px !important;
+  min-height: 40px;
 }
 
 .order-actions .cancel-box,
 .order-actions .order-action-group {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  margin: 0 !important;
-  padding: 9px !important;
+  margin: 0;
+  padding: 9px;
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--surface-2);
@@ -7195,9 +7197,9 @@ button.danger:hover:not(:disabled),
 
 .order-actions .cancel-box > :is(input, select, button),
 .order-actions .order-action-group > :is(input, select, button) {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* ---------- Settings rows and embedded CRUD lists ---------- */
@@ -7921,9 +7923,9 @@ button.danger:hover:not(:disabled),
 }
 
 .print-jobs-page .form-row {
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(260px, 520px) auto;
-  align-items: end !important;
+  align-items: end;
   justify-content: start;
 }
 

@@ -215,6 +215,45 @@ body,
   color: var(--on-brand);
 }
 
+.crm-kpi,
+.crm-recent-item,
+.perm-chips .uif-checkbox,
+.rbac-perm {
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.pill {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.pill.create {
+  background: var(--theme-success-soft);
+  color: var(--success);
+}
+
+.pill.update {
+  background: var(--theme-warning-soft);
+  color: var(--warning);
+}
+
+.pill.fail,
+.row-error-msg {
+  background: var(--theme-danger-soft);
+  color: var(--danger);
+}
+
+.rbac-role.active,
+.rbac-role[aria-pressed="true"],
+.rbac-role.uif-btn.active,
+.rbac-role.uif-btn[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
+}
+
 /* POS workspace */
 .app2-pos .app2-body,
 .app2-pos .posx,

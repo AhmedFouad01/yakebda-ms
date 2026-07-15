@@ -4562,27 +4562,9 @@ button.danger,
 .app2-navdrawer-links a.active { border-inline-end-color: var(--brand); }
 
 /* ---------- Menu / CRM / settings legacy reconciliation ---------- */
-.crm-kpi,
-.crm-recent-item,
-.perm-chips .uif-checkbox,
-.rbac-perm {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
-}
-
 .crm-name,
 .crm-kpi b { color: var(--brand); }
 .crm-kpi span { color: var(--text-secondary); }
-
-.pill {
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
-}
-.pill.create { background: var(--theme-success-soft) !important; color: var(--success) !important; }
-.pill.update { background: var(--theme-warning-soft) !important; color: var(--warning) !important; }
-.pill.fail,
-.row-error-msg { background: var(--theme-danger-soft) !important; color: var(--danger) !important; }
 
 /* ---------- Order detail and receipt ---------- */
 .od-modal.modal,
@@ -6834,9 +6816,6 @@ button.danger:hover:not(:disabled),
 
 .rbac-role.active,
 .rbac-role[aria-pressed="true"] {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--text-primary) !important;
   box-shadow: inset 3px 0 0 var(--brand);
 }
 

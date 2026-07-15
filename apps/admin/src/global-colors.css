@@ -81,10 +81,10 @@ body,
 
 /* AppShell */
 .app2-bar {
-  border-bottom-color: var(--brand) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 2px 10px var(--theme-shadow) !important;
+  border-bottom-color: var(--brand);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 2px 10px var(--theme-shadow);
 }
 
 .app2-menu,
@@ -95,41 +95,41 @@ body,
 .app2-pos .posx-shell-icon,
 .app2-pos .posx-history-btn,
 .app2-pos .posx-shift-action {
-  border-color: var(--control-border) !important;
-  background: var(--control-surface) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-shell-icon:hover,
 .app2-pos .posx-shell-icon:focus-within,
 .app2-pos .posx-history-btn:hover,
 .app2-pos .posx-history-btn:focus-visible {
-  border-color: var(--brand) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 .app2-brand {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 .app2-user,
 .app2-logout {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app2-pos .app2-account-cluster {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
 }
 
 .app2-pos .app2-account-cluster .app2-user {
-  color: var(--success) !important;
+  color: var(--success);
 }
 
 .app2-pos .posx-shift-action.is-open {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 /* POS workspace */

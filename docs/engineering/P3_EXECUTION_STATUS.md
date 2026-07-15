@@ -43,9 +43,8 @@ regressions:
   has `branches.manage`, which the current authorization helper explicitly
   accepts for cross-branch access.
 
-These discrepancies remain visible baseline blockers and must not be hidden or
-silently changed inside R11. Because neither is caused by P2, the requested P3.1
-observability revalidation may proceed.
+These discrepancies were retained as visible baseline blockers during R11 and
+were closed in the P3.1 exit-gate work recorded below. Neither was caused by P2.
 
 ## Runtime isolation
 
@@ -58,11 +57,10 @@ observability revalidation may proceed.
 - No production data, API business logic, migrations, Inventory, or Accounting
   files were modified.
 
-## Next bounded milestone
+## Milestone boundary
 
-Revalidate the P3 audit against the merged tree, then implement only P3.1 R11:
-request correlation, structured safe logging, redaction, and separate liveness
-and readiness checks. R12 and R13 remain deferred.
+P3.1 R11 and its exit gate are complete. R12 and R13 remain deferred and no
+work for either milestone is included in this branch state.
 
 ## R11 revalidation
 
@@ -117,8 +115,8 @@ Date: 2026-07-15
 | --- | --- |
 | R11 focused tests | PASS - 11/11. |
 | Existing foundation and order-integrity tests | PASS - 19/19. |
-| Complete isolated API suite | BASELINE FAIL - 18/19 files and 135/136 tests passed; only the pre-existing manager cross-branch expectation failed. |
-| API TypeScript check | BASELINE FAIL - only the same three pre-existing implicit-`any` errors in `orderSources.ts` and `shifts.ts`. |
+| Complete isolated API suite | PASS - 19/19 files and 138/138 tests. No skipped tests were added. |
+| API TypeScript check | PASS - zero errors. |
 | Migration run 1 | PASS - no pending migrations. |
 | Migration run 2 | PASS - no pending migrations. |
 | Admin tests | PASS - 11/11. |
@@ -131,12 +129,59 @@ Date: 2026-07-15
 No UI, API business workflow, migration, Inventory, Accounting, R12, or R13
 change is included. No push or pull-request update was performed.
 
-## Remaining blockers
+## Exit-gate discrepancy closure
 
-- Decide whether managers with `branches.manage` should read settings across
-  branches, then align either the authorization contract or the stale test.
-- Add explicit callback types in `orderSources.ts` and `shifts.ts` so the local
-  strict TypeScript gate matches the CI expectation.
+### TypeScript baseline
+
+The implicit-`any` errors came from lost Knex result inference after query
+composition. `orderSources.ts` now declares the existing result as
+`OrderSourceRow[]`; `shifts.ts` defines the selected `ShiftOrderRow` shape and
+types the result array. SQL, calculations, callbacks, and runtime behavior are
+unchanged. Commit: `91e9a80`.
+
+### Manager branch-scope coverage
+
+Classification: stale test expectation.
+
+The seeded manager is assigned to the first branch but deliberately holds
+`branches.manage`. The existing authorization contract, branch listing, and
+`canAccessBranch` helper all treat this permission as account-wide branch
+management. The failing test incorrectly expected that manager to receive 403
+for the second branch in the same account.
+
+Production authorization code and permission keys were not changed. Regression
+coverage now proves both sides of the existing contract:
+
+- A manager with `branches.manage` may read settings for another branch in the
+  same account.
+- A branch-bound user with `settings.view` but without `branches.manage` may
+  read the assigned branch and receives 403 for another branch.
+- Every branch lookup remains constrained by the authenticated `account_id`,
+  so account isolation is unchanged.
+
+Commit: `3669756`.
+
+### Exit validation
+
+- API TypeScript: PASS, zero errors.
+- API tests: PASS, 19 files and 138 tests.
+- Admin tests: PASS, 11 tests.
+- Admin production build: PASS.
+- UI color contract: PASS.
+- `git diff --check`: PASS.
+- Migrations: NOT REQUIRED - no schema or production database behavior changed.
+
+Files changed for the discrepancy closure:
+
+- `apps/api/src/modules/orderSources.ts`
+- `apps/api/src/modules/shifts.ts`
+- `apps/api/tests/read-permissions.test.ts`
+
+No dependencies, migrations, UI, Inventory, Accounting, R12, or R13 changes
+were made.
+
+## Remaining risks
+
 - Review production log transport/retention before deployment. The current
   implementation emits local JSON lines and intentionally adds no external
   service or logging dependency.

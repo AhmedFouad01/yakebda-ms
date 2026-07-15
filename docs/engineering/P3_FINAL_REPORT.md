@@ -1,7 +1,7 @@
 # P3 Platform Hardening Final Report
 
-Date: 2026-07-16  
-Branch: `chore/audit-p3-platform-hardening`  
+Date: 2026-07-16
+Branch: `chore/audit-p3-platform-hardening`
 Base: `17413499288a458224d874a24e61561ca9fb90a3`
 
 ## Scope

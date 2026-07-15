@@ -185,3 +185,43 @@ were made.
 - Review production log transport/retention before deployment. The current
   implementation emits local JSON lines and intentionally adds no external
   service or logging dependency.
+
+## R12 cursor pagination revalidation
+
+Date: 2026-07-15
+
+The requested `docs/engineering/AUDIT_REMEDIATION_LEDGER.md` is not present in
+the repository or local Git history. R12 revalidation therefore used the
+current API queries, migrations, tests, Admin consumers, and this execution
+status as the authoritative evidence. No endpoint is paginated merely because
+it returns a collection.
+
+| Endpoint | Current query and ordering | Current limit | Filters and consumer | Risk | Classification |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/customers/lookup` | Account-scoped customer lookup ordered by `created_at DESC`. | 200 | Optional name/phone search; POS delivery customer selector loads the complete response. | Silent truncation once an account has more than 200 matching customers; ordering has no ID tie-breaker. | Confirmed. Add cursor pagination and preserve complete POS lookup behavior through bounded client traversal. |
+| `GET /api/v1/customers` | Account-scoped customer list ordered by `created_at DESC`. | 200 | Optional name/phone search; Customers screen filters and renders the complete response. | Silent truncation and nondeterministic rows when timestamps tie. | Confirmed. Add cursor pagination and preserve the full Admin list through bounded client traversal. |
+| `GET /api/v1/customers/:id/orders` | Account- and customer-scoped orders ordered by `created_at DESC`. | Default 20, maximum 50 | Customer profile order history. The customer itself is first verified inside the authenticated account. | The endpoint calls itself paginated but exposes no continuation token; duplicate timestamps are not deterministic. | Confirmed. Add cursor pagination and preserve the complete profile history through bounded client traversal. |
+| `GET /api/v1/products` | Account-scoped products ordered by `sort_order ASC`. | None | Optional category filter; Menu and Settings consumers require the complete product list. | Unbounded response, nested variant/link fan-out, and nondeterministic equal sort values. | Confirmed. Add cursor pagination and preserve complete Admin consumers through bounded client traversal. |
+| `GET /api/v1/tables` | Account/authorized-branch rows ordered by `name_ar ASC`. | None | Optional authorized branch filter; POS operational table lookup. | Small configuration lookup; paginating it would complicate a required complete selector without proven scale pressure. | Invalid for this R12 slice. Keep complete. |
+| `GET /api/v1/categories`, `GET /api/v1/modifier-groups`, `GET /api/v1/branches/:id/menu` | Configuration and operational menu payloads use their existing sort orders. | None | Menu configuration and POS runtime require complete bounded structures. | Pagination would change the operational lookup contract and split nested configuration. | Invalid for this R12 slice. Keep complete. |
+| Product Excel export/import-template routes | Dedicated complete file responses. | Not applicable | Export/import workflows. | Cursor pagination is not an export contract. | Invalid. Keep separate. |
+| Restaurant report aggregates and top-products | Aggregate SQL; top-products intentionally returns top 10. | Intentional top 10 where applicable | Reports screen. | Bounded aggregate is deliberate, not silent pagination. | Already fixed by its bounded reporting contract. |
+| `GET /api/v1/orders`, `GET /api/v1/orders/current-shift` | Account/branch/permission scoped rows ordered by `created_at DESC`. | 200 | Orders screen and POS shift history. | Same silent-truncation and tie-breaker debt exists. | Partially fixed by a hard bound, but deferred from this prescribed restaurant/menu R12 slice to avoid broad collection conversion. |
+
+Confirmed endpoints will use deterministic keyset ordering:
+
+- Customers and customer orders: `created_at DESC, id DESC`.
+- Products: `sort_order ASC, id ASC`.
+- Existing account, branch, permission, search, category, and customer filters
+  remain authoritative and are applied before the keyset predicate.
+
+The response will retain `data` and add `next_cursor` plus `has_more`. Default
+page size is 50 and maximum page size is 100, except customer order history,
+which retains its existing default of 20 and maximum of 50. Admin consumers
+that currently require complete lists must explicitly traverse cursor pages;
+no UI may silently display only the first page.
+
+R12 remains non-snapshot pagination. New rows inserted ahead of a descending
+cursor after page one are not repeated on later pages, but rows whose sort
+values change during traversal can move between pages. Dedicated exports and
+the deferred order-list endpoints require separate follow-up decisions.

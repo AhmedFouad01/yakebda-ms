@@ -1,7 +1,7 @@
 # Inventory and Accounting Execution Status
 
-Date: 2026-07-16  
-Branch: `feature/inventory-accounting-v2`  
+Date: 2026-07-16
+Branch: `feature/inventory-accounting-v2`
 Stacked base: P3 head `782024d595e01c41e67fe3d0971f0fd6689775cc`
 
 ## Phase 0 revalidation

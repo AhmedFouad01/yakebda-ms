@@ -19,6 +19,25 @@
 }
 
 /* Shared application surfaces */
+.modal-back,
+.uif-overlay,
+.posx-cart-backdrop {
+  background: var(--theme-overlay);
+}
+
+* {
+  scrollbar-color: var(--theme-scroll-thumb) var(--theme-scroll-track);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--theme-scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  border-color: var(--theme-scroll-track);
+  background: var(--theme-scroll-thumb);
+}
+
 html,
 body,
 #root,
@@ -26,42 +45,105 @@ body,
 .app2-main,
 .app2-body,
 .login-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 .card,
 .panel,
 .form-row,
-.modal,
 .option-modal,
 .receipt-modal,
 .uif-card,
+.app2-main:not(.full) .uif-card,
 .uif-modal,
 .uif-drawer,
 .set-card,
-.kds-card,
 .od-section,
 .order-actions {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.modal {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.uif-card-head,
+.uif-card-foot,
+.uif-drawer-head,
+.uif-drawer-foot,
+.od-items th,
+.rbac-roles-head,
+.settings-page .form-row,
+.settings-page .uif-field.inline {
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.card .num { color: var(--brand); }
+.card .lbl,
+.set-card p,
+.muted,
+.empty,
+.uif-sub,
+.uif-hint,
+.kds-stat span,
+.kds-meta b,
+.od-summary-label,
+.od-row-label,
+.od-modal-meta {
+  color: var(--text-secondary);
+}
+
+.uif-label {
+  color: var(--text-secondary);
+}
+
+.set-card h3,
+.page-head h1,
+.modal h3,
+.modal p,
+.uif-card h3,
+.app2-main:not(.full) .uif-card h3,
+.uif-drawer-title,
+.kds-card,
+.od-modal-title,
+.od-summary-value,
+.od-row-value {
+  color: var(--text-primary);
+}
+
+:where(.app2, .uif-drawer, .modal) button.sm:where(:not(.primary):not(.danger)) {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+:where(.app2, .uif-drawer, .modal) button.btn:not(.secondary):not(.ghost):not(.danger) {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-  border-color: var(--control-border) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 /* AppShell */
 .app2-bar {
-  border-bottom-color: var(--brand) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 2px 10px var(--theme-shadow) !important;
+  border-bottom-color: var(--brand);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 2px 10px var(--theme-shadow);
 }
 
 .app2-menu,
@@ -72,41 +154,117 @@ body,
 .app2-pos .posx-shell-icon,
 .app2-pos .posx-history-btn,
 .app2-pos .posx-shift-action {
-  border-color: var(--control-border) !important;
-  background: var(--control-surface) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-shell-icon:hover,
 .app2-pos .posx-shell-icon:focus-within,
 .app2-pos .posx-history-btn:hover,
 .app2-pos .posx-history-btn:focus-visible {
-  border-color: var(--brand) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 .app2-brand {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 .app2-user,
 .app2-logout {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app2-pos .app2-account-cluster {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
 }
 
 .app2-pos .app2-account-cluster .app2-user {
-  color: var(--success) !important;
+  color: var(--success);
 }
 
 .app2-pos .posx-shift-action.is-open {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+/* Menu and CRM semantic roles */
+.menu-toolbar select,
+.menu-search,
+.menu-price-input,
+.app2-main:not(.full) input.menu-price-input:not(.uif-num),
+.menu-import-btn,
+.stack input,
+.stack select,
+.crm-search input,
+.imgup-box,
+.json-import {
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.menu-status.on,
+.crm-badge:not(.blocked):not(.vip) {
+  border-color: var(--success);
+  background: var(--theme-success-soft);
+  color: var(--success);
+}
+
+.menu-status.off,
+.crm-badge.blocked {
+  border-color: var(--danger);
+  background: var(--theme-danger-soft);
+  color: var(--danger);
+}
+
+.crm-badge.vip,
+.menu-thumb.ph {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.crm-kpi,
+.crm-recent-item,
+.perm-chips .uif-checkbox,
+.rbac-perm {
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.pill {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.pill.create {
+  background: var(--theme-success-soft);
+  color: var(--success);
+}
+
+.pill.update {
+  background: var(--theme-warning-soft);
+  color: var(--warning);
+}
+
+.pill.fail,
+.row-error-msg {
+  background: var(--theme-danger-soft);
+  color: var(--danger);
+}
+
+.rbac-role.active,
+.rbac-role[aria-pressed="true"],
+.rbac-role.uif-btn.active,
+.rbac-role.uif-btn[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
 }
 
 /* POS workspace */
@@ -117,8 +275,8 @@ body,
 .app2-pos .posx-opts,
 .app2-pos .posx-totals,
 .app2-pos .posx-fire-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-menu-top,
@@ -129,9 +287,9 @@ body,
 .app2-pos .posx-fast-qty,
 .app2-pos .posx-fast-line-note-input,
 .app2-pos .posx-source-field select {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-order-rail {
@@ -139,21 +297,21 @@ body,
     135deg,
     color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
     var(--surface-1)
-  ) !important;
-  box-shadow: 0 8px 22px var(--theme-shadow) !important;
+  );
+  box-shadow: 0 8px 22px var(--theme-shadow);
 }
 
 .app2-pos .posx-source-field {
-  background: transparent !important;
+  background: transparent;
 }
 
 .app2-pos .posx-cats button,
 .app2-pos .seg.dark button,
 .app2-pos .posx-chips button,
 .app2-pos .posx-fast-qty button {
-  border-color: var(--control-border) !important;
-  background: var(--control-surface) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-cats button.active,
@@ -162,173 +320,211 @@ body,
 .app2-pos .posx-fast-qty output,
 .app2-pos .posx-card2-price,
 .app2-pos .posx-order-now {
-  border-color: var(--brand) !important;
-  background: var(--selection-surface) !important;
-  color: var(--selection-text) !important;
+  border-color: var(--brand);
+  background: var(--selection-surface);
+  color: var(--selection-text);
 }
 
 /* Product cards */
 .app2-pos .posx-card2 {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 8px 24px var(--theme-shadow) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px var(--theme-shadow);
 }
 
 .app2-pos .posx-card2:hover {
-  border-color: var(--brand) !important;
+  border-color: var(--brand);
 }
 
 .app2-pos .posx-card2-media,
 .app2-pos .posx-card2-info,
 .app2-pos .posx-card2-options {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-card2-name {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-card2-opt-label,
 .app2-pos .posx-card2-direct {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-card2-img.ph {
   background:
     radial-gradient(circle at 72% 20%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 28%),
-    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px) !important;
+    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px);
 }
 
 .app2-pos .posx-card2-img.ph::before {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
 }
 
 .app2-pos .posx-card2-img.ph::after {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 /* Fast Rail cart lines */
 .app2-pos .posx-fast-line {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  box-shadow: 0 7px 20px var(--theme-shadow) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  box-shadow: 0 7px 20px var(--theme-shadow);
 }
 
 .app2-pos .posx-fast-line:hover {
-  border-color: color-mix(in srgb, var(--brand) 38%, var(--border-strong)) !important;
-  background: var(--surface-raised) !important;
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--border-strong));
+  background: var(--surface-raised);
 }
 
 .app2-pos .posx-fast-line-thumb {
-  border-color: var(--border-subtle) !important;
+  border-color: var(--border-subtle);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), transparent 55%),
-    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px) !important;
-  color: var(--brand) !important;
+    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px);
+  color: var(--brand);
 }
 
 .app2-pos .posx-fast-line-actions {
-  border-inline-start-color: var(--border-subtle) !important;
+  border-inline-start-color: var(--border-subtle);
 }
 
 .app2-pos .posx-fast-line-head strong,
 .app2-pos .posx-total {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-fast-line-head b {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 .app2-pos .posx-fast-line-choices span {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-fast-line-note-button {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-2) !important;
-  color: var(--text-secondary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-fast-line-note-button:hover,
 .app2-pos .posx-fast-line-note-button:focus-visible {
-  border-color: var(--brand) !important;
-  background: var(--theme-brand-soft) !important;
-  color: var(--brand) !important;
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--brand);
 }
 
 .app2-pos .posx-fast-remove {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
 }
 
 .app2-pos .posx-fast-remove:hover,
 .app2-pos .posx-fast-remove:focus-visible {
-  border-color: var(--danger) !important;
-  background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface)) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--danger-surface));
+  color: var(--danger);
 }
 
 .app2-pos .posx-totals {
-  border-top-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  box-shadow: 0 -10px 24px var(--theme-shadow) !important;
+  border-top-color: var(--border-strong);
+  background: var(--surface-1);
+  box-shadow: 0 -10px 24px var(--theme-shadow);
 }
 
 .app2-pos .posx-fire-wrap {
-  background: var(--surface-1) !important;
+  background: var(--surface-1);
 }
 
 .app2-pos .posx-total > span:last-child,
 .app2-pos .posx-total-helper {
-  color: var(--brand) !important;
+  color: var(--brand);
 }
 
 /* Semantic feedback */
 .alert,
 .error-note,
 .dark-alert {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
 }
 
 .ok,
 .ok-note,
 .dark-ok {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
 }
 
 .stub.printing,
 .stub.st-submitted,
 .stub.st-in_kitchen {
-  border-color: var(--warning) !important;
-  background: var(--warning-surface) !important;
-  color: var(--warning) !important;
+  border-color: var(--warning);
+  background: var(--warning-surface);
+  color: var(--warning);
 }
 
 .stub.printed,
 .stub.on,
 .stub.st-ready,
 .stub.st-completed {
-  border-color: var(--success) !important;
-  background: var(--success-surface) !important;
-  color: var(--success) !important;
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
 }
 
 .stub.failed,
 .stub.st-cancelled {
-  border-color: var(--danger) !important;
-  background: var(--danger-surface) !important;
-  color: var(--danger) !important;
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.app2 :is(.uif-btn, .btn, button, input, select, textarea):disabled,
+.app2-main:not(.full) :is(.uif-btn, .btn, button, input, select, textarea):disabled,
+.uif-drawer :is(.uif-btn, .btn, button, input, select, textarea):disabled,
+.modal :is(.uif-btn, .btn, button, input, select, textarea):disabled {
+  color: var(--text-disabled);
+}
+
+.app2 button:hover:not(:disabled),
+.uif-drawer button:hover:not(:disabled),
+.modal button:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+/* Shared secondary/neutral controls. */
+.app2 :is(
+  .uif-btn,
+  button.secondary,
+  button.ghost,
+  .seg button,
+  .menu-import-btn,
+  button.sm
+):hover:not(:disabled):not(.active):not(.primary):not(.danger),
+.uif-drawer :is(.uif-btn, button.secondary, button.ghost):hover:not(:disabled):not(.active):not(.primary):not(.danger),
+.modal :is(.uif-btn, button.secondary, button.ghost):hover:not(:disabled):not(.active):not(.primary):not(.danger) {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
+}
+
+/* Primary controls keep readable foregrounds while hovering. */
+.app2 :is(.uif-btn.primary, button.primary, .btn:not(.secondary, .ghost, .danger)):hover:not(:disabled),
+.uif-drawer :is(.uif-btn.primary, button.primary):hover:not(:disabled),
+.modal :is(.uif-btn.primary, button.primary):hover:not(:disabled) {
+  border-color: var(--brand-hover);
+  background: var(--brand-hover);
+  color: var(--on-brand);
 }

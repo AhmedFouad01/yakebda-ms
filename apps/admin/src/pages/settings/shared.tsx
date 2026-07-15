@@ -274,7 +274,6 @@ export function RowSelect<T extends string | number>({
         disabled={!editable}
         value={String(doc.data?.[k] ?? "")}
         onChange={(e) => doc.set(k, (numeric ? Number(e.target.value) : e.target.value) as never)}
-        style={{ maxWidth: 200 }}
       >
         {options.map(([value, text]) => (
           <option key={String(value)} value={String(value)}>{text}</option>

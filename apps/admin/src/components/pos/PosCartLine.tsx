@@ -22,8 +22,6 @@ export type PosCartLineModel = {
 type Props = {
   line: PosCartLineModel;
   totalLabel: string;
-  onIncrease: () => void;
-  onDecrease: () => void;
   onRemove: () => void;
   onNotesChange: (value: string) => void;
 };
@@ -31,8 +29,6 @@ type Props = {
 export function PosCartLine({
   line,
   totalLabel,
-  onIncrease,
-  onDecrease,
   onRemove,
   onNotesChange,
 }: Props) {
@@ -46,18 +42,18 @@ export function PosCartLine({
 
   return (
     <article className="posx-fast-line">
-      <span className="posx-fast-line-thumb" aria-hidden>
+      <span className="posx-fast-line-thumb">
         {src && !imageBroken ? (
           <img src={src} alt="" onError={() => setImageBroken(true)} />
         ) : (
-          <span>{line.product.name_ar.trim().charAt(0)}</span>
+          <span aria-hidden="true">{line.product.name_ar.trim().charAt(0)}</span>
         )}
+        <output className="posx-fast-line-qty" aria-label={`الكمية ${line.qty}`} aria-live="polite">{line.qty}</output>
       </span>
 
       <div className="posx-fast-line-main">
         <header className="posx-fast-line-head">
           <strong>{line.product.name_ar}</strong>
-          <b>{totalLabel}</b>
         </header>
 
         <div className="posx-fast-line-choices" aria-label="اختيارات الصنف">
@@ -83,15 +79,9 @@ export function PosCartLine({
       </div>
 
       <div className="posx-fast-line-actions">
-        <div className="posx-fast-qty" aria-label={`الكمية ${line.qty}`}>
-          <button type="button" aria-label="تقليل الكمية" onClick={onDecrease}>−</button>
-          <output aria-live="polite">{line.qty}</output>
-          <button type="button" aria-label="زيادة الكمية" onClick={onIncrease}>+</button>
-        </div>
+        <b className="posx-fast-line-price">{totalLabel}</b>
         <button type="button" className="posx-fast-remove" onClick={onRemove} aria-label={`حذف ${line.product.name_ar}`} title="حذف الصنف">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m19 6-1 14H6L5 6" /><path d="M10 11v5M14 11v5" />
-          </svg>
+          مسح
         </button>
       </div>
     </article>

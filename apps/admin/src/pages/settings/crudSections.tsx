@@ -129,7 +129,7 @@ export function MenuSection({ editable }: { editable: boolean }) {
                   </Select>
                 </td>
                 <td>
-                  <input type="number" min={0} disabled={!editable} defaultValue={p.prep_time_minutes} style={{ width: 60 }}
+                  <input type="number" min={0} disabled={!editable} defaultValue={p.prep_time_minutes}
                     onBlur={(e) => Number(e.target.value) !== p.prep_time_minutes && patch(p.id, { prep_time_minutes: Number(e.target.value) })} />
                 </td>
               </tr>

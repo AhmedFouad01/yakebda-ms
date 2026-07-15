@@ -374,3 +374,60 @@ R13 will not move Express, Knex, React, environment access, database rows,
 order workflow commands, quote logic, receipts, or full product/order domain
 models into the shared package. No wire format, SQL, permission, UI, migration,
 or business behavior change is authorized by this revalidation.
+
+## R13 implementation and validation
+
+Date: 2026-07-16
+
+R13 is complete. The root runtime contract is `node >=22 <23`; `.nvmrc` and
+GitHub Actions select Node 22. The existing Admin test step remains singular in
+CI. A clean lockfile install and every R13 gate ran under official Node
+`v22.23.1` with npm `10.9.8`.
+
+The new `@ykms/contracts` workspace is a strict, side-effect-free CommonJS
+package built before API and Admin compilation. It contains no Express, Knex,
+React, environment, database, or server-only imports. Its bounded contract
+scope is:
+
+- generic cursor response metadata: `data`, `next_cursor`, and `has_more`;
+- customer address, lookup, and full list wire DTOs;
+- order status literals, numeric/string money wire values, order list summary,
+  and customer-order summary DTOs.
+
+The API cursor helper and Admin all-pages helper now share the pagination type.
+Customer route rows, the Customers screen, and POS lookup use the customer
+contracts. API order status validation, the Orders screen, and POS shift-order
+summary use the bounded order contracts. Existing runtime parsing, SQL,
+permission checks, response fields, Arabic messages, and UI behavior remain
+unchanged.
+
+Full order details, command/request payloads, quotes, receipts, KDS models,
+payment models, product/menu domains, analytics, and database row models remain
+local by design. Moving them without a proven drift boundary is deferred.
+
+### R13 validation
+
+| Gate | Result |
+| --- | --- |
+| Node runtime | PASS - official Node `v22.23.1`, npm `10.9.8`. |
+| Clean lockfile install | PASS - `npm ci --no-audit --no-fund`. |
+| Contracts build | PASS - strict TypeScript declaration build. |
+| Contracts tests | PASS - 1 file, 13/13 tests. |
+| API TypeScript check | PASS - zero errors. |
+| Complete isolated API suite | PASS - 20/20 files, 144/144 tests. |
+| Admin tests | PASS - 3 files, 11/11 tests. |
+| Admin production build | PASS. |
+| UI color contract | PASS. |
+| R12 response compatibility | PASS - existing pagination suite remained green. |
+| Migrations | NOT REQUIRED - no schema changes in R13. |
+| `git diff --check` | PASS. |
+
+### R13 commits
+
+- `7bc6679` - Node and shared-contract revalidation.
+- `0227141` - Node 22 project and CI declarations.
+- `9c72b3a` - shared Zod contracts workspace.
+- `c77e3a3` - shared pagination and customer contracts.
+- `784991e` - POS customer lookup contract.
+- `5b20a29` - bounded order DTO contracts.
+- `b44cf77` - schema and cross-workspace compile coverage.

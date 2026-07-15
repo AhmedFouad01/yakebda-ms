@@ -32,8 +32,8 @@ body,
 .app2-main,
 .app2-body,
 .login-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 .card,
@@ -42,14 +42,15 @@ body,
 .option-modal,
 .receipt-modal,
 .uif-card,
+.app2-main:not(.full) .uif-card,
 .uif-modal,
 .uif-drawer,
 .set-card,
 .od-section,
 .order-actions {
-  border-color: var(--border-subtle) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .modal {
@@ -73,9 +74,9 @@ body,
 .app2 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .uif-drawer :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
 .modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-  border-color: var(--control-border) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 /* AppShell */

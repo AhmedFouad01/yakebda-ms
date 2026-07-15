@@ -215,3 +215,25 @@ Status: **Complete**
   snapshots required before COGS posting.
 - Focused gate: API typecheck passed; 20 Inventory tests passed, including 6
   operations/valuation tests. Migration 023 down/up preserved recipe objects.
+
+## Accounting Phase 1 result - financial event outbox
+
+Status: **Complete**
+
+- Migration `20260716_024_financial_event_outbox` adds a tenant-scoped durable
+  outbox with pending/processing/posted/failed/dead states, attempts, retry
+  timing, safe errors, claims, source indexes, and idempotency keys.
+- Payment capture, refund, shift cash movement, inventory receipt, waste,
+  count adjustment, consumption, and reversal write immutable versioned event
+  snapshots inside their operational database transaction.
+- Claiming uses row locks with `skip locked`; concurrent workers cannot receive
+  the same event. Failed work remains retryable, stale claims are recoverable,
+  and repeated terminal failure moves to dead-letter state.
+- Matching duplicate keys return the existing event. Reusing a key for another
+  source or event type is rejected.
+- Read/retry routes are account and branch scoped by existing authorization.
+- Focused gate: API typecheck passed and 47 impacted payment, shift, Inventory,
+  refund, and outbox tests passed. The 6 outbox tests cover atomic rollback,
+  source snapshot immutability, duplicate prevention, concurrent claims,
+  retry/dead state, stale recovery, and tenant isolation.
+- Migration 024 down/up passed while Inventory objects remained intact.

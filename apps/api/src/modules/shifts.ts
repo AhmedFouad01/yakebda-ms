@@ -7,6 +7,16 @@ import { writeAudit } from "../lib/audit";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 
+interface ShiftOrderRow {
+  id: string;
+  order_no: number;
+  order_prefix: string | null;
+  status: string;
+  total: unknown;
+  paid_amount: unknown;
+  created_at: Date | string;
+}
+
 function toMinorUnits(value: unknown): number {
   const normalized = typeof value === "string" ? value.trim() : String(value ?? 0);
   if (!/^-?\d+(\.\d+)?$/.test(normalized)) return 0;
@@ -37,7 +47,7 @@ async function summarizeShift(db: Knex, shiftId: string) {
     toMinorUnits(cashIn.total) -
     toMinorUnits(cashOut.total);
 
-  const shiftOrders = await db("orders as o")
+  const shiftOrders: ShiftOrderRow[] = await db("orders as o")
     .where({
       "o.account_id": shift.account_id,
       "o.branch_id": shift.branch_id,

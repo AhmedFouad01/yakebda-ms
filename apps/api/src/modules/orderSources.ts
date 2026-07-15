@@ -119,7 +119,7 @@ export function orderSourceRoutes(db: Knex): Router {
 
       const canManage = req.user!.permissions.includes("settings.manage");
       const activeOnly = !canManage || query.data.active_only !== "false";
-      let rows = await db<OrderSourceRow>("order_sources")
+      let rows: OrderSourceRow[] = await db<OrderSourceRow>("order_sources")
         .where({ account_id: req.user!.accountId })
         .modify((builder) => {
           if (activeOnly) builder.where("is_active", true);

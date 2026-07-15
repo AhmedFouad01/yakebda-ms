@@ -4506,9 +4506,14 @@ button.danger,
 
 :is(button, input, select, textarea):disabled {
   opacity: 0.68;
+}
+
+.app2 :is(button, input, select, textarea):disabled,
+.uif-drawer :is(button, input, select, textarea):disabled,
+.modal :is(button, input, select, textarea):disabled {
   color: var(--text-disabled) !important;
-  filter: none !important;
-  cursor: not-allowed !important;
+  filter: none;
+  cursor: not-allowed;
 }
 
 /* ---------- Feedback and statuses ---------- */

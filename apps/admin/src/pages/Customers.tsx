@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../lib/api";
+import { api, apiAllPages } from "../lib/api";
 import { t } from "../lib/t";
 import { Drawer, toast } from "../components/ui/overlays";
 import { PageHeader, FormField, TextInput, TextArea, Select, ToggleSwitch, Tabs, SectionCard, EmptyState } from "../components/ui/primitives";
@@ -39,7 +39,7 @@ export function Customers() {
   const [profileId, setProfileId] = useState<string | null>(null);
 
   async function load() {
-    const res = await api<{ data: Customer[] }>(`/customers${search ? `?search=${encodeURIComponent(search)}` : ""}`);
+    const res = await apiAllPages<Customer>(`/customers${search ? `?search=${encodeURIComponent(search)}` : ""}`);
     setRows(res.data);
   }
   useEffect(() => {
@@ -198,7 +198,7 @@ function CustomerProfile({ id, canManage, onClose, onEdit }: { id: string; canMa
 
   useEffect(() => {
     api<{ data: Customer & { analytics: Analytics } }>(`/customers/${id}`).then((r) => setData(r.data)).catch((e) => setErr(e.message));
-    api<{ data: typeof orders }>(`/customers/${id}/orders`).then((r) => setOrders(r.data)).catch(() => {});
+    apiAllPages<(typeof orders)[number]>(`/customers/${id}/orders`, 50).then((r) => setOrders(r.data)).catch(() => {});
   }, [id]);
 
   const a = data?.analytics;

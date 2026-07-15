@@ -285,3 +285,21 @@ Status: **Complete**
   dedicated tests prove no-write default, production rejection, explicit
   test-only apply, idempotency, missing-mapping reporting, and reconciliation.
 - No production backfill or production database access was performed.
+
+## Legacy shift-report review
+
+Status: **Reimplemented safely; legacy commit not cherry-picked**
+
+- Commit `b06ffd7` contained a useful renderer, enqueue route, and initial API
+  tests but no migration. The current bridge was verified as generically
+  supporting the report: it claims every pending job type atomically, returns
+  `template`/`lines` payloads, accepts results, retries below the configured
+  cap, moves exhausted jobs to `dead`, and supports stuck-job requeue.
+- `packages/bridge-contract` explicitly supports line-based ESC/POS payloads
+  and template-based Windows-driver payloads, so `shift_report_v1` requires no
+  new bridge type dispatch.
+- The renderer and scoped enqueue route were reimplemented manually on the
+  current tree. No legacy migration, state-machine replacement, or blind
+  cherry-pick was used.
+- Focused gate: 15 shift-report, print reliability, and bridge security tests
+  passed, including payload decoding plus pending/printing/printed/dead paths.

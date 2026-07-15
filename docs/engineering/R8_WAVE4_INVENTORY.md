@@ -17,17 +17,30 @@ Retro-verification method: pre-3A `theme.css` blob checked out from `8c56f91`,
 42 baselines captured at 1920 (both themes), HEAD blob restored, all states
 re-measured: **42/42 zero diffs**. Working tree returned byte-identical to HEAD.
 
-## Baseline matrix now live (128 states)
+## Baseline matrix now live (128 states total, distributed across both widths and themes)
 
-- Settings: 12 sections × 2 themes × 2 widths = 48
-- Menu (list/editor/cats/mods), CRM (list/profile), Orders (list/modal), Reports: 9 × 2 × 2 = 36
+- Settings: 12 sections × 2 themes × 2 widths = 48 states
+- Menu (list/editor/cats/mods), CRM (list/profile), Orders (list/modal), Reports: 9 × 2 × 2 = 36 states
 - Generic pages (pre-4B baselines, HEAD code): dashboard, users, branches,
   devices, hardware, print-jobs, api-clients, audit, KDS, POS closed,
-  POS history drawer = 11 × 2 themes × 2 widths = 44
+  POS history drawer = 11 × 2 themes × 2 widths = 44 states
+
+**SUPERSEDED — incorrectly captured at 1180×910:** the original wave-3A/3B
+baselines labelled "1366" were captured while the browser pane measured
+1180×910. Their zero-diff comparisons remain valid as *internal parity*
+(same environment before/after each strip) but are NOT true-viewport proof.
+They were re-captured at the real 1366×768 during wave 4B and those 42
+recaptures are the official 1366 reference from `a70cd3b` onward.
 
 Element counts are identical across themes and widths per page — structural
 determinism holds. Baselines live in the browser session; if the session dies
 they are recaptured at the start of the consuming batch.
+
+## Remote state (as of wave 4B)
+
+All R8 wave commits (`7ffc96f`…`a70cd3b`) are **local only** — no push has
+been made. GitHub PR #34 still points at `3862b673` and remains
+Open / Draft / Unmerged. Pushing requires explicit authorization.
 
 ## Classification of the remaining 256 (theme.css)
 

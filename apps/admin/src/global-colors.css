@@ -140,8 +140,8 @@ body,
 .app2-pos .posx-opts,
 .app2-pos .posx-totals,
 .app2-pos .posx-fire-wrap {
-  background: var(--surface-page) !important;
-  color: var(--text-primary) !important;
+  background: var(--surface-page);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-menu-top,
@@ -152,9 +152,9 @@ body,
 .app2-pos .posx-fast-qty,
 .app2-pos .posx-fast-line-note-input,
 .app2-pos .posx-source-field select {
-  border-color: var(--border-strong) !important;
-  background: var(--surface-1) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-order-rail {
@@ -162,21 +162,21 @@ body,
     135deg,
     color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
     var(--surface-1)
-  ) !important;
-  box-shadow: 0 8px 22px var(--theme-shadow) !important;
+  );
+  box-shadow: 0 8px 22px var(--theme-shadow);
 }
 
 .app2-pos .posx-source-field {
-  background: transparent !important;
+  background: transparent;
 }
 
 .app2-pos .posx-cats button,
 .app2-pos .seg.dark button,
 .app2-pos .posx-chips button,
 .app2-pos .posx-fast-qty button {
-  border-color: var(--control-border) !important;
-  background: var(--control-surface) !important;
-  color: var(--text-primary) !important;
+  border-color: var(--control-border);
+  background: var(--control-surface);
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-cats button.active,
@@ -185,9 +185,9 @@ body,
 .app2-pos .posx-fast-qty output,
 .app2-pos .posx-card2-price,
 .app2-pos .posx-order-now {
-  border-color: var(--brand) !important;
-  background: var(--selection-surface) !important;
-  color: var(--selection-text) !important;
+  border-color: var(--brand);
+  background: var(--selection-surface);
+  color: var(--selection-text);
 }
 
 /* Product cards */

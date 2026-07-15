@@ -225,3 +225,129 @@ R12 remains non-snapshot pagination. New rows inserted ahead of a descending
 cursor after page one are not repeated on later pages, but rows whose sort
 values change during traversal can move between pages. Dedicated exports and
 the deferred order-list endpoints require separate follow-up decisions.
+
+## R12 implementation and validation
+
+Date: 2026-07-16
+
+R12 is complete for the four confirmed restaurant/menu collection contracts.
+No R11 behavior, R13/shared contract work, Inventory, Accounting, CSS, or UI
+layout was changed.
+
+### Endpoint contracts
+
+| Endpoint | Previous behavior | Final ordering | Page limits | Compatibility |
+| --- | --- | --- | --- | --- |
+| `GET /api/v1/customers/lookup` | `created_at DESC`, hard limit 200. | `created_at DESC, id DESC`. | Default 50, maximum 100. | Minimal POS DTO is unchanged; internal `created_at` cursor material is removed from each returned row. POS explicitly traverses all pages. |
+| `GET /api/v1/customers` | `created_at DESC`, hard limit 200. | `created_at DESC, id DESC`. | Default 50, maximum 100. | Full read gate still accepts `customers.view` or `customers.manage`; Customers explicitly traverses all pages. |
+| `GET /api/v1/customers/:id/orders` | `created_at DESC`, default 20, maximum 50, no continuation. | `created_at DESC, id DESC`. | Existing default 20 and maximum 50 retained. | Order DTO is unchanged; Customer Profile explicitly traverses all pages. |
+| `GET /api/v1/products` | `sort_order ASC`, unbounded. | `sort_order ASC, id ASC`. | Default 50, maximum 100. | Product, variant, and modifier-group DTO fields are unchanged. Menu and Settings explicitly traverse all pages. |
+
+Revalidation tests exposed that `customerReadRoutes` is the authoritative
+`GET /customers` handler because it is mounted before `customerRoutes`. The
+cursor contract was moved to that read-permission owner, and the unreachable
+duplicate root handler was removed. The `customers.view` / `customers.manage`
+authorization contract remains unchanged.
+
+Every response retains `data` and now always adds:
+
+```json
+{
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+The server fetches `limit + 1`, removes the lookahead row, and performs no
+`COUNT(*)`, offset, or page-number query. Admin compatibility uses a bounded
+cursor traversal helper with repeated-cursor detection; the browser never
+decodes cursor contents.
+
+### Cursor contract
+
+- Encoding: base64url-encoded JSON envelope.
+- Version: `1`.
+- Binding: explicit endpoint and sort identifiers.
+- Values: only the ordered values and final UUID ID tie-breaker.
+- Maximum encoded length: 1024 characters.
+- Invalid, oversized, unsupported-version, wrong-endpoint, wrong-sort, and
+  malformed cursors return HTTP 400 with a safe Arabic validation response.
+- Limits must be positive decimal integers within the endpoint maximum;
+  invalid values return HTTP 400.
+- Cursor data never supplies account, branch, customer, permission, or tenant
+  scope. Existing authenticated filters remain authoritative and run before
+  the keyset predicate.
+
+### Index migration
+
+Migration `20260716_020_cursor_pagination_indexes` adds only these proven
+query indexes:
+
+- `customers_account_created_id_cursor_idx` on
+  `(account_id, created_at, id)`.
+- `orders_account_customer_created_id_cursor_idx` on
+  `(account_id, customer_id, created_at, id)`.
+- `products_account_sort_id_cursor_idx` on
+  `(account_id, sort_order, id)`.
+- `products_account_category_sort_id_cursor_idx` on
+  `(account_id, category_id, sort_order, id)`.
+
+A fresh isolated database migrated from zero through 020. A second latest run
+had no pending migrations. The 020 down migration removed all four new indexes
+and left the four sampled pre-existing customer/order/product indexes intact;
+the up migration recreated all four exact definitions. No representative
+production-sized dataset was available, so actual planner index selection is
+not claimed without separate `EXPLAIN` evidence.
+
+### Security and traversal semantics
+
+- Account isolation remains sourced from authenticated user context.
+- Reusing a valid same-endpoint cursor under another authenticated account
+  cannot expose rows from the first account.
+- Customer lookup-only permission still cannot access the full CRM list.
+- These confirmed collections are account-level resources and add no branch
+  parameter; existing manager and branch permission semantics are unchanged.
+- Search, category, customer, account, and permission filters remain active on
+  every page.
+- Duplicate sort values are resolved by UUID ID ordering.
+- Inserting a newer row after a descending first page does not duplicate or
+  backfill that row into later pages.
+- Pagination is not snapshot isolation. A row whose ordered value changes
+  during traversal may move across the cursor boundary.
+
+### R12 validation
+
+| Gate | Result |
+| --- | --- |
+| Cursor pagination focused tests | PASS - 6/6. |
+| Existing customer read-permission tests | PASS - 7/7. |
+| Complete isolated API suite | PASS - 20/20 files and 144/144 tests. No skipped tests were added. |
+| API TypeScript check | PASS - zero errors. |
+| Admin tests | PASS - 3 files and 11/11 tests. |
+| Admin production build | PASS. |
+| UI color contract | PASS. |
+| Fresh migrations 001-020 | PASS. |
+| Second migrate-latest run | PASS - no pending migrations. |
+| Migration 020 down/up | PASS - new indexes 4 -> 0 -> 4; sampled old indexes remained 4. |
+| `git diff --check` | PASS. |
+
+### R12 commits
+
+- `1f0e42a` - endpoint and consumer revalidation.
+- `fd1c823` - validated opaque cursor utility.
+- `61cb14d` - restaurant collection pagination and complete-list consumers.
+- `9ef7277` - product pagination and complete-list consumers.
+- `88af514` - query-aligned cursor indexes.
+- `9757ae1` - authoritative customer read-route wiring and duplicate removal.
+- `f7889b5` - pagination, validation, isolation, and mutation coverage.
+
+### Deferred and remaining risks
+
+- `GET /orders` and `GET /orders/current-shift` still have a hard limit of 200
+  and require a separately bounded compatibility decision.
+- Dedicated exports remain full-file contracts and were not cursor-paginated.
+- Tables, categories, modifier groups, and branch menu remain deliberate
+  complete configuration/operational payloads.
+- Rows that change `created_at` or `sort_order` during traversal can move
+  between pages because this is keyset pagination, not snapshot pagination.
+- Large exports may need a dedicated streaming/export path later.

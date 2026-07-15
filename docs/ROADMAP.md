@@ -30,4 +30,22 @@ Open Shift → POS Order → Kitchen → Payment → Receipt → Reports → Clo
 - `YKMS-09` — Loyalty / CRM
 - `YKMS-10` — Public API / integrations
 
+## Engineering Remediation Track
+
+- `P0` - payment, authentication, and read-permission hardening: completed.
+- `P1` - operational reliability, refunds, print claiming, and shift variance:
+  completed. Refund behavior is active and tested, not a no-op flag.
+- `P2` - CSS consolidation, POS decomposition, and frontend safety net:
+  completed and merged.
+- `P3` - observability, cursor pagination, Node 22, shared contracts, and
+  documentation truth: release candidate completed on its feature branch,
+  pending Draft PR CI/merge review.
+
+### Naming debt
+
+`YKMS-02H` is the historical repository milestone for order sources and price
+lists. `YKMS-11` is treated as an external planning alias for that same scope,
+not as a second implementation. Historical branches, commits, migrations, PRs,
+and milestone entries are intentionally not renamed.
+
 </div>

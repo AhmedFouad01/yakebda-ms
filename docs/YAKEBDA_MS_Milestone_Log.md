@@ -268,6 +268,22 @@ SettingsLayout بـ12 قسمًا، ToggleSwitch بدل checkboxes، «وضع ا�
 
 ---
 
+## Engineering Milestone - P3 Platform Hardening
+
+**Date:** 2026-07-16
+**Status:** Local release candidate complete; Draft PR/CI pending.
+
+- R11: request correlation, redacted structured logging, safe errors, and
+  liveness/readiness.
+- R12: deterministic cursor pagination for confirmed customer/product
+  collections plus migration 020 indexes.
+- R13: Node 22 and bounded shared Zod contracts for API/Admin wire types.
+- Documentation truth reconciled without renaming historical milestones.
+- No Inventory, Accounting, UI redesign, or complete OpenAPI implementation is
+  included.
+
+---
+
 ## Milestone Log — YKMS-02C POS Structure + Settings Foundation
 
 **التاريخ:** 2026-07-10

@@ -24,6 +24,7 @@ YAKEBDA MS is a cloud-first restaurant operations platform with Arabic-first and
 | API | Node.js, TypeScript, Express |
 | Database | PostgreSQL, Knex migrations |
 | Testing | Vitest, Supertest |
+| Shared wire contracts | Zod, TypeScript, `@ykms/contracts` |
 | Device integration | Local bridge contract and print jobs |
 
 The platform is designed for cloud deployment while preserving a path for Windows-based operational clients and resilient device integrations.
@@ -36,6 +37,7 @@ apps/
   admin/               Admin, POS, and operations UI
 packages/
   bridge-contract/     Device integration contracts
+  contracts/           Shared API/Admin wire contracts
 docs/
   architecture/        Architecture documentation
   engineering/         Current implementation and workflow
@@ -47,7 +49,7 @@ scripts/                Development and setup utilities
 
 ### Requirements
 
-- Node.js 20+
+- Node.js 22.x (`>=22 <23`)
 - npm
 - PostgreSQL 16+
 - Docker is optional but recommended for local database setup
@@ -75,7 +77,10 @@ npm ci
 cp apps/api/.env.example apps/api/.env
 npm run api:migrate
 npm run api:seed
+npm run contracts:build
+npm run contracts:test
 npm run api:test
+npm run admin:test
 npm run admin:build
 ```
 
@@ -108,8 +113,12 @@ All changes must preserve tenant and branch scoping, permissions, auditability, 
 ## Quality Gates
 
 ```bash
+npm run contracts:build
+npm run contracts:test
 npm run api:test
+npm run admin:test
 npm run admin:build
+npm run ui:colors:check
 ```
 
 Database changes must include a migration and must remain reversible where practical.
@@ -121,3 +130,10 @@ Do not commit secrets, credentials, environment files, database dumps, uploaded 
 ## Status
 
 The repository is under active development. Production deployment requires environment-specific security, storage, backup, monitoring, and operational validation.
+
+The P3 platform-hardening release candidate adds request correlation,
+structured redacted logs, liveness/readiness checks, validated keyset cursor
+pagination for confirmed customer/product collections, Node 22 tooling, and a
+bounded shared-contract workspace. It does not claim complete OpenAPI coverage.
+Order-list pagination, export scaling, and production log transport/retention
+remain explicit follow-up work.

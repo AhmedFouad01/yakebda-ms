@@ -103,6 +103,10 @@ Before changing the codebase, read:
 - `docs/engineering/CURRENT_IMPLEMENTATION.md`
 - `CONTRIBUTING.md`
 
+Graph-assisted repository navigation for Codex and Claude Code is documented in:
+
+- `docs/engineering/GRAPHIFY_INTEGRATION.md`
+
 All changes must preserve tenant and branch scoping, permissions, auditability, migrations, RTL behavior, and the established test/build gates.
 
 ## Quality Gates

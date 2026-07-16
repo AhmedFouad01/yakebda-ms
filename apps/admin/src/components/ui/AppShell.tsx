@@ -10,7 +10,7 @@ import { Drawer, Toaster } from "./overlays";
 
 /**
  * YKMS-02F — AppShell: تنقّل نظامي موحد لكل الشاشات بما فيها POS.
- * - AppBar علوي ثابت: قائمة + الرئيسية + رجوع + عنوان القسم + المستخدم + خروج.
+ * - AppBar علوي ثابت: عمليات + علامة مركزية + جلسة المستخدم.
  * - NavDrawer بكل الأقسام المسموح بها (حالة نشِطة).
  * - Sidebar يبقى للشاشات الإدارية على الشاشات العريضة؛ POS يحصل على كامل المساحة.
  * - لا يعتمد المستخدم على زر المتصفح للرجوع أبدًا.
@@ -36,7 +36,7 @@ export const NAV_LINKS: Array<{ to: string; label: () => string; perms: string[]
 
 const TITLES: Record<string, () => string> = Object.fromEntries(NAV_LINKS.map((l) => [l.to, l.label]));
 
-type ShellIconName = "menu" | "home" | "back" | "close" | "sun" | "moon";
+type ShellIconName = "menu" | "dashboard" | "back" | "close" | "sun" | "moon";
 
 function ShellIcon({ name }: { name: ShellIconName }) {
   const common = {
@@ -54,8 +54,8 @@ function ShellIcon({ name }: { name: ShellIconName }) {
   if (name === "menu") {
     return <svg {...common}><path d="M4 6h16M4 12h16M4 18h16" /></svg>;
   }
-  if (name === "home") {
-    return <svg {...common}><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M9 20v-6h6v6" /></svg>;
+  if (name === "dashboard") {
+    return <svg {...common}><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></svg>;
   }
   if (name === "back") {
     return <svg {...common}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>;
@@ -100,46 +100,52 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className={`app2${isPos ? " app2-pos" : ""}`} dir="rtl">
       <header className="app2-bar">
-        <button type="button" className="app2-menu" aria-label="القائمة الرئيسية" onClick={() => setDrawerOpen(true)}>
-          <ShellIcon name="menu" />
-        </button>
-        <Link to="/" className="app2-brand" title={t.nav.dashboard}>
+        <div className="app2-shell-operations" aria-label="التنقل والعمليات">
+          <div className="app2-shell-nav">
+            <button type="button" className="app2-menu" aria-label="القائمة الرئيسية" onClick={() => setDrawerOpen(true)}>
+              <ShellIcon name="menu" />
+            </button>
+            <Link to="/" className="app2-home app2-dashboard" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
+              <ShellIcon name="dashboard" />
+            </Link>
+            {!isPos && (
+              <button
+                type="button"
+                className="app2-back"
+                aria-label="رجوع"
+                onClick={() => (window.history.length > 2 ? nav(-1) : nav("/"))}
+              >
+                <ShellIcon name="back" />
+              </button>
+            )}
+            {!isPos && sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
+          </div>
+          {isPos && <div id="pos-appshell-controls" className="app2-pos-controls-slot" aria-label="أدوات نقطة البيع" />}
+        </div>
+
+        <Link to="/" className="app2-brand" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
           <img src={brand.logoPath} alt="" />
-          <strong>{brand.nameAr}</strong>
         </Link>
-        <Link to="/" className="app2-home" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
-          <ShellIcon name="home" />
-        </Link>
-        {!isPos && (
-          <button
-            type="button"
-            className="app2-back"
-            aria-label="رجوع"
-            onClick={() => (window.history.length > 2 ? nav(-1) : nav("/"))}
-          >
-            <ShellIcon name="back" />
-          </button>
-        )}
-        {!isPos && sectionTitle && <span className="app2-crumb">{sectionTitle}</span>}
-        {isPos && <div id="pos-appshell-controls" className="app2-pos-controls-slot" aria-label="أدوات نقطة البيع" />}
-        <span className="app2-spacer" />
-        <div className="app2-theme-control" title={themeLabel}>
-          <ToggleSwitch
-            checked={theme === "dark"}
-            ariaLabel={themeLabel}
-            onChange={(checked) => setActiveTheme(checked ? "dark" : "light")}
-          />
+
+        <div className="app2-shell-session" aria-label="جلسة المستخدم">
+          <div className="app2-theme-control" title={themeLabel}>
+            <ToggleSwitch
+              checked={theme === "dark"}
+              ariaLabel={themeLabel}
+              onChange={(checked) => setActiveTheme(checked ? "dark" : "light")}
+            />
+          </div>
+          <div className="app2-account-cluster">
+            {isPos && <div id="pos-appshell-session" className="app2-pos-session-slot" />}
+            {me && (
+              <span className="app2-user" title={me.permissions.length + " صلاحية"}>
+                {!isPos && <span className="app2-user-dot" aria-hidden />}
+                {me.name}
+              </span>
+            )}
+          </div>
+          <button type="button" className="app2-logout" onClick={logout}>{t.nav.logout}</button>
         </div>
-        <div className="app2-account-cluster">
-          {isPos && <div id="pos-appshell-session" className="app2-pos-session-slot" />}
-          {me && (
-            <span className="app2-user" title={me.permissions.length + " صلاحية"}>
-              {!isPos && <span className="app2-user-dot" aria-hidden />}
-              {me.name}
-            </span>
-          )}
-        </div>
-        <button type="button" className="app2-logout" onClick={logout}>{t.nav.logout}</button>
       </header>
 
       <div className="app2-body">

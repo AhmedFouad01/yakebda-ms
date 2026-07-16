@@ -227,7 +227,11 @@ export function financialReliabilityRoutes(db: Knex): Router {
     requirePermission("payments.record"),
     async (req, res, next) => {
       try {
-        const body = z.object({ method: z.enum(["cash", "card", "wallet", "unpaid"]), amount: z.number().nonnegative() }).safeParse(req.body);
+        const body = z.object({
+          method: z.enum(["cash", "card", "wallet", "unpaid"]),
+          amount: z.number().nonnegative(),
+          idempotency_key: z.string().trim().min(1).max(180).optional(),
+        }).safeParse(req.body);
         if (!body.success) throw err.validation(body.error.flatten());
 
         const order = await db("orders").where({ id: req.params.id, account_id: req.user!.accountId }).first();
@@ -256,17 +260,49 @@ export function financialReliabilityRoutes(db: Knex): Router {
           shiftId = shift?.id ?? null;
         }
 
-        const paymentId = newId();
-        await db.transaction(async (trx) => {
+        const result = await db.transaction(async (trx) => {
+          const lockedOrder = await trx("orders")
+            .where({ id: order.id, account_id: req.user!.accountId })
+            .forUpdate()
+            .first();
+          if (!lockedOrder) throw err.notFound();
+          if (!canAccessBranch(req.user!, lockedOrder.branch_id)) throw err.forbidden();
+          if (lockedOrder.status === "cancelled") throw err.validation({ status: ar.errors.bad_status_transition });
+
+          if (body.data.idempotency_key) {
+            const replay = await trx("payments")
+              .where({ order_id: lockedOrder.id, idempotency_key: body.data.idempotency_key })
+              .first();
+            if (replay) {
+              if (replay.method !== body.data.method || toMinorUnits(replay.amount) !== toMinorUnits(body.data.amount)) {
+                throw err.conflict();
+              }
+              return { paymentId: replay.id as string, idempotentReplay: true };
+            }
+          }
+
+          const paidBefore = await netPaidMinor(trx, lockedOrder.id);
+          const paymentMinor = toMinorUnits(body.data.amount);
+          const totalMinor = toMinorUnits(lockedOrder.total);
+          if (body.data.method !== "unpaid") {
+            if (paymentMinor <= 0) throw err.validation({ amount: ar.errors.payment_amount_positive });
+            if (paidBefore >= totalMinor) throw err.validation({ amount: ar.errors.payment_already_paid });
+            if (paidBefore + paymentMinor > totalMinor) throw err.validation({ amount: ar.errors.payment_over_remaining });
+          } else if (paymentMinor !== 0) {
+            throw err.validation({ amount: ar.errors.unpaid_amount_zero });
+          }
+
+          const paymentId = newId();
           await trx("payments").insert({
             id: paymentId,
-            order_id: order.id,
-            branch_id: order.branch_id,
+            order_id: lockedOrder.id,
+            branch_id: lockedOrder.branch_id,
             method: body.data.method,
             amount: body.data.amount,
             received_by: req.user!.id,
             shift_id: shiftId,
             kind: "payment",
+            idempotency_key: body.data.idempotency_key ?? null,
           });
           await enqueuePaymentFinancialEvent(trx, {
             accountId: req.user!.accountId,
@@ -275,17 +311,24 @@ export function financialReliabilityRoutes(db: Knex): Router {
           });
           await writeAudit(trx, {
             accountId: req.user!.accountId,
-            branchId: order.branch_id,
+            branchId: lockedOrder.branch_id,
             userId: req.user!.id,
             action: "payment.record",
             entityType: "payment",
             entityId: paymentId,
-            meta: { order_no: order.order_no, method: body.data.method, amount: body.data.amount },
+            meta: {
+              order_no: lockedOrder.order_no,
+              method: body.data.method,
+              amount: body.data.amount,
+              paid_before: fromMinorUnits(paidBefore),
+              paid_after: fromMinorUnits(paidBefore + paymentMinor),
+            },
             ip: req.ip,
           });
+          return { paymentId, idempotentReplay: false };
         });
 
-        if (settings.auto_print_on_payment && settings.receipt_printing_enabled && body.data.method !== "unpaid") {
+        if (!result.idempotentReplay && settings.auto_print_on_payment && settings.receipt_printing_enabled && body.data.method !== "unpaid") {
           try {
             const endpoint = await db("hardware_endpoints")
               .where({ branch_id: order.branch_id, kind: "receipt_printer", is_active: true })
@@ -315,8 +358,8 @@ export function financialReliabilityRoutes(db: Knex): Router {
           }
         }
 
-        res.status(201).json({
-          data: await db("payments").where({ id: paymentId }).first(),
+        res.status(result.idempotentReplay ? 200 : 201).json({
+          data: await db("payments").where({ id: result.paymentId }).first(),
           message: ar.messages.created,
         });
       } catch (error) {
@@ -341,16 +384,21 @@ export function financialReliabilityRoutes(db: Knex): Router {
         const settings = await getSettings(db, req.user!.accountId, order.branch_id);
         if (settings.approval_refund && !req.user!.permissions.includes("orders.refund")) throw err.forbidden();
 
-        const allocations = await db.transaction((trx) =>
-          createRefundRows(
+        const allocations = await db.transaction(async (trx) => {
+          const lockedOrder = await trx("orders")
+            .where({ id: order.id, account_id: req.user!.accountId })
+            .forUpdate()
+            .first();
+          if (!lockedOrder) throw err.notFound();
+          return createRefundRows(
             trx,
-            order,
+            lockedOrder,
             toMinorUnits(body.data.amount),
             body.data.reason,
             req.user!.id,
             { accountId: req.user!.accountId, ip: req.ip, action: "payment.refund" }
-          )
-        );
+          );
+        });
 
         res.status(201).json({
           data: {

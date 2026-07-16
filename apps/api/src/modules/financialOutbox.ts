@@ -1,6 +1,29 @@
 import { Knex } from "knex";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
+import { allocateGross, allocateRefund, toMinorUnits } from "../lib/accountingMath";
+
+type FinancialEventStatus =
+  | "pending"
+  | "processing"
+  | "posted"
+  | "failed"
+  | "dead"
+  | "pending_policy"
+  | "deferred_rounding"
+  | "non_posting"
+  | "reconciled";
+
+interface PaymentSnapshotRow {
+  id: string;
+  order_id: string;
+  amount: string | number;
+  method: string;
+  kind: string | null;
+  reversal_of_payment_id: string | null;
+  allocation_sequence: string | number;
+  created_at: Date | string;
+}
 
 export interface FinancialEventInput {
   accountId: string;
@@ -11,6 +34,7 @@ export interface FinancialEventInput {
   idempotencyKey: string;
   payloadVersion?: number;
   payload: Record<string, unknown>;
+  initialStatus?: FinancialEventStatus;
 }
 
 export async function enqueueFinancialEvent(
@@ -42,9 +66,79 @@ export async function enqueueFinancialEvent(
     idempotency_key: input.idempotencyKey,
     payload_version: input.payloadVersion ?? 1,
     payload: JSON.stringify(input.payload),
-    status: "pending",
+    status: input.initialStatus ?? "pending",
   });
   return id;
+}
+
+async function captureAllocation(
+  trx: Knex.Transaction,
+  input: { accountId: string; orderId: string; paymentId: string; total: string | number; vatAmount: string | number }
+) {
+  const rows = await trx<PaymentSnapshotRow>("payments")
+    .where({ order_id: input.orderId })
+    .whereNot("method", "unpaid")
+    .where("amount", ">", 0)
+    .orderBy("allocation_sequence", "asc");
+  let priorGross = 0n;
+  let priorRevenue = 0n;
+  let priorVat = 0n;
+  for (const payment of rows) {
+    const gross = toMinorUnits(payment.amount);
+    const allocation = allocateGross({
+      grossMinor: gross,
+      totalGrossMinor: toMinorUnits(input.total),
+      totalVatMinor: toMinorUnits(input.vatAmount),
+      priorGrossMinor: priorGross,
+      priorRevenueMinor: priorRevenue,
+      priorVatMinor: priorVat,
+    });
+    if (payment.id === input.paymentId) {
+      return { grossMinor: gross, ...allocation };
+    }
+    priorGross += gross;
+    priorRevenue += allocation.revenueMinor;
+    priorVat += allocation.vatMinor;
+  }
+  throw err.notFound();
+}
+
+async function refundAllocation(
+  trx: Knex.Transaction,
+  input: { accountId: string; orderId: string; paymentId: string; originalPaymentId: string; total: string | number; vatAmount: string | number }
+) {
+  const original = await captureAllocation(trx, {
+    accountId: input.accountId,
+    orderId: input.orderId,
+    paymentId: input.originalPaymentId,
+    total: input.total,
+    vatAmount: input.vatAmount,
+  });
+  const rows = await trx<PaymentSnapshotRow>("payments")
+    .where({ order_id: input.orderId, reversal_of_payment_id: input.originalPaymentId, kind: "refund" })
+    .orderBy("allocation_sequence", "asc");
+  let priorGross = 0n;
+  let priorRevenue = 0n;
+  let priorVat = 0n;
+  for (const payment of rows) {
+    const gross = -toMinorUnits(payment.amount);
+    const allocation = allocateRefund({
+      refundGrossMinor: gross,
+      originalGrossMinor: original.grossMinor,
+      originalRevenueMinor: original.revenueMinor,
+      originalVatMinor: original.vatMinor,
+      priorRefundGrossMinor: priorGross,
+      priorRefundRevenueMinor: priorRevenue,
+      priorRefundVatMinor: priorVat,
+    });
+    if (payment.id === input.paymentId) {
+      return { grossMinor: gross, ...allocation };
+    }
+    priorGross += gross;
+    priorRevenue += allocation.revenueMinor;
+    priorVat += allocation.vatMinor;
+  }
+  throw err.notFound();
 }
 
 export async function enqueuePaymentFinancialEvent(
@@ -76,6 +170,22 @@ export async function enqueuePaymentFinancialEvent(
     .first();
   if (!row) throw err.notFound();
   if (row.method === "unpaid" || Number(row.amount) === 0) return null;
+  const allocation = input.eventType === "payment.captured"
+    ? await captureAllocation(trx, {
+        accountId: input.accountId,
+        orderId: row.order_id,
+        paymentId: row.payment_id,
+        total: row.total,
+        vatAmount: row.vat_amount,
+      })
+    : await refundAllocation(trx, {
+        accountId: input.accountId,
+        orderId: row.order_id,
+        paymentId: row.payment_id,
+        originalPaymentId: String(row.reversal_of_payment_id),
+        total: row.total,
+        vatAmount: row.vat_amount,
+      });
   return enqueueFinancialEvent(trx, {
     accountId: input.accountId,
     branchId: row.branch_id,
@@ -83,7 +193,15 @@ export async function enqueuePaymentFinancialEvent(
     sourceId: row.payment_id,
     eventType: input.eventType,
     idempotencyKey: `payment:${row.payment_id}:${input.eventType}:v1`,
-    payload: { version: 1, ...row },
+    payloadVersion: 2,
+    payload: {
+      version: 2,
+      ...row,
+      accounting_allocation_version: 1,
+      accounting_gross_minor: allocation.grossMinor.toString(),
+      accounting_revenue_minor: allocation.revenueMinor.toString(),
+      accounting_vat_minor: allocation.vatMinor.toString(),
+    },
   });
 }
 

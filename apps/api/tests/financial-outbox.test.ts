@@ -162,7 +162,8 @@ describe("Durable financial event outbox", () => {
   });
 
   it("claims concurrently without duplicate delivery and supports retry/dead state", async () => {
-    await db("financial_events").where({ account_id: accountId }).update({ status: "posted", posted_at: db.fn.now() });
+    // Isolate the claim queue without fabricating posted events that have no journal evidence.
+    await db("financial_events").where({ account_id: accountId }).update({ status: "non_posting", posted_at: null });
     const ids: string[] = [];
     for (let index = 0; index < 5; index += 1) {
       ids.push(

@@ -95,6 +95,17 @@ function allocationTotals(rows: Array<{ meta: Record<string, unknown> | string }
   );
 }
 
+function allocationSnapshot(payload: Record<string, unknown>, gross: bigint) {
+  if (Number(payload.accounting_allocation_version ?? 0) !== 1) return null;
+  const snapshotGross = BigInt(String(payload.accounting_gross_minor));
+  const revenueMinor = BigInt(String(payload.accounting_revenue_minor));
+  const vatMinor = BigInt(String(payload.accounting_vat_minor));
+  if (snapshotGross !== gross || revenueMinor < 0n || vatMinor < 0n || revenueMinor + vatMinor !== gross) {
+    throw err.validation({ accounting_allocation: "Invalid payment allocation snapshot" });
+  }
+  return { revenueMinor, vatMinor };
+}
+
 async function draftPayment(trx: Knex.Transaction, event: FinancialEventRow): Promise<JournalDraft> {
   const payload = payloadOf(event);
   const method = String(payload.method);
@@ -104,22 +115,27 @@ async function draftPayment(trx: Knex.Transaction, event: FinancialEventRow): Pr
   const total = toMinorUnits(String(payload.total));
   const vatTotal = toMinorUnits(String(payload.vat_amount ?? 0));
   const orderId = String(payload.order_id);
-  const priorRows = await trx("journal_entries")
-    .where({ account_id: event.account_id, order_id: orderId, event_type: "payment.captured" })
-    .select("meta");
-  const prior = allocationTotals(priorRows);
-  const allocation = allocateGross({
-    grossMinor: gross,
-    totalGrossMinor: total,
-    totalVatMinor: vatTotal,
-    priorGrossMinor: prior.gross,
-    priorRevenueMinor: prior.revenue,
-    priorVatMinor: prior.vat,
-  });
+  let allocation = allocationSnapshot(payload, gross);
+  if (!allocation) {
+    const priorRows = await trx("journal_entries")
+      .where({ account_id: event.account_id, order_id: orderId, event_type: "payment.captured" })
+      .select("meta");
+    const prior = allocationTotals(priorRows);
+    allocation = allocateGross({
+      grossMinor: gross,
+      totalGrossMinor: total,
+      totalVatMinor: vatTotal,
+      priorGrossMinor: prior.gross,
+      priorRevenueMinor: prior.revenue,
+      priorVatMinor: prior.vat,
+    });
+  }
   const lines: DraftLine[] = [
     { accountingAccountId: mapping.debit_account_id, component: "tender", debitMinor: gross, creditMinor: 0n },
-    { accountingAccountId: mapping.credit_account_id, component: "revenue", debitMinor: 0n, creditMinor: allocation.revenueMinor },
   ];
+  if (allocation.revenueMinor > 0n) {
+    lines.push({ accountingAccountId: mapping.credit_account_id, component: "revenue", debitMinor: 0n, creditMinor: allocation.revenueMinor });
+  }
   if (allocation.vatMinor > 0n) {
     lines.push({ accountingAccountId: mapping.vat_account_id, component: "vat", debitMinor: 0n, creditMinor: allocation.vatMinor });
   }
@@ -145,26 +161,30 @@ async function draftRefund(trx: Knex.Transaction, event: FinancialEventRow): Pro
     .where({ account_id: event.account_id, payment_id: originalPaymentId, event_type: "payment.captured" })
     .first();
   if (!original) throw err.validation({ original_payment: "Original payment journal is not posted" });
-  const originalMeta = typeof original.meta === "string" ? JSON.parse(original.meta) : original.meta;
-  const priorRefundRows = await trx("journal_entries")
-    .where({ account_id: event.account_id, original_payment_id: originalPaymentId, event_type: "refund.posted" })
-    .select("meta");
-  const prior = allocationTotals(priorRefundRows);
   const gross = absolute(toMinorUnits(String(payload.amount)));
-  const allocation = allocateRefund({
-    refundGrossMinor: gross,
-    originalGrossMinor: BigInt(String(originalMeta.gross_minor)),
-    originalRevenueMinor: BigInt(String(originalMeta.revenue_minor)),
-    originalVatMinor: BigInt(String(originalMeta.vat_minor)),
-    priorRefundGrossMinor: prior.gross,
-    priorRefundRevenueMinor: prior.revenue,
-    priorRefundVatMinor: prior.vat,
-  });
+  let allocation = allocationSnapshot(payload, gross);
+  if (!allocation) {
+    const originalMeta = typeof original.meta === "string" ? JSON.parse(original.meta) : original.meta;
+    const priorRefundRows = await trx("journal_entries")
+      .where({ account_id: event.account_id, original_payment_id: originalPaymentId, event_type: "refund.posted" })
+      .select("meta");
+    const prior = allocationTotals(priorRefundRows);
+    allocation = allocateRefund({
+      refundGrossMinor: gross,
+      originalGrossMinor: BigInt(String(originalMeta.gross_minor)),
+      originalRevenueMinor: BigInt(String(originalMeta.revenue_minor)),
+      originalVatMinor: BigInt(String(originalMeta.vat_minor)),
+      priorRefundGrossMinor: prior.gross,
+      priorRefundRevenueMinor: prior.revenue,
+      priorRefundVatMinor: prior.vat,
+    });
+  }
   const mapping = await mappingFor(trx, event.account_id, event.event_type, method);
   if (!mapping.vat_account_id) throw err.validation({ accounting_mapping: "VAT account is required" });
-  const lines: DraftLine[] = [
-    { accountingAccountId: mapping.debit_account_id, component: "revenue", debitMinor: allocation.revenueMinor, creditMinor: 0n },
-  ];
+  const lines: DraftLine[] = [];
+  if (allocation.revenueMinor > 0n) {
+    lines.push({ accountingAccountId: mapping.debit_account_id, component: "revenue", debitMinor: allocation.revenueMinor, creditMinor: 0n });
+  }
   if (allocation.vatMinor > 0n) {
     lines.push({ accountingAccountId: mapping.vat_account_id, component: "vat", debitMinor: allocation.vatMinor, creditMinor: 0n });
   }
@@ -244,6 +264,12 @@ export async function postClaimedFinancialEvent(
         .forUpdate()
         .first();
       if (!event) throw err.conflict();
+      if (event.event_type === "payment.captured" || event.event_type === "refund.posted") {
+        const payload = payloadOf(event);
+        await trx.raw("select pg_advisory_xact_lock(hashtextextended(?, 0))", [
+          `payment-allocation:${event.account_id}:${String(payload.order_id)}`,
+        ]);
+      }
       const existing = await trx("journal_entries").where({ financial_event_id: event.id }).first();
       if (existing) {
         await trx("financial_events").where({ id: event.id }).update({ status: "posted", posted_at: trx.fn.now(), claimed_by: null, claimed_at: null, updated_at: trx.fn.now() });

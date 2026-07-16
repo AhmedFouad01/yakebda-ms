@@ -17,11 +17,43 @@ const STATUS_CHECK = `
 export async function up(db: Knex): Promise<void> {
   await db.schema.table("payments", (table) => {
     table.string("idempotency_key", 180).nullable();
+    table.bigInteger("allocation_sequence").nullable();
   });
   await db.raw(`
+    with ranked as (
+      select id, row_number() over (partition by order_id order by created_at, id) as sequence
+        from payments
+    )
+    update payments
+       set allocation_sequence = ranked.sequence
+      from ranked
+     where payments.id = ranked.id;
+    alter table payments alter column allocation_sequence set not null;
+
     create unique index payments_order_idempotency_idx
       on payments (order_id, idempotency_key)
-      where idempotency_key is not null
+      where idempotency_key is not null;
+    create unique index payments_order_allocation_sequence_idx
+      on payments (order_id, allocation_sequence);
+
+    create or replace function ykms_set_payment_allocation_sequence()
+    returns trigger
+    language plpgsql
+    as $$
+    begin
+      if new.allocation_sequence is null then
+        select coalesce(max(allocation_sequence), 0) + 1
+          into new.allocation_sequence
+          from payments
+         where order_id = new.order_id;
+      end if;
+      return new;
+    end;
+    $$;
+
+    create trigger payments_sequence_before_insert
+      before insert on payments
+      for each row execute function ykms_set_payment_allocation_sequence()
   `);
 
   await db.raw(`
@@ -196,6 +228,8 @@ export async function up(db: Knex): Promise<void> {
 }
 
 export async function down(db: Knex): Promise<void> {
+  await db.raw("drop trigger if exists payments_sequence_before_insert on payments");
+  await db.raw("drop function if exists ykms_set_payment_allocation_sequence()");
   await db.raw("drop trigger if exists accounting_periods_residual_guard on accounting_periods");
   await db.raw("drop function if exists ykms_guard_period_residuals()");
   await db.raw("drop trigger if exists financial_events_evidence_guard on financial_events");
@@ -214,6 +248,9 @@ export async function down(db: Knex): Promise<void> {
     drop index if exists financial_events_source_event_uq;
 
     alter table financial_events drop constraint financial_events_status_check;
+    update financial_events
+       set status = 'pending'
+     where status in ('pending_policy', 'deferred_rounding', 'non_posting', 'reconciled');
     alter table financial_events
       add constraint financial_events_status_check
       check (status in ('pending', 'processing', 'posted', 'failed', 'dead'));
@@ -225,7 +262,9 @@ export async function down(db: Knex): Promise<void> {
   `);
 
   await db.raw("drop index if exists payments_order_idempotency_idx");
+  await db.raw("drop index if exists payments_order_allocation_sequence_idx");
   await db.schema.table("payments", (table) => {
     table.dropColumn("idempotency_key");
+    table.dropColumn("allocation_sequence");
   });
 }

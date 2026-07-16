@@ -625,6 +625,8 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .app2-side a.active { background: #1f252b; color: var(--yk-yellow); box-shadow: inset 3px 0 0 var(--yk-yellow); }
 .app2-side a:hover { color: var(--yk-yellow); }
 .app2-main { flex: 1; min-width: 0; overflow-y: auto; padding: var(--sp-4); }
+/* W4b: reserve the gutter so scrollbar appearance never shifts layout. */
+.app2-main:not(.full) { scrollbar-gutter: stable; }
 .app2-main.full { padding: 0; overflow: hidden; }
 
 /* POS يعيش داخل الشِل — لا fixed ولا تغطية للتنقل بعد اليوم */
@@ -754,15 +756,17 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .uif-back { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #d8dcd6; background: #fff; cursor: pointer; font-size: 15px; }
 
 /* ——— StickyActionBar ——— */
+/* W4b: the bar lives at the top of the scroll container, directly under
+   the AppShell, so Save/Undo are reachable without scrolling. */
 .uif-sticky {
-  position: sticky; bottom: 0; z-index: 30;
+  position: sticky; top: calc(-1 * var(--sp-4)); z-index: 30;
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
-  background: var(--yk-panel-2); border-top: 2px solid var(--yk-line);
-  margin-top: var(--sp-3);
-  border-radius: 12px 12px 0 0;
+  background: var(--yk-panel-2); border-bottom: 2px solid var(--yk-line);
+  margin-bottom: var(--sp-3);
+  border-radius: 0 0 12px 12px;
 }
-.uif-sticky.dirty { border-top-color: var(--yk-yellow); }
+.uif-sticky.dirty { border-bottom-color: var(--yk-yellow); }
 .uif-dirty-dot { color: var(--yk-yellow); font-size: 12.5px; font-weight: 800; }
 .uif-sticky-actions { display: flex; gap: var(--sp-2); margin-inline-start: auto; }
 
@@ -2383,7 +2387,7 @@ input[type="checkbox"] {
 .settings-page,
 .users-page {
   min-width: 0;
-  overflow-x: hidden;
+  /* W4b: no overflow context — .app2-main owns scroll and sticky. */
   color: var(--text-primary);
 }
 
@@ -7380,7 +7384,7 @@ button.danger,
 .settings-page {
   width: min(1480px, 100%);
   max-width: 100%;
-  overflow-x: hidden;
+  /* W4b: no overflow context here — .app2-main owns scrolling and sticky. */
 }
 
 .settings-page .setx2 {
@@ -7393,7 +7397,7 @@ button.danger,
 .settings-page .setx2-body {
   width: 100%;
   max-width: none;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .settings-page .uif-card-body:has(.settings-menu-table) {

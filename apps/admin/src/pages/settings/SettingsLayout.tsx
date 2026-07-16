@@ -78,6 +78,13 @@ export function SettingsLayout() {
 
           {isDoc && doc.data && (
             <>
+              {/* W4b: شريط الحفظ أعلى المحتوى مباشرة تحت الـAppShell — يظهر عند وجود تغييرات */}
+              {editable && (doc.dirty || doc.saving) && (
+                <StickyActionBar dirty={doc.dirty}>
+                  <CancelButton onClick={doc.reset}>تراجع</CancelButton>
+                  <SaveButton busy={doc.saving} disabled={!doc.dirty} onClick={doc.save} />
+                </StickyActionBar>
+              )}
               {section === "profile" && (
                 <SectionCard title="بيانات المطعم" hint="الاسم والهوية البصرية وبيانات الفاتورة">
                   <RowText ctx={ctx} k="restaurant_name" label="اسم المطعم بالعربية" />
@@ -209,13 +216,6 @@ export function SettingsLayout() {
                 </>
               )}
 
-              {/* شريط الحفظ الثابت لأقسام الوثيقة القابلة للتحرير */}
-              {editable && (
-                <StickyActionBar dirty={doc.dirty}>
-                  <CancelButton onClick={doc.reset}>تراجع</CancelButton>
-                  <SaveButton busy={doc.saving} disabled={!doc.dirty} onClick={doc.save} />
-                </StickyActionBar>
-              )}
             </>
           )}
 

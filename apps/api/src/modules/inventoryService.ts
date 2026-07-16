@@ -36,6 +36,14 @@ interface BalanceRow {
   value: string;
 }
 
+type MovementFinancialStatus = "pending" | "pending_policy" | "non_posting";
+
+interface MovementFinancialDisposition {
+  eventType: string;
+  status: MovementFinancialStatus;
+  classification: string;
+}
+
 export interface CreateMovementInput {
   accountId: string;
   locationId: string;
@@ -70,6 +78,53 @@ export interface MovementResult {
   unit_cost: string;
   total_value: string;
   idempotent_replay: boolean;
+}
+
+async function financialDispositionForMovement(
+  trx: Knex.Transaction,
+  input: CreateMovementInput,
+  totalValue: string
+): Promise<MovementFinancialDisposition> {
+  const eventTypes: Record<CreateMovementInput["movementType"], string> = {
+    receipt: "inventory.receipt",
+    issue: "inventory.issue",
+    adjustment: "inventory.adjustment",
+    transfer_in: "inventory.transfer",
+    transfer_out: "inventory.transfer",
+    waste: "inventory.waste",
+    count_adjustment: "inventory.adjustment",
+    consumption: "inventory.consumption",
+    reversal: "inventory.reversal",
+  };
+  const eventType = eventTypes[input.movementType];
+  if (parseDecimal(totalValue, 4) === 0n) {
+    return { eventType, status: "non_posting", classification: "zero_value" };
+  }
+  if (input.movementType === "issue") {
+    return { eventType, status: "pending_policy", classification: "generic_issue_policy_required" };
+  }
+  if (input.movementType === "transfer_in" || input.movementType === "transfer_out") {
+    return { eventType, status: "non_posting", classification: "internal_value_transfer" };
+  }
+  if (input.movementType === "reversal") {
+    const originalEvent = await trx("financial_events")
+      .where({
+        account_id: input.accountId,
+        source_type: "stock_movement",
+        source_id: input.reversalOfMovementId,
+      })
+      .first();
+    if (!originalEvent) {
+      return { eventType, status: "pending_policy", classification: "original_financial_event_missing" };
+    }
+    if (originalEvent.status === "non_posting") {
+      return { eventType, status: "non_posting", classification: "reversal_of_non_posting" };
+    }
+    if (originalEvent.status === "pending_policy") {
+      return { eventType, status: "pending_policy", classification: "reversal_policy_required" };
+    }
+  }
+  return { eventType, status: "pending", classification: "journal_required" };
 }
 
 async function createStockMovementInTransaction(
@@ -145,6 +200,20 @@ async function createStockMovementInTransaction(
       if (!supplier) throw err.notFound();
     }
 
+    if (input.movementType === "reversal") {
+      if (!input.reversalOfMovementId) {
+        throw err.validation({ reversal_of_movement_id: "A reversal must reference its original movement" });
+      }
+      const original = await trx("stock_movements")
+        .where({ id: input.reversalOfMovementId, account_id: input.accountId })
+        .forUpdate()
+        .first();
+      if (!original) throw err.notFound();
+      if (original.location_id !== location.id || original.item_id !== item.id) throw err.conflict();
+    } else if (input.reversalOfMovementId) {
+      throw err.validation({ reversal_of_movement_id: "Only reversal movements may reference an original movement" });
+    }
+
     const id = newId();
     const row = {
       id,
@@ -166,25 +235,26 @@ async function createStockMovementInTransaction(
       transfer_group_id: input.transferGroupId ?? null,
     };
     await trx("stock_movements").insert(row);
-    const financialEventType: Partial<Record<CreateMovementInput["movementType"], string>> = {
-      receipt: "inventory.receipt",
-      waste: "inventory.waste",
-      count_adjustment: "inventory.adjustment",
-      consumption: "inventory.consumption",
-      reversal: "inventory.reversal",
-    };
-    const eventType = financialEventType[input.movementType];
-    if (eventType) {
-      await enqueueFinancialEvent(trx, {
-        accountId: input.accountId,
-        branchId: location.branch_id,
-        sourceType: "stock_movement",
-        sourceId: id,
-        eventType,
-        idempotencyKey: `stock-movement:${id}:${eventType}:v1`,
-        payload: { version: 1, ...row },
-      });
-    }
+    const disposition = await financialDispositionForMovement(trx, input, row.total_value);
+    await enqueueFinancialEvent(trx, {
+      accountId: input.accountId,
+      branchId: location.branch_id,
+      sourceType: "stock_movement",
+      sourceId: id,
+      eventType: disposition.eventType,
+      idempotencyKey: `stock-movement:${id}:${disposition.eventType}:v2`,
+      payloadVersion: 2,
+      initialStatus: disposition.status,
+      payload: {
+        version: 2,
+        valuation_policy: "moving_weighted_average",
+        valuation_policy_version: 1,
+        accounting_classification: disposition.classification,
+        extended_value: row.total_value,
+        source_reference: { type: row.source_type, id: row.source_id },
+        ...row,
+      },
+    });
     return { ...row, idempotent_replay: false };
 }
 

@@ -65,6 +65,8 @@ export async function up(db: Knex): Promise<void> {
       add constraint inventory_items_id_account_uq unique (id, account_id);
     alter table financial_events
       add constraint financial_events_id_account_uq unique (id, account_id);
+    alter table stock_movements
+      add constraint stock_movements_id_account_uq unique (id, account_id);
 
     alter table stock_movements
       add constraint stock_movements_branch_account_fk
@@ -73,7 +75,10 @@ export async function up(db: Knex): Promise<void> {
         foreign key (location_id, account_id, branch_id)
         references inventory_locations (id, account_id, branch_id) on delete restrict,
       add constraint stock_movements_item_account_fk
-        foreign key (item_id, account_id) references inventory_items (id, account_id) on delete restrict;
+        foreign key (item_id, account_id) references inventory_items (id, account_id) on delete restrict,
+      add constraint stock_movements_reversal_account_fk
+        foreign key (reversal_of_movement_id, account_id)
+        references stock_movements (id, account_id) on delete restrict;
 
     alter table financial_events
       add constraint financial_events_branch_account_fk
@@ -243,6 +248,7 @@ export async function down(db: Knex): Promise<void> {
     alter table journal_entries drop constraint if exists journal_entries_event_account_fk;
     alter table financial_events drop constraint if exists financial_events_branch_account_fk;
     alter table stock_movements drop constraint if exists stock_movements_item_account_fk;
+    alter table stock_movements drop constraint if exists stock_movements_reversal_account_fk;
     alter table stock_movements drop constraint if exists stock_movements_location_scope_fk;
     alter table stock_movements drop constraint if exists stock_movements_branch_account_fk;
     drop index if exists financial_events_source_event_uq;
@@ -256,6 +262,7 @@ export async function down(db: Knex): Promise<void> {
       check (status in ('pending', 'processing', 'posted', 'failed', 'dead'));
 
     alter table financial_events drop constraint if exists financial_events_id_account_uq;
+    alter table stock_movements drop constraint if exists stock_movements_id_account_uq;
     alter table inventory_items drop constraint if exists inventory_items_id_account_uq;
     alter table inventory_locations drop constraint if exists inventory_locations_scope_uq;
     alter table branches drop constraint if exists branches_id_account_uq;

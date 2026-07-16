@@ -7970,7 +7970,7 @@ button.danger,
   font-weight: 900;
 }
 
-@media (min-width: 561px) and (max-width: 900px) {
+@media (max-width: 900px) {
   .app2-pos {
     --appbar-h: 96px;
   }
@@ -9276,6 +9276,36 @@ button.danger,
   border-color: var(--border-subtle);
   background: var(--surface-2);
   color: var(--text-primary);
+}
+
+/* W2a: keep AppShell geometry usable when the persistent sidebar no longer fits. */
+@media (max-width: 900px) {
+  .app2:not(.app2-pos) .app2-side { display: none; }
+  .app2-pos .posx-shell-operation-controls .posx-search { grid-column: auto; }
+}
+
+@media (max-width: 560px) {
+  .app2-bar {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .app2:not(.app2-pos) .app2-brand strong,
+  .app2:not(.app2-pos) .app2-crumb,
+  .app2:not(.app2-pos) .app2-account-cluster .app2-user,
+  .app2-pos .app2-brand strong,
+  .app2-pos .app2-account-cluster .app2-user {
+    display: none;
+  }
+
+  .app2-brand {
+    inline-size: 40px;
+    justify-content: center;
+  }
+
+  .app2-pos .app2-bar {
+    grid-template-columns: 40px 40px 40px minmax(0, 1fr) auto 54px 52px;
+  }
 }
 
 .uif-drawer .posx-history-item-copy,

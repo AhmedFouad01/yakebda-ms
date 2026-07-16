@@ -130,11 +130,11 @@ function Add-LocalGitExcludes {
     }
 
     $patterns = @(
-        '.agents/skills/graphify/',
+        '.codex/skills/graphify/',
+        '.codex/hooks.json',
         '.claude/skills/graphify/',
         '.claude/CLAUDE.md',
-        '.claude/settings.json',
-        '.codex/hooks.json'
+        '.claude/settings.json'
     )
 
     $missing = @($patterns | Where-Object { $_ -notin $existingLines })

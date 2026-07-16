@@ -2282,7 +2282,9 @@ input[type="checkbox"] {
   outline-offset: 2px;
 }
 
-:is(button, input, select, textarea):disabled,
+/* :where() keeps the element half at (0,0,0) so component hiding rules
+   (e.g. the visually-hidden toggle input) still win when disabled. */
+:where(:is(button, input, select, textarea):disabled),
 .uif-checkbox.disabled,
 .uif-toggle.disabled {
   opacity: 0.58;
@@ -4440,7 +4442,9 @@ button.danger,
   outline-offset: 2px;
 }
 
-:is(button, input, select, textarea):disabled {
+/* :where() keeps this at (0,0,0) so component hiding rules (e.g. the
+   visually-hidden toggle input, opacity: 0) still win when disabled. */
+:where(:is(button, input, select, textarea):disabled) {
   opacity: 0.68;
 }
 
@@ -5137,30 +5141,13 @@ button.sm,
 }
 
 .settings-page .set-perms {
-  counter-reset: permission-count;
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
   justify-content: flex-start;
   min-height: 34px;
   margin: 0;
-}
-
-.settings-page .set-perms > .stub {
-  counter-increment: permission-count;
-  display: none;
-}
-
-.settings-page .set-perms::before {
-  content: counter(permission-count) " صلاحيات";
-  min-height: 28px;
-  padding: 4px 11px;
-  border: 1px solid var(--danger);
-  border-radius: 999px;
-  background: var(--theme-danger-soft);
-  color: var(--danger);
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.4;
 }
 
 .settings-page .set-perms:has(> .stub:nth-child(n + 5))::before {

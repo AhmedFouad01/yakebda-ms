@@ -21,8 +21,8 @@ function Invoke-NativeCommand {
         [switch]$AllowFailure
     )
 
-    & $FilePath @Arguments
-    $exitCode = $LASTEXITCODE
+    & $FilePath @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
+    $exitCode = [int]$LASTEXITCODE
 
     if ($exitCode -ne 0 -and -not $AllowFailure) {
         throw "Command failed with exit code $exitCode: $FilePath $($Arguments -join ' ')"
@@ -35,11 +35,15 @@ function Resolve-CommandPath {
     param([Parameter(Mandatory)][string]$Name)
 
     $command = Get-Command $Name -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
+    if ($null -eq $command) {
+        return $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($command.Source)) {
         return $command.Source
     }
 
-    return $null
+    return $command.Name
 }
 
 function Enable-CodexMultiAgent {
@@ -99,9 +103,23 @@ function Enable-CodexMultiAgent {
 }
 
 function Add-LocalGitExcludes {
-    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$GitPath
+    )
 
-    $excludePath = Join-Path $RepositoryRoot '.git\info\exclude'
+    $excludePathOutput = & $GitPath -C $RepositoryRoot rev-parse --git-path info/exclude 2>$null
+    if ($LASTEXITCODE -ne 0 -or $null -eq $excludePathOutput) {
+        throw 'Could not resolve the repository-local Git exclude file.'
+    }
+
+    $excludePathRaw = ($excludePathOutput | Out-String).Trim()
+    $excludePath = if ([System.IO.Path]::IsPathRooted($excludePathRaw)) {
+        $excludePathRaw
+    } else {
+        Join-Path $RepositoryRoot $excludePathRaw
+    }
+
     $excludeDirectory = Split-Path $excludePath -Parent
     New-Item -ItemType Directory -Path $excludeDirectory -Force | Out-Null
 
@@ -121,7 +139,8 @@ function Add-LocalGitExcludes {
 
     $missing = @($patterns | Where-Object { $_ -notin $existingLines })
     if ($missing.Count -gt 0) {
-        Add-Content -Path $excludePath -Value @('', '# Graphify machine-local assistant integration', $missing)
+        $linesToAdd = @('', '# Graphify machine-local assistant integration') + $missing
+        Add-Content -Path $excludePath -Value $linesToAdd
         Write-Host "Added machine-local Graphify files to $excludePath"
     }
 }
@@ -132,9 +151,14 @@ if (-not $gitPath) {
     throw 'Git is required but was not found on PATH.'
 }
 
-$repositoryRoot = (& $gitPath rev-parse --show-toplevel 2>$null).Trim()
-if ([string]::IsNullOrWhiteSpace($repositoryRoot)) {
+$repositoryRootOutput = & $gitPath rev-parse --show-toplevel 2>$null
+if ($LASTEXITCODE -ne 0 -or $null -eq $repositoryRootOutput) {
     throw 'Run this script from inside the YAKEBDA_MS Git repository.'
+}
+
+$repositoryRoot = ($repositoryRootOutput | Out-String).Trim()
+if ([string]::IsNullOrWhiteSpace($repositoryRoot)) {
+    throw 'Git returned an empty repository root.'
 }
 
 Set-Location $repositoryRoot
@@ -163,9 +187,15 @@ if (-not $uvPath) {
 
     $candidateDirectories = @(
         (Join-Path $HOME '.local\bin'),
-        (Join-Path $HOME '.cargo\bin'),
-        (Join-Path $env:LOCALAPPDATA 'Programs\uv')
+        (Join-Path $HOME '.cargo\bin')
     )
+
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $candidateDirectories += @(
+            (Join-Path $env:LOCALAPPDATA 'Programs\uv'),
+            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links')
+        )
+    }
 
     foreach ($directory in $candidateDirectories) {
         if (Test-Path $directory) {
@@ -184,9 +214,12 @@ Write-Step "Install pinned Graphify $GraphifyVersion"
     'tool', 'install', '--force', "graphifyy==$GraphifyVersion"
 ))
 
-$uvBinDirectory = (& $uvPath tool dir --bin).Trim()
-if (-not [string]::IsNullOrWhiteSpace($uvBinDirectory) -and (Test-Path $uvBinDirectory)) {
-    $env:Path = "$uvBinDirectory;$env:Path"
+$uvBinDirectoryOutput = & $uvPath tool dir --bin 2>$null
+if ($LASTEXITCODE -eq 0 -and $null -ne $uvBinDirectoryOutput) {
+    $uvBinDirectory = ($uvBinDirectoryOutput | Out-String).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($uvBinDirectory) -and (Test-Path $uvBinDirectory)) {
+        $env:Path = "$uvBinDirectory;$env:Path"
+    }
 }
 
 $graphifyPath = Resolve-CommandPath -Name 'graphify'
@@ -210,7 +243,7 @@ $claudePlatform = if ($env:OS -eq 'Windows_NT') { 'windows' } else { 'claude' }
     'install', '--project', '--platform', $claudePlatform
 ))
 
-Add-LocalGitExcludes -RepositoryRoot $repositoryRoot
+Add-LocalGitExcludes -RepositoryRoot $repositoryRoot -GitPath $gitPath
 $env:GRAPHIFY_QUERY_LOG_DISABLE = '1'
 
 if (-not $SkipGraphBuild) {

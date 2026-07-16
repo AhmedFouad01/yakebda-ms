@@ -85,6 +85,30 @@ export function accountingRoutes(db: Knex): Router {
     }
   });
 
+  router.get("/rounding-reconciliations", requirePermission("accounting.view"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        branch_id: z.string().uuid().optional(),
+        status: z.enum(["open", "settled", "reversed"]).optional(),
+        limit: z.coerce.number().int().min(1).max(200).default(100),
+      }).safeParse(req.query);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const branchId = parsed.data.branch_id ?? req.user!.branchId ?? undefined;
+      if (branchId && !canAccessBranch(req.user!, branchId)) throw err.forbidden();
+      const rows = await db("financial_event_reconciliations")
+        .where({ account_id: req.user!.accountId })
+        .modify((query) => {
+          if (branchId) query.where("branch_id", branchId);
+          if (parsed.data.status) query.where("status", parsed.data.status);
+        })
+        .orderBy([{ column: "entry_date", order: "desc" }, { column: "created_at", order: "desc" }, { column: "id", order: "desc" }])
+        .limit(parsed.data.limit);
+      res.json({ data: rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/events/process", requirePermission("accounting.manage"), async (req, res, next) => {
     try {
       const parsed = z.object({ limit: z.coerce.number().int().min(1).max(100).default(25) }).safeParse(req.body ?? {});

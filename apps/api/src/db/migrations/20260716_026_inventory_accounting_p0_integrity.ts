@@ -229,12 +229,17 @@ export async function up(db: Knex): Promise<void> {
     create trigger accounting_periods_residual_guard
       before insert or update on accounting_periods
       for each row execute function ykms_guard_period_residuals();
+
+    create trigger financial_reconciliations_period_guard
+      before insert on financial_event_reconciliations
+      for each row execute function ykms_guard_accounting_period();
   `);
 }
 
 export async function down(db: Knex): Promise<void> {
   await db.raw("drop trigger if exists payments_sequence_before_insert on payments");
   await db.raw("drop function if exists ykms_set_payment_allocation_sequence()");
+  await db.raw("drop trigger if exists financial_reconciliations_period_guard on financial_event_reconciliations");
   await db.raw("drop trigger if exists accounting_periods_residual_guard on accounting_periods");
   await db.raw("drop function if exists ykms_guard_period_residuals()");
   await db.raw("drop trigger if exists financial_events_evidence_guard on financial_events");

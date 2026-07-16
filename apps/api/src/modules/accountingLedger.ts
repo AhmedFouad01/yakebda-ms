@@ -7,6 +7,7 @@ import {
   fromMinorUnits,
   toMinorUnits,
 } from "../lib/accountingMath";
+import { formatDecimal, parseDecimal } from "../lib/inventoryMath";
 import { failFinancialEvent } from "./financialOutbox";
 
 const SYSTEM_ACCOUNTS = [
@@ -59,6 +60,25 @@ interface JournalDraft {
   description: string;
   meta: Record<string, unknown>;
   lines: DraftLine[];
+}
+
+interface ReconciliationDraft {
+  sourceAmount: string;
+  journalAmount: string;
+  residualAmount: string;
+  dimensionKey: string;
+  status: "open" | "settled";
+  reversesReconciliationId?: string;
+  originalReconciliationId?: string;
+  originalFinancialEventId?: string;
+}
+
+type PostingStatus = "posted" | "deferred_rounding" | "non_posting" | "reconciled";
+
+interface PostingDraft {
+  journal: JournalDraft | null;
+  reconciliation: ReconciliationDraft | null;
+  status: PostingStatus;
 }
 
 function payloadOf(event: FinancialEventRow): Record<string, unknown> {
@@ -205,50 +225,133 @@ async function draftRefund(trx: Knex.Transaction, event: FinancialEventRow): Pro
   };
 }
 
-async function draftMappedEvent(trx: Knex.Transaction, event: FinancialEventRow): Promise<JournalDraft | null> {
+async function draftMappedEvent(trx: Knex.Transaction, event: FinancialEventRow): Promise<PostingDraft> {
   const payload = payloadOf(event);
   let dimension = "default";
   if (event.event_type === "cash.movement") dimension = String(payload.type);
   if (event.event_type === "inventory.adjustment") {
-    dimension = toMinorUnits(String(payload.total_value)) >= 0n ? "positive" : "negative";
+    dimension = parseDecimal(String(payload.total_value), 4) >= 0n ? "positive" : "negative";
   }
   const grossValue = event.event_type === "cash.movement" ? payload.amount : payload.total_value;
-  const gross = absolute(toMinorUnits(String(grossValue ?? 0)));
-  if (gross === 0n) return null;
+  if (!event.event_type.startsWith("inventory.")) {
+    const gross = absolute(toMinorUnits(String(grossValue ?? 0)));
+    if (gross === 0n) return { journal: null, reconciliation: null, status: "non_posting" };
+    const mapping = await mappingFor(trx, event.account_id, event.event_type, dimension);
+    return {
+      journal: {
+        description: `${event.event_type} ${event.source_id}`,
+        meta: { gross_minor: gross.toString(), dimension },
+        lines: [
+          { accountingAccountId: mapping.debit_account_id, component: "debit", debitMinor: gross, creditMinor: 0n },
+          { accountingAccountId: mapping.credit_account_id, component: "credit", debitMinor: 0n, creditMinor: gross },
+        ],
+      },
+      reconciliation: null,
+      status: "posted",
+    };
+  }
+
+  const sourceScale4 = parseDecimal(String(grossValue ?? 0), 4);
+  if (sourceScale4 === 0n) return { journal: null, reconciliation: null, status: "non_posting" };
   const mapping = await mappingFor(trx, event.account_id, event.event_type, dimension);
+  const journalMinorSigned = toMinorUnits(formatDecimal(sourceScale4, 4));
+  const journalScale4 = journalMinorSigned * 100n;
+  const residualScale4 = sourceScale4 - journalScale4;
+  const gross = absolute(journalMinorSigned);
+  const journal: JournalDraft | null = gross === 0n
+    ? null
+    : {
+        description: `${event.event_type} ${event.source_id}`,
+        meta: {
+          gross_minor: gross.toString(),
+          dimension,
+          source_amount: formatDecimal(sourceScale4, 4),
+          residual_amount: formatDecimal(residualScale4, 4),
+        },
+        lines: [
+          { accountingAccountId: mapping.debit_account_id, component: "debit", debitMinor: gross, creditMinor: 0n },
+          { accountingAccountId: mapping.credit_account_id, component: "credit", debitMinor: 0n, creditMinor: gross },
+        ],
+      };
+  const reconciliation: ReconciliationDraft | null = residualScale4 === 0n
+    ? null
+    : {
+        sourceAmount: formatDecimal(sourceScale4, 4),
+        journalAmount: fromMinorUnits(journalMinorSigned),
+        residualAmount: formatDecimal(residualScale4, 4),
+        dimensionKey: dimension,
+        status: "open",
+      };
   return {
-    description: `${event.event_type} ${event.source_id}`,
-    meta: { gross_minor: gross.toString(), dimension },
-    lines: [
-      { accountingAccountId: mapping.debit_account_id, component: "debit", debitMinor: gross, creditMinor: 0n },
-      { accountingAccountId: mapping.credit_account_id, component: "credit", debitMinor: 0n, creditMinor: gross },
-    ],
+    journal,
+    reconciliation,
+    status: journal ? "posted" : "deferred_rounding",
   };
 }
 
-async function draftInventoryReversal(trx: Knex.Transaction, event: FinancialEventRow): Promise<JournalDraft> {
+async function draftInventoryReversal(trx: Knex.Transaction, event: FinancialEventRow): Promise<PostingDraft> {
   const payload = payloadOf(event);
   const originalMovementId = String(payload.reversal_of_movement_id);
-  const originalEntry = await trx("journal_entries")
+  const originalEvent = await trx<FinancialEventRow>("financial_events")
     .where({ account_id: event.account_id, source_type: "stock_movement", source_id: originalMovementId })
     .first();
-  if (!originalEntry) throw err.validation({ original_movement: "Original movement journal is not posted" });
-  const originalLines = await trx("journal_lines").where({ entry_id: originalEntry.id }).orderBy("id");
+  if (!originalEvent) throw err.validation({ original_movement: "Original movement financial event is missing" });
+  const originalPayload = payloadOf(originalEvent);
+  const reversalValue = parseDecimal(String(payload.total_value), 4);
+  const originalValue = parseDecimal(String(originalPayload.total_value), 4);
+  if (reversalValue !== -originalValue) {
+    throw err.validation({ reversal_value: "Reversal value must exactly negate the original movement" });
+  }
+  const originalEntry = await trx("journal_entries")
+    .where({ account_id: event.account_id, financial_event_id: originalEvent.id })
+    .first();
+  const originalReconciliation = await trx("financial_event_reconciliations")
+    .where({ account_id: event.account_id, financial_event_id: originalEvent.id })
+    .first();
+  if (!originalEntry && !originalReconciliation) {
+    throw err.validation({ original_movement: "Original movement has no journal or reconciliation evidence" });
+  }
+  const originalLines = originalEntry
+    ? await trx("journal_lines").where({ entry_id: originalEntry.id }).orderBy("id")
+    : [];
+  const journal: JournalDraft | null = originalEntry
+    ? {
+        description: `Inventory reversal of ${originalMovementId}`,
+        meta: { reversal_of_stock_movement_id: originalMovementId },
+        lines: originalLines.map((line) => ({
+          accountingAccountId: line.accounting_account_id,
+          component: `reversal:${line.component}`,
+          debitMinor: toMinorUnits(String(line.credit)),
+          creditMinor: toMinorUnits(String(line.debit)),
+        })),
+      }
+    : null;
+  const reconciliation: ReconciliationDraft | null = originalReconciliation
+    ? {
+        sourceAmount: formatDecimal(-parseDecimal(String(originalReconciliation.source_amount), 4), 4),
+        journalAmount: fromMinorUnits(-toMinorUnits(String(originalReconciliation.journal_amount))),
+        residualAmount: formatDecimal(-parseDecimal(String(originalReconciliation.residual_amount), 4), 4),
+        dimensionKey: String(originalReconciliation.dimension_key),
+        status: "settled",
+        reversesReconciliationId: originalReconciliation.id,
+        originalReconciliationId: originalReconciliation.id,
+        originalFinancialEventId: originalEntry ? undefined : originalEvent.id,
+      }
+    : null;
   return {
-    description: `Inventory reversal of ${originalMovementId}`,
-    meta: { reversal_of_stock_movement_id: originalMovementId },
-    lines: originalLines.map((line) => ({
-      accountingAccountId: line.accounting_account_id,
-      component: `reversal:${line.component}`,
-      debitMinor: toMinorUnits(String(line.credit)),
-      creditMinor: toMinorUnits(String(line.debit)),
-    })),
+    journal,
+    reconciliation,
+    status: journal ? "posted" : "reconciled",
   };
 }
 
-async function buildDraft(trx: Knex.Transaction, event: FinancialEventRow): Promise<JournalDraft | null> {
-  if (event.event_type === "payment.captured") return draftPayment(trx, event);
-  if (event.event_type === "refund.posted") return draftRefund(trx, event);
+async function buildDraft(trx: Knex.Transaction, event: FinancialEventRow): Promise<PostingDraft> {
+  if (event.event_type === "payment.captured") {
+    return { journal: await draftPayment(trx, event), reconciliation: null, status: "posted" };
+  }
+  if (event.event_type === "refund.posted") {
+    return { journal: await draftRefund(trx, event), reconciliation: null, status: "posted" };
+  }
   if (event.event_type === "inventory.reversal") return draftInventoryReversal(trx, event);
   return draftMappedEvent(trx, event);
 }
@@ -256,7 +359,7 @@ async function buildDraft(trx: Knex.Transaction, event: FinancialEventRow): Prom
 export async function postClaimedFinancialEvent(
   db: Knex,
   input: { eventId: string; workerId: string; createdBy?: string }
-): Promise<{ status: "posted" | "failed" | "dead"; journalEntryId: string | null }> {
+): Promise<{ status: PostingStatus | "failed" | "dead"; journalEntryId: string | null }> {
   try {
     const journalEntryId = await db.transaction(async (trx) => {
       const event = await trx<FinancialEventRow>("financial_events")
@@ -275,44 +378,70 @@ export async function postClaimedFinancialEvent(
         await trx("financial_events").where({ id: event.id }).update({ status: "posted", posted_at: trx.fn.now(), claimed_by: null, claimed_at: null, updated_at: trx.fn.now() });
         return existing.id as string;
       }
-      const draft = await buildDraft(trx, event);
-      if (!draft) {
-        await trx("financial_events").where({ id: event.id }).update({ status: "posted", posted_at: trx.fn.now(), claimed_by: null, claimed_at: null, updated_at: trx.fn.now() });
-        return null;
-      }
-      const entryId = newId();
+      const plan = await buildDraft(trx, event);
+      const entryId = plan.journal ? newId() : null;
       const entryDate = new Date(event.created_at).toISOString().slice(0, 10);
-      await trx("journal_entries").insert({
-        id: entryId,
-        account_id: event.account_id,
-        branch_id: event.branch_id,
-        financial_event_id: event.id,
-        event_type: event.event_type,
-        source_type: event.source_type,
-        source_id: event.source_id,
-        order_id: draft.orderId ?? null,
-        payment_id: draft.paymentId ?? null,
-        original_payment_id: draft.originalPaymentId ?? null,
-        entry_date: entryDate,
-        description: draft.description,
-        meta: JSON.stringify(draft.meta),
-        created_by: input.createdBy ?? null,
-      });
-      await trx("journal_lines").insert(
-        draft.lines.map((line) => ({
+      if (plan.journal && entryId) {
+        await trx("journal_entries").insert({
+          id: entryId,
+          account_id: event.account_id,
+          branch_id: event.branch_id,
+          financial_event_id: event.id,
+          event_type: event.event_type,
+          source_type: event.source_type,
+          source_id: event.source_id,
+          order_id: plan.journal.orderId ?? null,
+          payment_id: plan.journal.paymentId ?? null,
+          original_payment_id: plan.journal.originalPaymentId ?? null,
+          entry_date: entryDate,
+          description: plan.journal.description,
+          meta: JSON.stringify(plan.journal.meta),
+          created_by: input.createdBy ?? null,
+        });
+        await trx("journal_lines").insert(
+          plan.journal.lines.map((line) => ({
+            id: newId(),
+            account_id: event.account_id,
+            entry_id: entryId,
+            accounting_account_id: line.accountingAccountId,
+            branch_id: event.branch_id,
+            component: line.component,
+            debit: fromMinorUnits(line.debitMinor),
+            credit: fromMinorUnits(line.creditMinor),
+          }))
+        );
+      }
+      if (plan.reconciliation) {
+        await trx("financial_event_reconciliations").insert({
           id: newId(),
           account_id: event.account_id,
-          entry_id: entryId,
-          accounting_account_id: line.accountingAccountId,
           branch_id: event.branch_id,
-          component: line.component,
-          debit: fromMinorUnits(line.debitMinor),
-          credit: fromMinorUnits(line.creditMinor),
-        }))
-      );
+          financial_event_id: event.id,
+          event_type: event.event_type,
+          dimension_key: plan.reconciliation.dimensionKey,
+          entry_date: entryDate,
+          source_amount: plan.reconciliation.sourceAmount,
+          journal_amount: plan.reconciliation.journalAmount,
+          residual_amount: plan.reconciliation.residualAmount,
+          status: plan.reconciliation.status,
+          reverses_reconciliation_id: plan.reconciliation.reversesReconciliationId ?? null,
+          settlement_journal_id: entryId,
+        });
+        if (plan.reconciliation.originalReconciliationId) {
+          const reversed = await trx("financial_event_reconciliations")
+            .where({ id: plan.reconciliation.originalReconciliationId, status: "open" })
+            .update({ status: "reversed" });
+          if (reversed !== 1) throw err.conflict();
+          if (plan.reconciliation.originalFinancialEventId) {
+            await trx("financial_events")
+              .where({ id: plan.reconciliation.originalFinancialEventId })
+              .update({ status: "reconciled", updated_at: trx.fn.now() });
+          }
+        }
+      }
       await trx("financial_events").where({ id: event.id }).update({
-        status: "posted",
-        posted_at: trx.fn.now(),
+        status: plan.status,
+        posted_at: plan.status === "posted" ? trx.fn.now() : null,
         claimed_by: null,
         claimed_at: null,
         next_attempt_at: null,
@@ -321,7 +450,8 @@ export async function postClaimedFinancialEvent(
       });
       return entryId;
     });
-    return { status: "posted", journalEntryId };
+    const status = await db("financial_events").where({ id: input.eventId }).first("status");
+    return { status: status.status as PostingStatus, journalEntryId };
   } catch (error) {
     const message = error instanceof Error ? error.message : "financial posting failed";
     const failed = await failFinancialEvent(db, {

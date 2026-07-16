@@ -117,6 +117,10 @@ export function createApiErrorHandler(logger: StructuredLogSink) {
       return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
     }
 
+    if (dbError.code === "23514" && dbError.constraint === "accounting_period_open_residuals") {
+      return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
+    }
+
     logger.write({
       timestamp: new Date().toISOString(),
       level: "error",

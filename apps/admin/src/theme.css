@@ -5877,10 +5877,8 @@ button.sm,
 .kitchen-page .kds-col {
   min-width: 0;
   padding: 9px;
-  border: 1px solid var(--kds-accent);
   border-radius: 16px;
-  background: var(--kds-soft);
-  box-shadow: 0 7px 20px var(--theme-shadow);
+  background: var(--surface-2);
 }
 
 .kitchen-page .kds-col-head {
@@ -5978,11 +5976,9 @@ button.sm,
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin: -2px -2px 7px;
-  padding: 7px;
-  border: 1px solid color-mix(in srgb, var(--kds-accent) 42%, var(--border-subtle));
-  border-radius: 9px;
-  background: var(--kds-soft);
+  margin-bottom: 7px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .kds-order-identity {
@@ -6005,16 +6001,11 @@ button.sm,
 }
 
 .kds-order-type {
-  min-height: 23px;
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-raised);
   color: var(--text-secondary);
   font-size: var(--text-caption);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .kitchen-page .kds-sla {
@@ -6071,15 +6062,11 @@ button.sm,
 
 .kitchen-page .kds-meta > span {
   min-width: 0;
-  min-height: 46px;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 2px 6px;
-  padding: 6px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--surface-2);
+  padding: 2px 0;
   color: var(--text-primary);
   font-size: var(--text-caption);
 }
@@ -6113,10 +6100,11 @@ button.sm,
 }
 
 .kitchen-page .kds-items > li {
-  padding: 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 9px;
-  background: var(--surface-2);
+  padding: 7px 0;
+}
+
+.kds-items > li + li {
+  border-top: 1px solid var(--border-subtle);
 }
 
 .kds-item-top {
@@ -6166,8 +6154,7 @@ button.sm,
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 7px;
-  border: 1px solid;
+  padding: 3px 8px;
   border-radius: 7px;
   font-size: var(--text-caption);
   font-weight: 900;
@@ -6253,8 +6240,8 @@ button.sm,
 
 .kitchen-page .kds-note {
   margin-top: 6px;
-  padding: 6px 7px;
-  border: 1px solid var(--warning);
+  padding: 6px 8px;
+  border-inline-start: 3px solid var(--warning);
   border-radius: 7px;
   background: var(--theme-warning-soft);
   color: var(--text-primary);

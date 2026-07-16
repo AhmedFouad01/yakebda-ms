@@ -390,7 +390,7 @@ export function Kitchen() {
                             <div className="kds-order-identity">
                               <strong>{t.kitchen.orderNo} #{order.order_prefix ?? ""}{order.order_no}</strong>
                               <div className="kds-order-tags">
-                                <Badge tone={workflowTone(status)}>{label}</Badge>
+                                {/* W4d: العمود يعبر عن الحالة — لا بادج حالة مكررة داخل الكارت */}
                                 <span className="kds-order-type">{orderType}</span>
                               </div>
                             </div>

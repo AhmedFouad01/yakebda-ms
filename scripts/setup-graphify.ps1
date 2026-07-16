@@ -25,7 +25,7 @@ function Invoke-NativeCommand {
     $exitCode = [int]$LASTEXITCODE
 
     if ($exitCode -ne 0 -and -not $AllowFailure) {
-        throw "Command failed with exit code $exitCode: $FilePath $($Arguments -join ' ')"
+        throw "Command failed with exit code ${exitCode}: $FilePath $($Arguments -join ' ')"
     }
 
     return $exitCode

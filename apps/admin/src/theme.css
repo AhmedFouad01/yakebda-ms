@@ -9243,7 +9243,7 @@ button.danger,
   box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(96px, 10vw, 160px) minmax(0, 1fr);
-  grid-template-areas: "session brand operations";
+  grid-template-areas: "operations brand session";
   align-items: center;
   gap: 12px;
   padding: 6px 12px;
@@ -9354,7 +9354,7 @@ button.danger,
     grid-template-columns: minmax(0, 1fr) clamp(88px, 16vw, 112px) minmax(0, 1fr);
     grid-template-rows: calc(var(--appbar-h) - 40px) 40px;
     grid-template-areas:
-      "session brand nav"
+      "nav brand session"
       "controls controls controls";
     row-gap: 0;
     column-gap: 8px;

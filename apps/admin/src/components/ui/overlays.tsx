@@ -24,7 +24,12 @@ function focusableElements(container: HTMLElement): HTMLElement[] {
 export function useFocusTrap<T extends HTMLElement>(open: boolean, onClose: () => void) {
   const containerRef = useRef<T | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const overlayId = useId();
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -42,7 +47,7 @@ export function useFocusTrap<T extends HTMLElement>(open: boolean, onClose: () =
       if (overlayStack[overlayStack.length - 1] !== overlayId) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -76,7 +81,7 @@ export function useFocusTrap<T extends HTMLElement>(open: boolean, onClose: () =
       restoreFocusRef.current?.focus();
       restoreFocusRef.current = null;
     };
-  }, [open, onClose, overlayId]);
+  }, [open, overlayId]);
 
   return containerRef;
 }

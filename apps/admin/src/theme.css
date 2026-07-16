@@ -3909,7 +3909,7 @@ input[type="checkbox"] {
 @media (max-width: 640px) {
   .od-modal.modal {
     width: calc(100vw - 16px);
-    max-height: calc(100dvh - 16px);
+    max-block-size: calc(100dvh - var(--appbar-h) - (2 * var(--sp-4)));
     border-radius: 12px;
   }
 

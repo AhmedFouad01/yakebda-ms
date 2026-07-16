@@ -1,0 +1,45 @@
+# Graphify output must never index itself
+graphify-out/
+
+# Dependency and build noise
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+package-lock.json
+
+# Local runtime data
+.tmp/
+tmp/
+apps/api/uploads/
+
+# Secrets and machine credentials
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+
+# Database dumps and local stores
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+
+# Archives and private exports
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+
+# Editor and OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

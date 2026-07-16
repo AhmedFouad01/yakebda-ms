@@ -802,22 +802,24 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .uif-toast.info { background: var(--yk-panel-2); color: var(--yk-text); border: 1px solid var(--yk-line); }
 @keyframes uif-in { from { transform: translateY(8px); opacity: 0; } }
 
-/* ——— شاشات فاتحة (الإدارية) داخل app2-main: تكييف البطاقات ——— */
-.app2-main:not(.full) .uif-card { background: #fff; color: #23261f; border-color: #e2e5df; }
-.app2-main:not(.full) .uif-card-head h3 { color: #8a5b00; }
-.app2-main:not(.full) .uif-input { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) .uif-label { color: #6d746c; }
-.app2-main:not(.full) .uif-sticky { background: #fff; border-top-color: #e2e5df; box-shadow: 0 -6px 18px rgba(0,0,0,0.06); }
-.app2-main:not(.full) .uif-sticky.dirty { border-top-color: var(--yk-yellow); }
-.app2-main:not(.full) .uif-btn { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) .uif-btn.primary { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.app2-main:not(.full) .uif-btn.danger { background: #b3392e; border-color: #b3392e; color: #fff; }
-.app2-main:not(.full) .uif-toggle-track { background: #cfd4cc; border-color: #c2c7bf; }
-.app2-main:not(.full) .uif-toggle input:checked + .uif-toggle-track { background: var(--yk-yellow); border-color: #d9a800; }
-.app2-main:not(.full) .uif-tabs button, .app2-main:not(.full) .uif-radio button { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) .uif-tabs button.active, .app2-main:not(.full) .uif-radio button.active { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
-.app2-main:not(.full) .uif-viewonly { background: #fff8e3; border-color: #ecd9a0; color: #7a5b00; }
-.app2-main:not(.full) .uif-perm { background: #23261f; }
+/* ——— شاشات فاتحة (الإدارية) — legacy raw-hex adaptation.
+   W4c: demoted with :where() so the theme-aware semantic tokens win;
+   kept only as a no-token fallback. ——— */
+:where(.app2-main:not(.full)) .uif-card { background: #fff; color: #23261f; border-color: #e2e5df; }
+:where(.app2-main:not(.full)) .uif-card-head h3 { color: #8a5b00; }
+:where(.app2-main:not(.full)) .uif-input { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) .uif-label { color: #6d746c; }
+:where(.app2-main:not(.full)) .uif-sticky { background: #fff; border-top-color: #e2e5df; box-shadow: 0 -6px 18px rgba(0,0,0,0.06); }
+:where(.app2-main:not(.full)) .uif-sticky.dirty { border-top-color: var(--yk-yellow); }
+:where(.app2-main:not(.full)) .uif-btn { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) .uif-btn.primary { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+:where(.app2-main:not(.full)) .uif-btn.danger { background: #b3392e; border-color: #b3392e; color: #fff; }
+:where(.app2-main:not(.full)) .uif-toggle-track { background: #cfd4cc; border-color: #c2c7bf; }
+:where(.app2-main:not(.full)) .uif-toggle input:checked + .uif-toggle-track { background: var(--yk-yellow); border-color: #d9a800; }
+:where(.app2-main:not(.full)) .uif-tabs button,  :where(.app2-main:not(.full)) .uif-radio button { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) .uif-tabs button.active,  :where(.app2-main:not(.full)) .uif-radio button.active { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
+:where(.app2-main:not(.full)) .uif-viewonly { background: #fff8e3; border-color: #ecd9a0; color: #7a5b00; }
+:where(.app2-main:not(.full)) .uif-perm { background: #23261f; }
 
 /* الشاشات القديمة داخل الشِل الجديد: أزل ازدواج الهيكل القديم */
 .shell-legacy-hidden { display: none !important; }
@@ -2206,7 +2208,7 @@ button.danger:hover:not(:disabled) {
 }
 
 .uif-input,
-.app2-main:not(.full) .uif-input,
+:where(.app2-main:not(.full)) .uif-input,
 .field input,
 .field select,
 .field textarea,
@@ -2310,11 +2312,11 @@ input[type="checkbox"] {
   box-shadow: none;
 }
 
-.app2-main:not(.full) .uif-btn,
-.app2-main:not(.full) .uif-input,
-.app2-main:not(.full) .uif-toggle-track,
-.app2-main:not(.full) .uif-radio button,
-.app2-main:not(.full) .uif-tabs button {
+:where(.app2-main:not(.full)) .uif-btn,
+:where(.app2-main:not(.full)) .uif-input,
+:where(.app2-main:not(.full)) .uif-toggle-track,
+:where(.app2-main:not(.full)) .uif-radio button,
+:where(.app2-main:not(.full)) .uif-tabs button {
   border-color: var(--border-strong);
 }
 
@@ -7774,17 +7776,32 @@ button.danger,
 }
 
 .settings-page button.source-picker-card {
-  min-height: 88px;
+  min-height: 0;
   display: grid;
   justify-items: start;
   align-content: center;
-  gap: 7px;
-  padding: 11px 13px;
+  gap: 8px;
+  padding: 10px 13px;
   border: 1px solid var(--border-subtle);
   border-radius: 11px;
   background: var(--surface-2);
   color: var(--text-primary);
   text-align: start;
+}
+
+.settings-page .source-picker-card > strong {
+  font-size: var(--text-body-sm);
+}
+
+.settings-page .source-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.settings-page .source-card-tags .uif-badge {
+  min-height: 22px;
+  padding-block: 1px;
 }
 
 .settings-page .source-picker-card.active {

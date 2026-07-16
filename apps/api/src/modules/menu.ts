@@ -622,10 +622,15 @@ export function branchMenuRoutes(db: Knex): Router {
       const branch = await ownBranch(db, req.user!.accountId, req.params.branchId);
       if (!branch) throw err.notFound();
       if (!canAccessBranch(req.user!, branch.id)) throw err.forbidden();
-      const query = z.object({ source_id: z.string().uuid().optional() }).safeParse(req.query);
+      const query = z
+        .object({
+          source_id: z.string().uuid().optional(),
+          order_type: z.enum(["takeaway", "delivery", "dine_in"]).optional(),
+        })
+        .safeParse(req.query);
       if (!query.success) throw err.validation(query.error.flatten());
       const source = query.data.source_id
-        ? await resolveOrderSource(db, req.user!.accountId, query.data.source_id, "takeaway")
+        ? await resolveOrderSource(db, req.user!.accountId, query.data.source_id, query.data.order_type ?? "takeaway")
         : null;
       const categories = await db("categories").where({ account_id: req.user!.accountId, is_active: true }).orderBy("sort_order", "asc");
       const products = await db("products").where({ account_id: req.user!.accountId, is_active: true }).orderBy("sort_order", "asc");

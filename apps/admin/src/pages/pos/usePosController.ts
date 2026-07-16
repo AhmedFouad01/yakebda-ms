@@ -41,6 +41,7 @@ export function usePosController() {
     itemCount,
     localSubtotal,
   } = usePosCart();
+  const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const {
     categories,
     activeCat,
@@ -52,10 +53,10 @@ export function usePosController() {
   } = usePosCatalog({
     branchId,
     sourceId,
+    orderType,
     refreshCartProducts: refreshProducts,
     onError: setError,
   });
-  const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");

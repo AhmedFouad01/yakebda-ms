@@ -21,8 +21,14 @@ function Invoke-NativeCommand {
         [switch]$AllowFailure
     )
 
-    & $FilePath @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
-    $exitCode = [int]$LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $FilePath @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
+        $exitCode = [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
 
     if ($exitCode -ne 0 -and -not $AllowFailure) {
         throw "Command failed with exit code ${exitCode}: $FilePath $($Arguments -join ' ')"

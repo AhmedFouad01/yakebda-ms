@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 
 /* YAKEBDA MS consolidated stylesheet — original cascade order preserved. */
 
@@ -461,7 +460,8 @@ button.wide { width: 100%; margin-top: 8px; }
 }
 
 html, body, #root { height: 100%; }
-body, button, input, select, textarea { font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+/* W4a: single family hierarchy — the token owns the stack (no Cairo/Tajawal split). */
+body, button, input, select, textarea { font-family: var(--font); }
 * { scrollbar-width: thin; scrollbar-color: #56616b #0d1114; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: #0d1114; border-radius: 999px; }
@@ -2735,7 +2735,7 @@ input[type="checkbox"] {
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 2px 7px;
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   font-weight: 800;
 }
 
@@ -2832,7 +2832,7 @@ input[type="checkbox"] {
 .rbac-perm-copy > span {
   overflow-wrap: anywhere;
   color: var(--text-secondary);
-  font-size: 11.5px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 
@@ -2841,7 +2841,7 @@ input[type="checkbox"] {
   max-width: 100%;
   overflow-wrap: anywhere;
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   unicode-bidi: isolate;
 }
 
@@ -2991,7 +2991,7 @@ input[type="checkbox"] {
 
 .kds-stat span {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -3083,7 +3083,7 @@ input[type="checkbox"] {
   border-radius: 10px;
   background: var(--surface-2);
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: var(--text-caption);
   font-weight: 700;
   text-align: center;
 }
@@ -3169,7 +3169,7 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   font-weight: 900;
   line-height: 1.25;
   text-align: center;
@@ -3182,8 +3182,8 @@ input[type="checkbox"] {
   height: 14px;
   border: 1px solid currentColor;
   border-radius: 50%;
-  font-size: 9px;
-  line-height: 1;
+  font-size: var(--text-caption);
+  line-height: var(--line-compact);
 }
 
 .kds-timer {
@@ -3216,14 +3216,14 @@ input[type="checkbox"] {
   gap: 2px;
   overflow-wrap: anywhere;
   color: var(--text-primary);
-  font-size: 11.5px;
+  font-size: var(--text-caption);
   font-weight: 700;
   line-height: 1.45;
 }
 
 .kds-meta > span > b {
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-meta .kds-received {
@@ -3279,7 +3279,7 @@ input[type="checkbox"] {
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 
@@ -3304,7 +3304,7 @@ input[type="checkbox"] {
   border-radius: 999px;
   background: var(--surface-1);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -3322,7 +3322,7 @@ input[type="checkbox"] {
   border-radius: 8px;
   background: color-mix(in srgb, var(--warning) 8%, var(--surface-1));
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 
@@ -5283,7 +5283,7 @@ button.sm,
 }
 
 .kds-stat span {
-  font-size: 10.5px;
+  font-size: var(--text-caption);
 }
 
 .kds {
@@ -5324,12 +5324,12 @@ button.sm,
 }
 
 .kds-sla-label {
-  font-size: 9.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-timer {
   min-width: 66px;
-  font-size: 12.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-meta {
@@ -5340,12 +5340,12 @@ button.sm,
 }
 
 .kds-meta > span {
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   line-height: 1.3;
 }
 
 .kds-meta > span > b {
-  font-size: 9.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-meta .kds-received {
@@ -5365,7 +5365,7 @@ button.sm,
 .kds-mods {
   margin-top: 3px;
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -5376,7 +5376,7 @@ button.sm,
 
 .kds-mods b::after {
   content: "نوع العيش:";
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 
 .kds-station {
@@ -5386,13 +5386,13 @@ button.sm,
 
 .kds-station > span {
   padding: 3px 6px;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .kds-note {
   margin-top: 5px;
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
@@ -5500,7 +5500,7 @@ button.sm,
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -5736,12 +5736,12 @@ button.sm,
 .kds-page-head p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 .kds-page-eyebrow {
   color: var(--brand);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 900;
   letter-spacing: 0.08em;
 }
@@ -5756,7 +5756,7 @@ button.sm,
   border-radius: 999px;
   background: var(--theme-success-soft);
   color: var(--success);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 800;
 }
 
@@ -5800,13 +5800,13 @@ button.sm,
 .kitchen-page .kds-stat b {
   color: var(--text-primary);
   font-size: 19px;
-  line-height: 1.1;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
 .kitchen-page .kds-stat span {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -5912,7 +5912,7 @@ button.sm,
 .kds-col-head-copy small {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5947,7 +5947,7 @@ button.sm,
   background: color-mix(in srgb, var(--surface-1) 78%, transparent);
   color: var(--text-secondary);
   text-align: center;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-col-list {
@@ -6007,7 +6007,7 @@ button.sm,
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   font-weight: 800;
 }
 
@@ -6040,7 +6040,7 @@ button.sm,
   align-items: center;
   gap: 4px;
   color: currentColor;
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 900;
   white-space: nowrap;
 }
@@ -6075,18 +6075,18 @@ button.sm,
   border-radius: 8px;
   background: var(--surface-2);
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-meta > span > b {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-meta > span > :is(strong, time) {
   justify-self: end;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
@@ -6094,7 +6094,7 @@ button.sm,
 .kitchen-page .kds-meta > span > small {
   grid-column: 1 / -1;
   color: var(--text-secondary);
-  font-size: 8.5px;
+  font-size: var(--text-caption);
   text-align: end;
 }
 
@@ -6137,13 +6137,13 @@ button.sm,
 
 .kds-item-qty {
   min-width: 27px;
-  height: 25px;
+  min-height: 25px;
   display: inline-grid;
   place-items: center;
   border-radius: 7px;
   background: var(--kds-accent);
   color: var(--surface-1);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
@@ -6163,14 +6163,24 @@ button.sm,
   padding: 3px 7px;
   border: 1px solid;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 900;
   line-height: 1.2;
 }
 
 .kds-choice b {
-  font-size: 8px;
+  font-size: var(--text-caption);
   opacity: 0.76;
+}
+
+/* W4a: operational floor inside the readability scope only — badges,
+   helper copy, labels, and table headers never drop below 13px here. */
+:is(.kitchen-page, .settings-page, .users-page) :is(.uif-badge, .uif-status, .uif-sub, .uif-hint, .uif-label, th, .muted, small, code) {
+  font-size: var(--text-caption);
+}
+
+:is(.kitchen-page, .settings-page, .users-page) .uif-btn.sm {
+  font-size: var(--text-caption);
 }
 
 .kds-choice.size {
@@ -6195,12 +6205,12 @@ button.sm,
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-mods > b {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .kds-extra-list {
@@ -6215,7 +6225,7 @@ button.sm,
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--text-primary);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -6232,7 +6242,7 @@ button.sm,
   border-radius: 6px;
   background: var(--surface-1);
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-note {
@@ -6242,7 +6252,7 @@ button.sm,
   border-radius: 7px;
   background: var(--theme-warning-soft);
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -7291,6 +7301,17 @@ button.danger,
   --type-lg: 1.125rem;
   --type-xl: clamp(1.35rem, 1.7vw, 1.6rem);
   --type-leading-ar: 1.55;
+
+  /* W4a — semantic readable scale. Operational information never renders
+     below --text-caption (13px); Arabic body copy uses --line-body. */
+  --text-caption: 0.8125rem;   /* 13px — smallest operational size */
+  --text-body-sm: 0.875rem;    /* 14px */
+  --text-body: 0.9375rem;      /* 15px */
+  --text-control: 0.875rem;    /* 14px */
+  --text-section: 1.0625rem;   /* 17px */
+  --text-page: 1.375rem;       /* 22px */
+  --line-compact: 1.35;
+  --line-body: 1.6;
 }
 
 /* Typography contract for admin pages, settings, tables, modals, and drawers. */

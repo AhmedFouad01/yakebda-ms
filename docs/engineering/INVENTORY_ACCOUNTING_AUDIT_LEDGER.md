@@ -422,3 +422,15 @@ This ledger records review findings only. It does not modify runtime behavior. R
 - Owner/admin/manager/inventory-clerk/accountant grants keep inventory and accounting roles separated; UI visibility is not used as the security boundary.
 - The shift-report payload can traverse the generic print-job bridge. This is **generically supported**, not physical-printer validated or fully typed end to end.
 - Full Purchase Orders, low-stock alerts, and policy-complete modifier/refund stock handling are incomplete requirements, not hidden implementation defects.
+
+## P0 Remediation Revalidation
+
+The original audit evidence and `BLOCKED` decision above remain historical records. The following statuses describe the bounded P0 remediation performed from implementation head `0bf0bf0f36f86f4358c25c9e93d9065187d1a625`; P1-P3 findings were not remediated.
+
+| Finding | Revalidation status | Fix evidence | Test evidence | Residual risk |
+| --- | --- | --- | --- | --- |
+| IA-001 | **Remediated** | `9a141c4021c2d6a160c70d7f31c288c967fe94f7` serializes payment insertion/allocation under an order row lock, stores deterministic allocation snapshots, adds order allocation sequence/idempotency constraints, and creates the event in the payment transaction. | PostgreSQL-backed concurrent partial, exact-completion, overpayment, multi-tender, and idempotent-retry tests; P0 file 4/4; full API suite 207/207. | Historical journals still require reconciliation; refund policy approval remains outside this P0 fix. |
+| IA-002 | **Remediated at integrity boundary / Pending Policy** | `3b5dc4bd4656a720b9029fac9f1a0a286646c22e` creates one immutable-snapshot event in the stock transaction for every movement type. Generic issue uses `pending_policy`; internal transfer uses explicit `non_posting`; neither is mislabeled posted. | Event coverage, rollback-on-event-failure, retry, transfer, reversal linkage, tenant reference, and posted-evidence tests; P0 file 7/7; full API suite 207/207. | A policy-approved journal mapping for generic issue is still required before such events can post. Internal transfers deliberately remain non-posting. |
+| IA-003 | **Remediated / Settlement Policy Pending** | `f407358b8ff2d63c2fb0f4c7103948c8e03abb7c` preserves four-decimal source value, creates two-decimal journals, tracks exact residuals, prevents posted-without-evidence, links reversals, and blocks period close/new residuals in locked periods. ADR-004 records the provisional accumulation policy. | Numeric 0.004/0.005/0.006, accumulation, journal and no-journal reversal, branch scope, retry, period locks, and evidence tests; P0 file 10/10; full API suite 207/207. | Finance must approve the eventual residual settlement/rounding-account policy before production period close. |
+
+Migration `20260716_026_inventory_accounting_p0_integrity` was added in `fddb5289ce973fe317194acb0b03b411f1a325b6` and completed by the three remediation commits. Fresh 001-026, second latest, direct 026 down/up, constraint, index, and trigger inspection all passed on `ykms_inventory_p0_review`.

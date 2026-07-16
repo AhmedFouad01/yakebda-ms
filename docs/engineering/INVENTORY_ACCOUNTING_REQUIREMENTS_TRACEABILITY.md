@@ -131,3 +131,18 @@ API permission checks are real middleware boundaries, not UI-only controls. Sche
 ## Deferred requirements versus defects
 
 The following are explicitly recorded as incomplete requirements rather than mislabeled code defects: full Purchase Orders, low-stock dashboard/alerts, production-grade backfill, physical printer validation, comprehensive modifier inventory semantics, and complete VAT/revenue policy approval. They become production blockers when the corresponding feature is enabled or claimed as complete.
+
+## P0 Remediation Traceability Override
+
+These rows supersede only the IA-001/IA-002/IA-003 status cells above. All other requirement statuses remain unchanged.
+
+| Requirement | Remediated implementation | Verification | Current status |
+| --- | --- | --- | --- |
+| Concurrent partial and multi-tender allocation | Order-row serialization, deterministic payment allocation snapshots, allocation sequence and idempotency constraints, atomic financial event | PostgreSQL concurrent completion/overpayment/retry tests | **Met for P0 integrity**; policy approval remains separate |
+| Every value movement has durable financial classification | All movement types enqueue in the stock transaction; generic issue is `pending_policy`; transfer is `non_posting`; reversal inherits source classification | Rollback, retry, movement-type, reversal, and scope tests | **Met at integrity boundary / Pending Policy** for generic issue mapping |
+| No financially posted event without evidence | Database status guard requires journal or reconciliation evidence | Direct constraint test and full suite | **Met** |
+| High-precision inventory-to-GL reconciliation | Four-decimal source, two-decimal journal, exact residual equation and read endpoint | 0.004/0.005/0.006, aggregate, branch, period, and retry tests | **Met for tracking / Pending Policy** for settlement |
+| Reversal preserves original precision | Linked journal and residual reversal; exact negation validation | No-journal and journal-backed reversal tests | **Met** |
+| Period close exposes residual exceptions | Close blocked on non-zero open residual; inserts blocked inside locked period | API and direct database tests | **Met for P0 guard**; IA-005 lock/post race remains P1 |
+
+ADR-004 records residual accumulation as a provisional safety policy. It intentionally does not claim final approval of an automatic rounding-account posting.

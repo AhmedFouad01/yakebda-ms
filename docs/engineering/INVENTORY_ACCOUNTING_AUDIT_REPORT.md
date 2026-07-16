@@ -341,3 +341,34 @@ Recommended independently reviewable PRs:
 9. **Documentation/policy:** approved finance policies and corrected completion/readiness status.
 
 **Final decision: BLOCKED.** Existing code and tests should be retained as a foundation, but no Inventory + Accounting production deployment, historical write backfill, or claim of accounting completeness should proceed until the P0/P1 blockers and policy approvals are closed with migration and concurrency evidence.
+
+## P0 Remediation Revalidation
+
+This section is an additive revalidation; it does not rewrite the audit evidence or original decision above.
+
+- **Remediation base:** `0bf0bf0f36f86f4358c25c9e93d9065187d1a625`
+- **Schema enforcement:** `fddb5289ce973fe317194acb0b03b411f1a325b6`
+- **IA-001 fix:** `9a141c4021c2d6a160c70d7f31c288c967fe94f7`
+- **IA-002 fix:** `3b5dc4bd4656a720b9029fac9f1a0a286646c22e`
+- **IA-003 fix:** `f407358b8ff2d63c2fb0f4c7103948c8e03abb7c`
+
+### Revalidated outcomes
+
+1. Payment/VAT allocation is now serialized per order in PostgreSQL. Paid-before/after and deterministic VAT/revenue allocation are computed after the row lock, payment/event insertion is atomic, aggregate overpayment is rejected, and idempotent retries return the original payment/event.
+2. Every stock movement now receives durable financial classification in the same transaction. Journal-ready types remain pending, generic issue is visibly `pending_policy`, and internal transfer is explicitly `non_posting`. Event insertion failure rolls back the movement.
+3. Inventory source value remains four-decimal. The two-decimal journal and exact residual satisfy `source = journal + residual`. Events rounded below one cent are `deferred_rounding`, not posted. Reversals negate original journal/residual evidence, and locked periods cannot accept or close over non-zero residuals.
+4. Migration 026 adds focused idempotency, allocation ordering, event evidence, immutable snapshot, tenant relationship, reconciliation, and period-residual controls without modifying migrations 021-025.
+
+### Validation evidence
+
+- P0 focused files: **21/21 PASS** on PostgreSQL.
+- API typecheck: **PASS**.
+- Full API suite: **207/207 PASS**, no skipped tests added.
+- Contracts: **13/13 PASS**.
+- Admin tests: **11/11 PASS**; Admin production build and color contract PASS.
+- Fresh migrations 001-026: PASS; second latest: no pending; migration 026 down/up: PASS.
+- PostgreSQL catalog inspection confirmed payment sequence/idempotency indexes, source-event uniqueness, composite scope FKs, reconciliation equation/status checks, event evidence/snapshot guards, and period residual guards.
+
+### Decision after P0 revalidation
+
+The three audited P0 code-integrity failures are closed at their defined safety boundaries. IA-002 remains **Pending Policy** for generic-issue journal mapping, and IA-003 remains **Pending Policy** for final residual settlement. The overall production decision remains **BLOCKED** because the original P1 operational, concurrency, approval, timezone, backfill, and worker blockers were explicitly outside this remediation.

@@ -154,3 +154,42 @@ No claim is made that PostgreSQL will choose these indexes under production card
 ## Migration verdict
 
 **BLOCKED for production.** Fresh and reversible execution succeeds, but tenant relational invariants, outbox immutability, count approval, overlapping/locking period controls, and precision reconciliation require forward migrations and tests before production deployment.
+
+## P0 Remediation Revalidation: Migration 026
+
+Migration `20260716_026_inventory_accounting_p0_integrity` was added forward-only relative to the audited 021-025 baseline. The findings above remain valid descriptions of that original baseline.
+
+### Added controls
+
+- Payment idempotency key and deterministic per-order allocation sequence, each protected by a unique index.
+- Composite account/branch/location/item/event/reversal constraints for the P0 write paths.
+- Source-event uniqueness and immutable financial-event snapshots.
+- Expanded explicit event states: `pending_policy`, `deferred_rounding`, `non_posting`, and `reconciled` in addition to the existing worker states.
+- `financial_event_reconciliations` with four-decimal source/residual, two-decimal journal value, exact equation check, one linked reversal, and scoped open-residual index.
+- Database guard that prevents `posted` without journal or reconciliation evidence.
+- Period guards that reject closing over non-zero open residuals and reject residual insertion into a locked period.
+
+### Isolated database evidence
+
+Database: `ykms_inventory_p0_review`.
+
+| Gate | Result |
+| --- | --- |
+| Fresh migration 001 -> 026 | PASS; 26 registry rows |
+| Second `latest` | PASS; no pending migration |
+| Direct migration 026 down/up | PASS |
+| Status/equation constraints | Present and matched source |
+| Payment/source-event unique indexes | Present and matched source |
+| Composite tenant FKs | Present for the remediated movement/event/journal paths |
+| Snapshot/evidence/period triggers | Present |
+
+The 026 `down()` converts states unknown to the previous schema back to `pending`, rather than falsely converting them to `posted`, before restoring the old status constraint. It removes only objects introduced by 026. As with the original migrations, production rollback should remain a forward-fix procedure rather than destructive down migration after live data.
+
+### Remaining migration risks
+
+- Migration 026 does not claim to close every broader IA-004 relation; unit, recipe, count, supplier, actor, and other P1 tenant relationships still need a separately reviewed migration.
+- Overlapping accounting periods and the concurrent lock/post race (IA-005) remain outside P0.
+- Existing historical posted-without-journal events require a separate dry-run reconciliation/backfill plan; no destructive backfill is included.
+- Final residual settlement mapping requires finance approval under ADR-004 before production close-out.
+
+The overall production migration verdict remains **BLOCKED** by the untouched P1 findings and pending financial policies, despite migration 026 passing its bounded P0 gate.

@@ -8292,8 +8292,18 @@ button.danger,
 .app2-pos .posx-delivery-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "customer"
+    "phone"
+    "address"
+    "zone"
+    "notes";
   gap: 8px;
   min-width: 0;
+}
+
+.app2-pos .posx-cart {
+  container-type: inline-size;
 }
 
 .app2-pos .posx-delivery-field {
@@ -8304,10 +8314,6 @@ button.danger,
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--surface-2);
-}
-
-.app2-pos .posx-delivery-field-full {
-  grid-column: 1 / -1;
 }
 
 .app2-pos .posx-delivery-label {
@@ -8361,18 +8367,30 @@ button.danger,
   cursor: not-allowed;
 }
 
-.app2-pos .posx-delivery-field select {
+.app2-pos .posx-delivery-field :is(input, select) {
   width: 100%;
   min-width: 0;
   height: 40px;
   min-height: 40px;
+  box-sizing: border-box;
 }
 
-.app2-pos .posx-delivery-split {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
+.app2-pos .posx-delivery-customer { grid-area: customer; }
+.app2-pos .posx-delivery-phone { grid-area: phone; }
+.app2-pos .posx-delivery-address { grid-area: address; }
+.app2-pos .posx-delivery-zone { grid-area: zone; }
+.app2-pos .posx-delivery-notes { grid-area: notes; }
+
+@media (min-width: 900px) {
+  @container (min-width: 460px) {
+    .app2-pos .posx-delivery-fields {
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      grid-template-areas:
+        "customer phone"
+        "address zone"
+        "notes notes";
+    }
+  }
 }
 
 .posx-quick-modal {
@@ -8395,12 +8413,6 @@ button.danger,
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-}
-
-@media (max-width: 520px) {
-  .app2-pos .posx-delivery-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* ===== migrated from pos-fast-rail.css ===== */

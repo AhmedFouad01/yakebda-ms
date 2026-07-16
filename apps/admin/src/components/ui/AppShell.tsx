@@ -5,8 +5,10 @@ import { t } from "../../lib/t";
 import { setToken } from "../../lib/api";
 import { useMe, clearMe } from "../../lib/me";
 import { applyTheme, getActiveTheme, type AppTheme } from "../../lib/theme";
+import { useBrandLogoUrl } from "../../lib/brandLogo";
 import { ToggleSwitch } from "./primitives";
 import { Drawer, Toaster } from "./overlays";
+import { BrandLogo } from "./BrandLogo";
 
 /**
  * YKMS-02F — AppShell: تنقّل نظامي موحد لكل الشاشات بما فيها POS.
@@ -75,6 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { me, ready, can } = useMe();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [theme, setTheme] = useState<AppTheme>(() => getActiveTheme());
+  const logoUrl = useBrandLogoUrl(me?.accountId);
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -124,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <Link to="/" className="app2-brand" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
-          <img src={brand.logoPath} alt="" />
+          <BrandLogo src={logoUrl} alt="" />
         </Link>
 
         <div className="app2-shell-session" aria-label="جلسة المستخدم">
@@ -171,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         closeContent={<ShellIcon name="close" />}
         title={(
           <>
-            <img src={brand.logoPath} alt="" width={26} height={26} style={{ verticalAlign: "middle", marginInlineEnd: 8 }} />
+            <BrandLogo src={logoUrl} alt="" className="app2-navdrawer-logo" />
             {brand.nameAr}
           </>
         )}

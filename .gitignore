@@ -30,3 +30,9 @@ tmp/
 
 # YKMS-02G: runtime upload storage (local dev)
 apps/api/uploads/
+
+# Graphify machine-local and noisy output
+graphify-out/cost.json
+graphify-out/cache/
+graphify-out/.graphify_python
+.claude/settings.local.json

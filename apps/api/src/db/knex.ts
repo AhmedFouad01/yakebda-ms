@@ -25,6 +25,7 @@ import * as m022 from "./migrations/20260716_022_inventory_recipes_consumption";
 import * as m023 from "./migrations/20260716_023_inventory_operations";
 import * as m024 from "./migrations/20260716_024_financial_event_outbox";
 import * as m025 from "./migrations/20260716_025_accounting_ledger";
+import * as m026 from "./migrations/20260716_026_inventory_accounting_p0_integrity";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -56,6 +57,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260716_023_inventory_operations": m023,
   "20260716_024_financial_event_outbox": m024,
   "20260716_025_accounting_ledger": m025,
+  "20260716_026_inventory_accounting_p0_integrity": m026,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

@@ -6063,12 +6063,35 @@ button.sm,
 .kitchen-page .kds-meta > span {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 2px 6px;
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: 1px;
   padding: 2px 0;
   color: var(--text-primary);
   font-size: var(--text-caption);
+}
+
+/* W4 phase1: الوقت قيمة أساسية >=14px والتاريخ سطر ثانوي تحته */
+.kitchen-page .kds-received time {
+  font-size: var(--text-body-sm);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kitchen-page .kds-received small {
+  color: var(--text-secondary);
+}
+
+/* W4 phase1: رقم الأصناف هو الأبرز بصريًا (>=16px) في الطرف المقابل */
+.kitchen-page .kds-count {
+  justify-items: end;
+  text-align: end;
+}
+
+.kitchen-page .kds-count strong {
+  font-size: var(--type-md);
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .kitchen-page .kds-meta > span > b {
@@ -6076,12 +6099,16 @@ button.sm,
   font-size: var(--text-caption);
 }
 
-.kitchen-page .kds-meta > span > :is(strong, time) {
-  justify-self: end;
-  color: var(--text-primary);
-  font-size: var(--text-caption);
-  font-weight: 900;
+.kitchen-page .kds-meta > span > time {
+  font-size: var(--text-body-sm);
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.kitchen-page .kds-meta > span > strong {
+  font-size: var(--type-md);
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .kitchen-page .kds-meta > span > small {

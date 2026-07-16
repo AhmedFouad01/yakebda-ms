@@ -401,12 +401,13 @@ export function Kitchen() {
                           </div>
 
                           <div className="kds-meta">
+                            {/* W4 phase1: توقيت واضح (label ثم الوقت أساسيًا ثم التاريخ ثانويًا) */}
                             <span className="kds-received" title={formatExact(anchor)}>
-                              <b>ورد</b>
+                              <b>التوقيت</b>
                               <time dateTime={anchor ?? undefined}>{formatClock(anchor)}</time>
                               <small>{formatDay(anchor)}</small>
                             </span>
-                            <span>
+                            <span className="kds-count">
                               <b>الأصناف</b>
                               <strong>{itemCount}</strong>
                             </span>

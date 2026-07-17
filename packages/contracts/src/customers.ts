@@ -54,6 +54,31 @@ export const customerListSchema = z
   })
   .strict();
 
+/** W4f — sortable list row: the base list item + order aggregates. Additive; base schema unchanged. */
+export const customerListRowSchema = customerListSchema.extend({
+  orders_count: z.number().int().nonnegative(),
+  last_order_at: z.string().datetime().nullable(),
+  total_spent: z.number().nonnegative(),
+  avg_order: z.number().nonnegative().nullable(),
+  branch_name: z.string().nullable(),
+});
+
+export const CUSTOMER_SORT_FIELDS = [
+  "name",
+  "phone",
+  "orders_count",
+  "last_order_at",
+  "total_spent",
+  "avg_order",
+  "branch",
+  "status",
+  "created_at",
+] as const;
+
+export type CustomerSortField = (typeof CUSTOMER_SORT_FIELDS)[number];
+export type SortDirection = "asc" | "desc";
+
 export type CustomerAddress = z.infer<typeof customerAddressSchema>;
 export type CustomerLookup = z.infer<typeof customerLookupSchema>;
 export type CustomerListItem = z.infer<typeof customerListSchema>;
+export type CustomerListRow = z.infer<typeof customerListRowSchema>;

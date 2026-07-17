@@ -20,6 +20,12 @@ import * as m017 from "./migrations/20260713_017_read_permission_scoping";
 import * as m018 from "./migrations/20260713_018_print_job_reliability";
 import * as m019 from "./migrations/20260713_019_refunds_shift_variance";
 import * as m020 from "./migrations/20260716_020_cursor_pagination_indexes";
+import * as m021 from "./migrations/20260716_021_inventory_foundation";
+import * as m022 from "./migrations/20260716_022_inventory_recipes_consumption";
+import * as m023 from "./migrations/20260716_023_inventory_operations";
+import * as m024 from "./migrations/20260716_024_financial_event_outbox";
+import * as m025 from "./migrations/20260716_025_accounting_ledger";
+import * as m026 from "./migrations/20260716_026_inventory_accounting_p0_integrity";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -46,6 +52,12 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260713_018_print_job_reliability": m018,
   "20260713_019_refunds_shift_variance": m019,
   "20260716_020_cursor_pagination_indexes": m020,
+  "20260716_021_inventory_foundation": m021,
+  "20260716_022_inventory_recipes_consumption": m022,
+  "20260716_023_inventory_operations": m023,
+  "20260716_024_financial_event_outbox": m024,
+  "20260716_025_accounting_ledger": m025,
+  "20260716_026_inventory_accounting_p0_integrity": m026,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

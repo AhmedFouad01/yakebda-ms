@@ -2,6 +2,8 @@ import { Knex } from "knex";
 import bcrypt from "bcryptjs";
 import { newId } from "../lib/ids";
 import { ensureDefaultOrderSource } from "../modules/orderSources";
+import { ensureInventoryDefaults } from "../modules/inventoryService";
+import { ensureAccountingDefaults } from "../modules/accountingLedger";
 
 export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }> = [
   { key: "users.manage", name_ar: "إدارة المستخدمين", group: "المستخدمون" },
@@ -35,6 +37,10 @@ export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }>
   { key: "drivers.manage", name_ar: "إدارة السائقين", group: "التوصيل" },
   { key: "delivery.assign", name_ar: "تعيين سائق للطلبات", group: "التوصيل" },
   { key: "permissions.manage", name_ar: "إدارة خريطة الصلاحيات", group: "المستخدمون" },
+  { key: "inventory.view", name_ar: "عرض المخزون", group: "المخزون" },
+  { key: "inventory.manage", name_ar: "إدارة المخزون", group: "المخزون" },
+  { key: "accounting.view", name_ar: "عرض الأحداث المالية", group: "الحسابات" },
+  { key: "accounting.manage", name_ar: "إدارة معالجة الأحداث المالية", group: "الحسابات" },
 ];
 
 export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all" }> = [
@@ -71,6 +77,9 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
       "products.disable",
       "drivers.manage",
       "delivery.assign",
+      "inventory.view",
+      "inventory.manage",
+      "accounting.view",
     ],
   },
   {
@@ -80,8 +89,8 @@ export const ROLES: Array<{ key: string; name_ar: string; perms: string[] | "all
   },
   { key: "waiter", name_ar: "الويتر", perms: ["orders.create", "tables.manage"] },
   { key: "kitchen", name_ar: "موظف المطبخ", perms: ["kitchen.view", "kitchen.update"] },
-  { key: "inventory_clerk", name_ar: "مسؤول المخزون", perms: [] },
-  { key: "accountant", name_ar: "المحاسب", perms: ["audit.view", "reports.view"] },
+  { key: "inventory_clerk", name_ar: "مسؤول المخزون", perms: ["inventory.view", "inventory.manage"] },
+  { key: "accountant", name_ar: "المحاسب", perms: ["audit.view", "reports.view", "accounting.view", "accounting.manage"] },
   { key: "driver", name_ar: "سائق", perms: [] },
   { key: "admin", name_ar: "أدمن النظام", perms: "all" },
   { key: "integrations_admin", name_ar: "مسؤول التكاملات", perms: ["api_clients.manage", "audit.view"] },
@@ -154,6 +163,8 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
   if (existing) {
     const branch = await db("branches").where({ account_id: existing.id }).first();
     await ensureDefaultOrderSource(db, existing.id);
+    await ensureInventoryDefaults(db, existing.id);
+    await ensureAccountingDefaults(db, existing.id);
     return { accountId: existing.id, branchId: branch?.id, ownerEmail, ownerPassword };
   }
 
@@ -247,6 +258,8 @@ export async function seedFoundation(db: Knex): Promise<SeedResult> {
 
   await seedMvp(db, { accountId, branchId, branch2Id, cashierId });
   await seedBreadGroups(db, accountId);
+  await ensureInventoryDefaults(db, accountId);
+  await ensureAccountingDefaults(db, accountId);
 
   return { accountId, branchId, branch2Id, ownerEmail, ownerPassword };
 }

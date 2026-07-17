@@ -122,3 +122,59 @@ export function renderKitchenTicketPayload(order: ReceiptOrder, paperWidthMm: 58
   }
   return { template: "kitchen_ticket_v1", dir: "rtl", paper_width_mm: paperWidthMm, lines };
 }
+
+export interface ShiftReportData {
+  branch_name: string;
+  cashier_name?: string | null;
+  opened_at: string | Date;
+  closed_at?: string | Date | null;
+  status: string;
+  opening_cash: string | number;
+  totals: {
+    cash_sales: number;
+    card_sales: number;
+    wallet_sales: number;
+    cash_in: number;
+    cash_out: number;
+    expected_cash: number;
+    orders_count: number;
+  };
+  actual_cash?: string | number | null;
+  variance?: number | null;
+  over_short?: string | null;
+  unsettled_count: number;
+}
+
+export function renderShiftReportPayload(data: ShiftReportData, paperWidthMm: 58 | 80 = 80) {
+  const format = (value: string | number | null | undefined) => money(value ?? 0);
+  const overShortAr: Record<string, string> = { over: "زيادة", short: "عجز", even: "مطابق" };
+  const lines: string[] = [];
+  lines.push("تقرير إغلاق الشيفت - يا كبدة");
+  lines.push(data.branch_name);
+  if (data.cashier_name) lines.push(`الكاشير: ${data.cashier_name}`);
+  lines.push("--------------------------------");
+  lines.push(`الفتح: ${new Date(data.opened_at).toLocaleString("ar-EG")}`);
+  if (data.closed_at) lines.push(`الإغلاق: ${new Date(data.closed_at).toLocaleString("ar-EG")}`);
+  lines.push(`الحالة: ${data.status === "closed" ? "مغلق" : "مفتوح"}`);
+  lines.push("--------------------------------");
+  lines.push(`عدد الطلبات: ${data.totals.orders_count}`);
+  lines.push(`مبيعات نقدي: ${format(data.totals.cash_sales)}`);
+  lines.push(`مبيعات بطاقة: ${format(data.totals.card_sales)}`);
+  lines.push(`مبيعات محفظة: ${format(data.totals.wallet_sales)}`);
+  lines.push("--------------------------------");
+  lines.push(`رصيد افتتاحي: ${format(data.opening_cash)}`);
+  lines.push(`إيداع نقدي: ${format(data.totals.cash_in)}`);
+  lines.push(`سحب نقدي: ${format(data.totals.cash_out)}`);
+  lines.push(`النقدي المتوقع: ${format(data.totals.expected_cash)}`);
+  if (data.actual_cash != null) {
+    lines.push(`النقدي الفعلي: ${format(data.actual_cash)}`);
+    lines.push(`الفرق: ${format(data.variance)} (${overShortAr[data.over_short ?? "even"] ?? data.over_short})`);
+  }
+  if (data.unsettled_count > 0) {
+    lines.push("--------------------------------");
+    lines.push(`تنبيه: ${data.unsettled_count} طلب غير مسوى`);
+  }
+  lines.push("--------------------------------");
+  lines.push(`طبع: ${new Date().toLocaleString("ar-EG")}`);
+  return { template: "shift_report_v1", dir: "rtl", paper_width_mm: paperWidthMm, lines };
+}

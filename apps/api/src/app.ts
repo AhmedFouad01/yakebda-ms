@@ -22,6 +22,10 @@ import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } f
 import { orderSourceRoutes } from "./modules/orderSources";
 import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
 import { financialReliabilityRoutes } from "./modules/financialReliability";
+import { inventoryRoutes } from "./modules/inventory";
+import { inventoryRecipeRoutes } from "./modules/inventoryRecipes";
+import { financialEventRoutes } from "./modules/financialEvents";
+import { accountingRoutes } from "./modules/accounting";
 import { config } from "./config";
 import { checkDatabaseReadiness } from "./lib/health";
 import {
@@ -113,6 +117,10 @@ export function createApiErrorHandler(logger: StructuredLogSink) {
       return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
     }
 
+    if (dbError.code === "23514" && dbError.constraint === "accounting_period_open_residuals") {
+      return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
+    }
+
     logger.write({
       timestamp: new Date().toISOString(),
       level: "error",
@@ -197,6 +205,10 @@ export function createApp(db: Knex, options: AppOptions = {}) {
   v1.use("/delivery-zones", deliveryZoneRoutes(db));
   v1.use("/drivers", driverRoutes(db));
   v1.use("/reports", reportRoutes(db));
+  v1.use("/inventory", inventoryRoutes(db));
+  v1.use("/inventory", inventoryRecipeRoutes(db));
+  v1.use("/accounting", financialEventRoutes(db));
+  v1.use("/accounting", accountingRoutes(db));
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));
 

@@ -11,6 +11,7 @@ import { getSettings, Settings } from "./settings";
 import { validateOrderConfiguration } from "./orderIntegrity";
 import { OrderSourceRow, resolveOrderSource } from "./orderSources";
 import { loadFullOrder } from "./orders";
+import { enqueuePaymentFinancialEvent } from "./financialOutbox";
 
 export interface PricingItemInput {
   product_id: string;
@@ -490,6 +491,11 @@ export function orderPricingRoutes(db: Knex): Router {
               amount: quote.total,
               received_by: req.user!.id,
               shift_id: paymentShiftId,
+            });
+            await enqueuePaymentFinancialEvent(trx, {
+              accountId,
+              paymentId,
+              eventType: "payment.captured",
             });
           }
         });

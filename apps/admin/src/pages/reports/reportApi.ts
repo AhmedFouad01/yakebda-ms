@@ -3,7 +3,9 @@ import type {
   ReportCatalogResponse,
   ReportResponse,
   ReportSummary,
-  SalesReportData,
+  SalesByBranchReportData,
+  SalesBySourceReportData,
+  SalesTrendReportData,
   TopProductReportRow,
 } from "@ykms/contracts";
 import { api } from "../../lib/api";
@@ -36,11 +38,31 @@ export function fetchReportSummary(
   return api<ReportResponse<ReportSummary>>(`/reports/summary${reportQuery(undefined, branchId)}`);
 }
 
-export function fetchSalesReport(
+export function fetchSalesTrendReport(
   days: number,
   branchId?: string | null
-): Promise<ReportResponse<SalesReportData>> {
-  return api<ReportResponse<SalesReportData>>(`/reports/sales${reportQuery(days, branchId)}`);
+): Promise<ReportResponse<SalesTrendReportData>> {
+  return api<ReportResponse<SalesTrendReportData>>(
+    `/reports/sales/trend${reportQuery(days, branchId)}`
+  );
+}
+
+export function fetchSalesByBranchReport(
+  days: number,
+  branchId?: string | null
+): Promise<ReportResponse<SalesByBranchReportData>> {
+  return api<ReportResponse<SalesByBranchReportData>>(
+    `/reports/sales/by-branch${reportQuery(days, branchId)}`
+  );
+}
+
+export function fetchSalesBySourceReport(
+  days: number,
+  branchId?: string | null
+): Promise<ReportResponse<SalesBySourceReportData>> {
+  return api<ReportResponse<SalesBySourceReportData>>(
+    `/reports/sales/by-source${reportQuery(days, branchId)}`
+  );
 }
 
 export function fetchTopProductsReport(

@@ -18,7 +18,7 @@ import {
   SectionCard,
   Select,
 } from "../components/ui/primitives";
-import { t } from "../lib/t";
+import { reportTranslations as t } from "./reports/reportTranslations";
 import { ReportChart } from "./reports/components/ReportChart";
 import {
   fetchPaymentMethodsReport,

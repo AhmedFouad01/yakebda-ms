@@ -6265,6 +6265,50 @@ button.sm,
   font-size: var(--text-caption);
 }
 
+/* ADR-005: صف التعليق داخل الكارت — نفس فلسفة W4d (صبغة + accent، لا صندوق) */
+.kitchen-page .kds-hold {
+  margin-top: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-inline-start: 3px solid var(--warning);
+  border-radius: 7px;
+  background: var(--theme-warning-soft);
+  font-size: var(--text-caption);
+}
+
+.kitchen-page .kds-hold-meta {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kitchen-page .kds-hold-note {
+  color: var(--text-secondary);
+}
+
+.kitchen-page .kds-head-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kitchen-page .kds-card-actions .kds-action-secondary {
+  min-height: 36px;
+}
+
+.app2-pos .posx-paused-banner {
+  padding: 9px 12px;
+  border-inline-start: 3px solid var(--warning);
+  border-radius: 9px;
+  background: var(--theme-warning-soft);
+  color: var(--text-primary);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
 .kitchen-page .kds-note {
   margin-top: 6px;
   padding: 6px 8px;

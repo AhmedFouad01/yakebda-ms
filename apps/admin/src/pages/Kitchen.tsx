@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/t";
 import { Badge, Button, StatusChip } from "../components/ui/primitives";
+import { Modal } from "../components/ui/overlays";
+import { useMe } from "../lib/me";
 
 interface KOrder {
   id: string;
@@ -15,6 +17,9 @@ interface KOrder {
   ready_at?: string | null;
   updated_at?: string | null;
   notes?: string | null;
+  // ADR-005: بيانات التعليق من الخادم — SLA يستبعد مددها
+  held_total_seconds?: number;
+  active_hold?: { reason_code: string; reason_note?: string | null; held_at: string; held_by_name?: string } | null;
   items: Array<{
     id: string;
     name_ar: string;
@@ -93,6 +98,26 @@ const NEXT: Record<string, { to: string; label: () => string }> = {
   ready: { to: "completed", label: () => t.kitchen.complete },
 };
 
+const HOLD_REASON_AR: Record<string, string> = {
+  equipment_issue: "عطل معدات",
+  ingredient_shortage: "نقص مكوّن",
+  customer_request: "طلب العميل",
+  quality_check: "فحص جودة",
+  other: "أخرى",
+};
+
+function heldMs(order: KOrder, nowMs: number): number {
+  const closed = (order.held_total_seconds ?? 0) * 1000;
+  const active = order.active_hold ? Math.max(0, nowMs - new Date(order.active_hold.held_at).getTime()) : 0;
+  return closed + active;
+}
+
+/** ADR-005: الزمن التشغيلي = المنقضي − مجموع فترات التعليق (يتجمد أثناء Hold). */
+function effectiveElapsedMs(order: KOrder, anchorIso: string | null, nowMs: number): number {
+  if (!anchorIso) return 0;
+  return Math.max(0, nowMs - new Date(anchorIso).getTime() - heldMs(order, nowMs));
+}
+
 function minutesSince(iso: string | null) {
   if (!iso) return 0;
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -101,6 +126,15 @@ function minutesSince(iso: string | null) {
 function shouldHideReady(order: KOrder, settings: KdsSettings): boolean {
   if (order.status !== "ready" || !order.ready_at || settings.kds_hide_ready_after_minutes <= 0) return false;
   return Date.now() - new Date(order.ready_at).getTime() >= settings.kds_hide_ready_after_minutes * 60_000;
+}
+
+function formatDuration(totalMsIn: number): string {
+  const totalSec = Math.max(0, Math.floor(totalMsIn / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const sec = totalSec % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
 }
 
 /** YKMS-02F: الزمن المنقضي مشتق من timestamp — MM:SS، وHH:MM:SS بعد ساعة. */
@@ -283,6 +317,84 @@ export function Kitchen() {
     return () => window.clearInterval(tick);
   }, []);
 
+  const { can, me } = useMe();
+  const [branchId, setBranchId] = useState<string>("");
+  const [kstate, setKstate] = useState<{ is_paused: boolean; pause_reason?: string | null; paused_at?: string | null; paused_by_name?: string | null }>({ is_paused: false });
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [pauseReason, setPauseReason] = useState("");
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [holdFor, setHoldFor] = useState<KOrder | null>(null);
+  const [holdReason, setHoldReason] = useState("ingredient_shortage");
+  const [holdNote, setHoldNote] = useState("");
+  const [holdBusy, setHoldBusy] = useState(false);
+
+  // ADR-005: فرع لوحة التحكم — فرع المستخدم إن وُجد، وإلا أول فرع
+  useEffect(() => {
+    let cancelled = false;
+    api<{ data: Array<{ id: string }> }>("/branches")
+      .then((r) => { if (!cancelled) setBranchId((me?.branchId as string) || r.data[0]?.id || ""); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [me?.branchId]);
+
+  async function refreshKitchenState(target = branchId) {
+    if (!target) return;
+    try {
+      const r = await api<{ data: typeof kstate }>(`/kitchen/state?branch_id=${target}`);
+      setKstate(r.data);
+    } catch { /* حالة المطبخ لا توقف اللوحة */ }
+  }
+
+  useEffect(() => {
+    if (!branchId) return;
+    void refreshKitchenState(branchId);
+    const t2 = window.setInterval(() => void refreshKitchenState(branchId), 5000);
+    return () => window.clearInterval(t2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
+
+  async function submitPauseToggle() {
+    if (!branchId || pauseBusy) return;
+    if (!kstate.is_paused && pauseReason.trim().length < 3) return;
+    setPauseBusy(true);
+    try {
+      const path = kstate.is_paused ? "/kitchen/resume" : "/kitchen/pause";
+      await api(path, { method: "POST", body: {
+        branch_id: branchId,
+        ...(kstate.is_paused ? {} : { reason: pauseReason.trim() }),
+        idempotency_key: `kds-${kstate.is_paused ? "resume" : "pause"}-${branchId}-${Date.now()}`,
+      }});
+      setPauseOpen(false); setPauseReason("");
+      await refreshKitchenState(branchId);
+    } catch (e: any) { setError(e.message); }
+    finally { setPauseBusy(false); }
+  }
+
+  async function submitHold() {
+    if (!holdFor || holdBusy) return;
+    if (holdReason === "other" && !holdNote.trim()) return;
+    setHoldBusy(true);
+    try {
+      await api(`/kitchen/orders/${holdFor.id}/hold`, { method: "POST", body: {
+        reason_code: holdReason,
+        ...(holdNote.trim() ? { reason_note: holdNote.trim() } : {}),
+        idempotency_key: `kds-hold-${holdFor.id}-${Date.now()}`,
+      }});
+      setHoldFor(null); setHoldNote("");
+      await loadOrders(false);
+    } catch (e: any) { setError(e.message); }
+    finally { setHoldBusy(false); }
+  }
+
+  async function resumeHold(order: KOrder) {
+    try {
+      await api(`/kitchen/orders/${order.id}/hold-resume`, { method: "POST", body: {
+        idempotency_key: `kds-hold-resume-${order.id}-${Date.now()}`,
+      }});
+      await loadOrders(false);
+    } catch (e: any) { setError(e.message); }
+  }
+
   async function advance(order: KOrder) {
     const next = NEXT[order.status];
     if (!next) return;
@@ -313,11 +425,35 @@ export function Kitchen() {
           <h1>{t.kitchen.title}</h1>
           <p>ثلاث مراحل واضحة لمتابعة الطلبات من الوصول حتى الجاهزية.</p>
         </div>
-        <div className="kds-live" role="status">
-          <span className="kds-live-dot" aria-hidden />
-          تحديث تلقائي كل 5 ثوانٍ
+        <div className="kds-head-controls">
+          <div className="kds-live" role="status">
+            <span className="kds-live-dot" aria-hidden />
+            تحديث تلقائي كل 5 ثوانٍ
+          </div>
+          <StatusChip tone={kstate.is_paused ? "warning" : "success"}>
+            {kstate.is_paused ? "متوقف مؤقتًا" : "المطبخ نشط"}
+          </StatusChip>
+          {can("kitchen.manage") && (
+            kstate.is_paused ? (
+              <Button variant="primary" onClick={() => void submitPauseToggle()} disabled={pauseBusy}>
+                {pauseBusy ? "جارٍ الاستئناف…" : "استئناف المطبخ"}
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={() => setPauseOpen(true)}>إيقاف مؤقت</Button>
+            )
+          )}
         </div>
       </header>
+
+      {kstate.is_paused && (
+        <div className="kds-state warning" role="status" aria-live="polite">
+          <StatusChip tone="warning">المطبخ متوقف مؤقتًا</StatusChip>
+          <span>
+            لا تُقبل طلبات جديدة لهذا الفرع الآن{kstate.pause_reason ? ` — السبب: ${kstate.pause_reason}` : ""}.
+            الطلبات الموجودة على اللوحة تُستكمل طبيعيًا.
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="kds-state danger" role="alert">
@@ -377,10 +513,11 @@ export function Kitchen() {
                   <div className="kds-col-list">
                     {columnOrders.map((order) => {
                       const anchor = order.submitted_at ?? order.created_at;
-                      const mins = minutesSince(anchor);
+                      const effMs = effectiveElapsedMs(order, anchor, now);
+                      const mins = Math.max(0, Math.round(effMs / 60000));
                       const slaState = slaStateFor(order.status, mins, settings);
                       const slaLabel = order.status === "ready" ? "تم التجهيز" : SLA_LABEL[slaState];
-                      const elapsed = formatElapsed(anchor, now);
+                      const elapsed = formatDuration(effMs);
                       const itemCount = order.items.reduce((sum, item) => sum + item.qty, 0);
                       const orderType = t.orders.types[order.order_type] ?? order.order_type;
 
@@ -459,11 +596,25 @@ export function Kitchen() {
                           </ul>
 
                           {order.notes && <div className="kds-note order-note"><strong>{t.kitchen.notes}:</strong> {order.notes}</div>}
+                          {order.active_hold && (
+                            <div className="kds-hold" role="status" aria-live="polite">
+                              <StatusChip tone="warning">معلّق — {HOLD_REASON_AR[order.active_hold.reason_code] ?? order.active_hold.reason_code}</StatusChip>
+                              <span className="kds-hold-meta" dir="ltr">{formatDuration(now - new Date(order.active_hold.held_at).getTime())}</span>
+                              {order.active_hold.reason_note && <span className="kds-hold-note">{order.active_hold.reason_note}</span>}
+                            </div>
+                          )}
                           {NEXT[order.status] && (
                             <div className="kds-card-actions">
-                              <Button variant="primary" className="kds-action" aria-label={`${NEXT[order.status].label()} للطلب ${order.order_prefix ?? ""}${order.order_no}`} onClick={() => advance(order)}>
+                              <Button variant="primary" className="kds-action" aria-label={`${NEXT[order.status].label()} للطلب ${order.order_prefix ?? ""}${order.order_no}`} onClick={() => advance(order)} disabled={!!order.active_hold && NEXT[order.status].to === "ready"}>
                                 {NEXT[order.status].label()}
                               </Button>
+                              {order.status === "in_kitchen" && can("kitchen.update") && (
+                                order.active_hold ? (
+                                  <Button variant="secondary" className="kds-action-secondary" onClick={() => void resumeHold(order)}>استئناف الطلب</Button>
+                                ) : (
+                                  <Button variant="secondary" className="kds-action-secondary" onClick={() => { setHoldFor(order); setHoldReason("ingredient_shortage"); setHoldNote(""); }}>تعليق</Button>
+                                )
+                              )}
                             </div>
                           )}
                         </article>
@@ -476,6 +627,50 @@ export function Kitchen() {
           </div>
         </>
       ) : null}
+      <Modal
+        open={pauseOpen}
+        onClose={() => setPauseOpen(false)}
+        title="إيقاف المطبخ مؤقتًا"
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setPauseOpen(false)}>إلغاء</Button>
+            <Button variant="danger" onClick={() => void submitPauseToggle()} disabled={pauseBusy || pauseReason.trim().length < 3}>
+              {pauseBusy ? "جارٍ الإيقاف…" : "تأكيد الإيقاف"}
+            </Button>
+          </>
+        )}
+      >
+        <p className="muted">سيُرفض إرسال الطلبات الجديدة لهذا الفرع حتى الاستئناف. الطلبات الموجودة تُستكمل طبيعيًا.</p>
+        <label className="uif-field">
+          <span className="uif-label">سبب الإيقاف (إلزامي)</span>
+          <input className="uif-input" value={pauseReason} onChange={(e) => setPauseReason(e.target.value)} placeholder="مثال: عطل في الشواية" />
+        </label>
+      </Modal>
+
+      <Modal
+        open={!!holdFor}
+        onClose={() => setHoldFor(null)}
+        title={holdFor ? `تعليق الطلب #${holdFor.order_prefix ?? ""}${holdFor.order_no}` : "تعليق الطلب"}
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setHoldFor(null)}>إلغاء</Button>
+            <Button variant="primary" onClick={() => void submitHold()} disabled={holdBusy || (holdReason === "other" && !holdNote.trim())}>
+              {holdBusy ? "جارٍ التعليق…" : "تعليق"}
+            </Button>
+          </>
+        )}
+      >
+        <label className="uif-field">
+          <span className="uif-label">السبب</span>
+          <select className="uif-input uif-select" value={holdReason} onChange={(e) => setHoldReason(e.target.value)}>
+            {Object.entries(HOLD_REASON_AR).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+        <label className="uif-field">
+          <span className="uif-label">ملاحظة{holdReason === "other" ? " (إلزامية)" : " (اختياري)"}</span>
+          <input className="uif-input" value={holdNote} onChange={(e) => setHoldNote(e.target.value)} placeholder="توضيح قصير" />
+        </label>
+      </Modal>
     </div>
   );
 }

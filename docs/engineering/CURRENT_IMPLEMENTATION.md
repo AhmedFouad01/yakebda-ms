@@ -11,11 +11,24 @@
 
 ### API
 
-- Node.js + TypeScript + Express.
+- Node.js 22 + TypeScript + Express.
 - PostgreSQL through Knex.
 - JWT-based authentication.
 - Permission middleware protects operational and administrative endpoints.
 - Audit records are created for sensitive state changes.
+- Request IDs, redacted structured JSON access/error events, and separate
+  liveness/readiness endpoints are implemented.
+- Confirmed customer and product collections use validated keyset cursors with
+  deterministic ID tie-breakers.
+
+### Shared Contracts
+
+- `@ykms/contracts` owns bounded API/Admin wire contracts for pagination,
+  customer reads, order statuses, and order summaries.
+- Full order, quote, receipt, KDS, POS, database, and command models remain
+  local to their owning layer.
+- The package contains no framework, database, environment, or side-effectful
+  runtime code.
 
 ### Database
 
@@ -37,6 +50,8 @@
 - Cash operations may require an active shift depending on settings.
 - Shift-scoped history uses the actual shift opening timestamp.
 - Payment status is derived from recorded payments and the order total.
+- Refunds are operational, linked offsetting payment rows with net-paid and
+  shift-cash enforcement; the refund setting is not a no-op.
 
 ### Kitchen
 
@@ -58,9 +73,13 @@
 ## Validation Commands
 
 ```bash
+npm run contracts:build
+npm run contracts:test
 npm run api:migrate
 npm run api:test
+npm run admin:test
 npm run admin:build
+npm run ui:colors:check
 ```
 
 For UI changes, verify the affected operational screens at common cashier resolutions and check RTL behavior.
@@ -72,3 +91,14 @@ The application is cloud-first. The current web interface and API remain the cor
 ## Documentation Boundary
 
 Repository documentation contains current engineering facts and safe operating instructions. Private product strategy, commercial research, internal rationale, prompts, and conversation history are maintained outside the repository.
+
+## Known Platform Boundaries
+
+- Cursor pagination is not snapshot isolation. Rows whose sort values change
+  during traversal can move between pages.
+- `GET /orders`, current-shift order history, and large exports retain separate
+  pagination/scaling debt.
+- Structured logs currently write local JSON lines. Production transport,
+  retention, rotation, and alerting are not implemented.
+- The SRS requests OpenAPI/Swagger as a future capability; complete OpenAPI
+  documentation is not currently implemented.

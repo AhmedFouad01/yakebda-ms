@@ -1,3 +1,9 @@
+import type {
+  CustomerAddress as SharedCustomerAddress,
+  CustomerLookup,
+  OrderStatus,
+} from "@ykms/contracts";
+
 export interface MenuModifier {
   id: string;
   name_ar: string;
@@ -52,22 +58,8 @@ export interface DeliveryZone {
   min_order: string | number;
   is_active: boolean;
 }
-export interface CustomerAddress {
-  label?: string | null;
-  area?: string | null;
-  landmark?: string | null;
-  floor?: string | null;
-  notes?: string | null;
-  is_default?: boolean;
-}
-export interface PosCustomer {
-  id: string;
-  name: string;
-  phone?: string | null;
-  alt_phone?: string | null;
-  address?: string | null;
-  addresses?: CustomerAddress[] | string | null;
-}
+export type CustomerAddress = SharedCustomerAddress;
+export type PosCustomer = CustomerLookup;
 export interface Shift {
   id: string;
   opened_at: string;
@@ -93,7 +85,7 @@ export interface ShiftOrderSummary {
   order_prefix?: string | null;
   order_type: string;
   source_name?: string | null;
-  status: string;
+  status: OrderStatus;
   kitchen_status: "draft" | "waiting" | "preparing" | "ready" | "completed" | "cancelled";
   payment_status: "unpaid" | "partial" | "paid";
   subtotal: string | number;

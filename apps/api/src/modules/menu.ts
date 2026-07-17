@@ -9,6 +9,7 @@ import { ar } from "../i18n/ar";
 import { getStorage, validateImage } from "../lib/storage";
 import { buildWorkbook, buildTemplate, parseWorkbook, planImport, applyImport, type ExportRow } from "./menuExcel";
 import { resolveOrderSource } from "./orderSources";
+import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 
 /** YKMS-02D — Menu Core + Ya Kebda POS menu import. All queries are account-scoped. */
 
@@ -42,6 +43,25 @@ const productSchema = z.object({
   sort_order: z.number().int().default(0),
   is_active: z.boolean().default(true),
 });
+
+const productCursorValues = z.object({
+  sort_order: z.number().int(),
+  id: z.string().uuid(),
+}).strict();
+
+type ProductCursorValues = z.infer<typeof productCursorValues>;
+
+interface ProductListRow {
+  id: string;
+  sort_order: number;
+  [key: string]: unknown;
+}
+
+const productListCursor: CursorDefinition<ProductCursorValues> = {
+  endpoint: "products.list",
+  sort: "sort_order_asc_id_asc",
+  values: productCursorValues,
+};
 
 const variantSchema = z.object({
   name_ar: z.string().min(1),
@@ -190,17 +210,33 @@ export function productRoutes(db: Knex): Router {
   r.get("/", async (req, res, next) => {
     try {
       const q = z.object({ category_id: z.string().uuid().optional() }).safeParse(req.query);
-      const rows = await db("products")
+      const page = parseCursorPage(req.query, productListCursor);
+      const rows: ProductListRow[] = await db("products")
         .where({ account_id: req.user!.accountId })
         .modify((qb) => {
           if (q.success && q.data.category_id) qb.where("category_id", q.data.category_id);
+          const cursor = page.cursor;
+          if (cursor) {
+            qb.where((cursorQuery) => {
+              cursorQuery
+                .where("sort_order", ">", cursor.sort_order)
+                .orWhere((tie) => tie.where("sort_order", cursor.sort_order).andWhere("id", ">", cursor.id));
+            });
+          }
         })
-        .orderBy("sort_order", "asc");
-      const ids = rows.map((p: { id: string }) => p.id);
+        .orderBy("sort_order", "asc")
+        .orderBy("id", "asc")
+        .limit(page.limit + 1);
+      const result = createCursorPage(rows, page.limit, productListCursor, (row) => ({
+        sort_order: row.sort_order,
+        id: row.id,
+      }));
+      const ids = result.data.map((product) => product.id);
       const variants = ids.length ? await db("product_variants").whereIn("product_id", ids).orderBy("created_at", "asc") : [];
       const links = ids.length ? await db("product_modifier_groups").whereIn("product_id", ids) : [];
       res.json({
-        data: rows.map((p: Record<string, unknown> & { id: string }) => ({
+        ...result,
+        data: result.data.map((p) => ({
           ...p,
           variants: variants.filter((v) => v.product_id === p.id),
           modifier_group_ids: links.filter((l) => l.product_id === p.id).map((l) => l.modifier_group_id),

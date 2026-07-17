@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { api } from "../../lib/api";
+import { api, apiAllPages } from "../../lib/api";
 import type { CustomerAddress, DeliveryZone, OrderType, PosCustomer } from "./types";
 import { addressText, parseAddresses } from "./utils";
 
@@ -99,7 +99,7 @@ export function usePosDelivery({
       setCustomers([]);
       return;
     }
-    const response = await api<{ data: PosCustomer[] }>("/customers/lookup");
+    const response = await apiAllPages<PosCustomer>("/customers/lookup");
     setCustomers(response.data);
     if (preferredId) {
       const customer = response.data.find((item) => item.id === preferredId);
@@ -113,7 +113,7 @@ export function usePosDelivery({
       setCustomers([]);
       return;
     }
-    api<{ data: PosCustomer[] }>("/customers/lookup")
+    apiAllPages<PosCustomer>("/customers/lookup")
       .then((response) => {
         if (!cancelled) setCustomers(response.data);
       })

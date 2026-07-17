@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../lib/api";
+import { api, apiAllPages } from "../../lib/api";
 import { toast } from "../../components/ui/overlays";
 import { Button, SectionCard, ToggleSwitch, TextInput, NumberInput, Select } from "../../components/ui/primitives";
 import { useMe } from "../../lib/me";
@@ -74,7 +74,7 @@ export function MenuSection({ editable }: { editable: boolean }) {
 
   const load = () =>
     Promise.all([
-      api<{ data: typeof rows }>("/products").then((r) => setRows(r.data)),
+      apiAllPages<(typeof rows)[number]>("/products").then((r) => setRows(r.data)),
       api<{ data: typeof stations }>("/prep-stations").then((r) => setStations(r.data)),
     ]).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);

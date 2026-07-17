@@ -19,4 +19,5 @@ export const config = {
     "postgres://ykms:ykms@127.0.0.1:5432/ykms_test",
   maxPrintAttempts: positiveInt("MAX_PRINT_ATTEMPTS", 3),
   printStuckMinutes: positiveInt("PRINT_STUCK_MINUTES", 5),
+  readinessDbTimeoutMs: positiveInt("READINESS_DB_TIMEOUT_MS", 1500),
 };

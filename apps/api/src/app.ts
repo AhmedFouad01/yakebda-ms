@@ -22,6 +22,15 @@ import { settingsRoutes, prepStationRoutes, deliveryZoneRoutes, driverRoutes } f
 import { orderSourceRoutes } from "./modules/orderSources";
 import { customerReadRoutes, settingsReadRoutes } from "./modules/readScope";
 import { financialReliabilityRoutes } from "./modules/financialReliability";
+import { config } from "./config";
+import { checkDatabaseReadiness } from "./lib/health";
+import {
+  createStructuredLogger,
+  normalizeRoute,
+  requestObservability,
+  StructuredLogSink,
+  unexpectedErrorFields,
+} from "./lib/observability";
 
 type DatabaseError = Error & {
   code?: string;
@@ -54,18 +63,109 @@ function isOrderIntegrityError(error: DatabaseError): boolean {
   );
 }
 
-export function createApp(db: Knex) {
+export interface AppOptions {
+  logSink?: StructuredLogSink;
+  readinessTimeoutMs?: number;
+}
+
+function orderIntegrityReason(error: DatabaseError): string {
+  if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) {
+    return error.constraint;
+  }
+  if (/Selected variant does not belong/i.test(error.message)) return "variant_product_mismatch";
+  if (/same modifier cannot/i.test(error.message)) return "duplicate_modifier";
+  if (/Selected modifier does not belong/i.test(error.message)) return "modifier_product_mismatch";
+  if (/Required modifier selections are missing/i.test(error.message)) return "modifier_minimum_missing";
+  if (/Too many modifiers were selected/i.test(error.message)) return "modifier_maximum_exceeded";
+  return "order_configuration";
+}
+
+export function createApiErrorHandler(logger: StructuredLogSink) {
+  return (e: unknown, req: Request, res: Response, _next: NextFunction) => {
+    if (e instanceof ApiError) {
+      return res.status(e.status).json({ code: e.code, message: e.message, details: e.details });
+    }
+
+    const dbError = e as DatabaseError;
+    const paymentMessage = dbError.constraint
+      ? PAYMENT_INTEGRITY_MESSAGES[dbError.constraint]
+      : undefined;
+    if (paymentMessage) {
+      return res.status(422).json({
+        code: "validation",
+        message: ar.errors.validation,
+        details: { amount: paymentMessage },
+      });
+    }
+
+    if (isOrderIntegrityError(dbError)) {
+      return res.status(422).json({
+        code: "validation",
+        message: ar.errors.validation,
+        details: {
+          order_configuration: dbError.constraint ?? "order_configuration",
+          reason: orderIntegrityReason(dbError),
+        },
+      });
+    }
+
+    if (dbError.code === "23505" && dbError.constraint === "orders_numbering_key_order_no_unique") {
+      return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
+    }
+
+    logger.write({
+      timestamp: new Date().toISOString(),
+      level: "error",
+      event: "http.request.failed",
+      request_id: req.requestId,
+      method: req.method,
+      route: normalizeRoute(req.originalUrl),
+      ...unexpectedErrorFields(e),
+    });
+    return res.status(500).json({
+      code: "server",
+      message: ar.errors.server,
+      request_id: req.requestId,
+    });
+  };
+}
+
+export function createApp(db: Knex, options: AppOptions = {}) {
   const app = express();
-  app.use(cors());
+  const logger = createStructuredLogger(options.logSink);
+  app.use(requestObservability(logger));
+  app.use(cors({ exposedHeaders: ["x-request-id"] }));
   app.use(express.json({ limit: "8mb" }));
   app.use("/uploads", express.static(process.env.UPLOAD_DIR || `${process.cwd()}/uploads`));
 
   const v1 = express.Router();
   app.use("/api/v1", v1);
 
-  v1.get("/health", (_req, res) =>
-    res.json({ ok: true, app: ar.app.name, locale: ar.app.locale, dir: ar.app.dir })
-  );
+  const livePayload = { ok: true, app: ar.app.name, locale: ar.app.locale, dir: ar.app.dir };
+  v1.get("/health", (_req, res) => res.json(livePayload));
+  v1.get("/health/live", (_req, res) => res.json({ ...livePayload, status: "live" }));
+  v1.get("/health/ready", async (req, res) => {
+    const result = await checkDatabaseReadiness(
+      db,
+      options.readinessTimeoutMs ?? config.readinessDbTimeoutMs
+    );
+    if (result.ready) {
+      return res.json({ ...livePayload, status: "ready" });
+    }
+
+    logger.write({
+      timestamp: new Date().toISOString(),
+      level: "warn",
+      event: "health.readiness.failed",
+      request_id: req.requestId,
+      reason: result.reason,
+    });
+    return res.status(503).json({
+      ok: false,
+      status: "not_ready",
+      request_id: req.requestId,
+    });
+  });
   v1.use("/auth", authRoutes(db));
   v1.use("/branches", branchRoutes(db));
   v1.use("/branches", branchMenuRoutes(db));
@@ -100,41 +200,7 @@ export function createApp(db: Knex) {
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));
 
-  app.use((e: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    if (e instanceof ApiError) {
-      return res.status(e.status).json({ code: e.code, message: e.message, details: e.details });
-    }
-
-    const dbError = e as DatabaseError;
-    const paymentMessage = dbError.constraint
-      ? PAYMENT_INTEGRITY_MESSAGES[dbError.constraint]
-      : undefined;
-    if (paymentMessage) {
-      return res.status(422).json({
-        code: "validation",
-        message: ar.errors.validation,
-        details: { amount: paymentMessage },
-      });
-    }
-
-    if (isOrderIntegrityError(dbError)) {
-      return res.status(422).json({
-        code: "validation",
-        message: ar.errors.validation,
-        details: {
-          order_configuration: dbError.constraint ?? "order_configuration",
-          reason: dbError.message,
-        },
-      });
-    }
-
-    if (dbError.code === "23505" && dbError.constraint === "orders_numbering_key_order_no_unique") {
-      return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
-    }
-
-    console.error(e);
-    return res.status(500).json({ code: "server", message: ar.errors.server });
-  });
+  app.use(createApiErrorHandler(logger));
 
   return app;
 }

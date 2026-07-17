@@ -19,21 +19,21 @@ Implemented areas include:
 
 ## Current Validation Baseline
 
-- API test suite is part of the required quality gate.
-- The administration application must pass a production build.
+- Node 22 is the supported runtime line.
+- API typecheck and the complete API suite are required quality gates.
+- Shared contracts must build and pass their schema tests.
+- The administration application must pass tests and a production build.
+- The semantic color contract must pass.
 - Database changes must be applied through migrations.
 - Operational UI changes require manual RTL and viewport validation.
 
 ## Active Work
 
-Current work focuses on POS operational quality, including:
-
-- Stable top-level operating controls
-- Responsive product-card layout
-- Reliable product image presentation
-- Single-action order submission
-- Active-shift order history
-- Accurate payment and kitchen status display
+P0 security/payment hardening, P1 operational reliability, and P2 UI
+maintainability are merged. P3 platform hardening is a validated release
+candidate covering observability, bounded cursor pagination, Node 22, and
+shared API/Admin wire contracts. Inventory and Accounting are separate future
+feature tracks and are not implemented by P3.
 
 ## Platform Direction
 

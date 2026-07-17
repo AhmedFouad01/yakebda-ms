@@ -86,7 +86,7 @@ function CategoriesTab() {
 
 function ProductsTab() {
   const cats = useList<Category>("/categories");
-  const { data, error, reload } = useList<Product>("/products");
+  const { data, error, reload } = useList<Product>("/products", { allPages: true });
   const [editorId, setEditorId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);

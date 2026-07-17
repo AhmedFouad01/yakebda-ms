@@ -40,11 +40,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install
         run: npm ci
+
+      - name: Shared contracts
+        run: npm run contracts:build && npm run contracts:test
 
       - name: API typecheck
         run: npm --workspace @ykms/api run build 2>&1 | tee api-typecheck.log

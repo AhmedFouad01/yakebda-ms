@@ -1,14 +1,59 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Knex } from "knex";
+import type { CustomerLookup, CustomerOrderSummary } from "@ykms/contracts";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
+import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 
 /** YKMS-02 — Tables (light), Customers (light), Reports. Account-scoped throughout. */
 
 const TABLE_STATUSES = ["available", "occupied", "reserved", "cleaning"] as const;
+
+const createdAtCursorValues = z.object({
+  created_at: z.string().datetime(),
+  id: z.string().uuid(),
+}).strict();
+
+type CreatedAtCursorValues = z.infer<typeof createdAtCursorValues>;
+
+interface CreatedAtRow {
+  id: string;
+  created_at: string | Date;
+}
+
+interface CustomerLookupRow extends CustomerLookup, CreatedAtRow {}
+
+interface CustomerOrderRow extends Omit<CustomerOrderSummary, "created_at">, CreatedAtRow {
+  created_at: string | Date;
+}
+
+const customerLookupCursor: CursorDefinition<CreatedAtCursorValues> = {
+  endpoint: "customers.lookup",
+  sort: "created_at_desc_id_desc",
+  values: createdAtCursorValues,
+};
+
+const customerOrdersCursor: CursorDefinition<CreatedAtCursorValues> = {
+  endpoint: "customers.orders",
+  sort: "created_at_desc_id_desc",
+  values: createdAtCursorValues,
+};
+
+function cursorTimestamp(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function applyCreatedAtCursor(qb: Knex.QueryBuilder, cursor: CreatedAtCursorValues | null): void {
+  if (!cursor) return;
+  qb.where((page) => {
+    page
+      .where("created_at", "<", cursor.created_at)
+      .orWhere((tie) => tie.where("created_at", cursor.created_at).andWhere("id", "<", cursor.id));
+  });
+}
 
 export function tableRoutes(db: Knex): Router {
   const r = Router();
@@ -130,7 +175,8 @@ export function customerRoutes(db: Knex): Router {
     try {
       const q = z.object({ search: z.string().optional() }).safeParse(req.query);
       if (!q.success) throw err.validation(q.error.flatten());
-      const rows = await db("customers")
+      const page = parseCursorPage(req.query, customerLookupCursor);
+      const rows: CustomerLookupRow[] = await db("customers")
         .where({ account_id: req.user!.accountId })
         .modify((qb) => {
           if (q.data.search) {
@@ -141,35 +187,20 @@ export function customerRoutes(db: Knex): Router {
                 .orWhere("alt_phone", "ilike", `%${q.data.search}%`)
             );
           }
+          applyCreatedAtCursor(qb, page.cursor);
         })
-        .select("id", "name", "phone", "alt_phone", "address", "addresses")
+        .select("id", "name", "phone", "alt_phone", "address", "addresses", "created_at")
         .orderBy("created_at", "desc")
-        .limit(200);
-      res.json({ data: rows });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  r.get("/", requirePermission("customers.manage"), async (req, res, next) => {
-    try {
-      const q = z.object({ search: z.string().optional() }).safeParse(req.query);
-      // DTO خفيف للقائمة — بلا تحليلات ثقيلة لكل صف
-      const rows = await db("customers")
-        .where({ account_id: req.user!.accountId })
-        .modify((qb) => {
-          if (q.success && q.data.search) {
-            qb.where((w) =>
-              w
-                .where("name", "ilike", `%${q.data.search}%`)
-                .orWhere("phone", "ilike", `%${q.data.search}%`)
-                .orWhere("alt_phone", "ilike", `%${q.data.search}%`)
-            );
-          }
-        })
-        .orderBy("created_at", "desc")
-        .limit(200);
-      res.json({ data: rows });
+        .orderBy("id", "desc")
+        .limit(page.limit + 1);
+      const result = createCursorPage(rows, page.limit, customerLookupCursor, (row) => ({
+        created_at: cursorTimestamp(row.created_at),
+        id: row.id,
+      }));
+      res.json({
+        ...result,
+        data: result.data.map(({ created_at: _createdAt, ...row }) => row),
+      });
     } catch (e) {
       next(e);
     }
@@ -262,13 +293,18 @@ export function customerRoutes(db: Knex): Router {
       const accountId = req.user!.accountId;
       const customer = await db("customers").where({ id: req.params.id, account_id: accountId }).first();
       if (!customer) throw err.notFound();
-      const limit = Math.min(Number(req.query.limit ?? 20), 50);
-      const orders = await db("orders")
+      const page = parseCursorPage(req.query, customerOrdersCursor, { defaultLimit: 20, maximumLimit: 50 });
+      const orders: CustomerOrderRow[] = await db("orders")
         .where({ account_id: accountId, customer_id: customer.id })
+        .modify((qb) => applyCreatedAtCursor(qb, page.cursor))
         .orderBy("created_at", "desc")
-        .limit(limit)
+        .orderBy("id", "desc")
+        .limit(page.limit + 1)
         .select("id", "order_no", "order_prefix", "order_type", "status", "total", "created_at");
-      res.json({ data: orders });
+      res.json(createCursorPage(orders, page.limit, customerOrdersCursor, (row) => ({
+        created_at: cursorTimestamp(row.created_at),
+        id: row.id,
+      })));
     } catch (e) {
       next(e);
     }

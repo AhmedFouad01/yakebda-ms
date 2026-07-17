@@ -2,9 +2,14 @@
   "name": "yakebda-ms",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22 <23"
+  },
   "description": "YAKEBDA MS — نظام إدارة مطاعم عربي أولًا RTL (مشروع مستقل)",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "contracts:build": "npm --workspace @ykms/contracts run build",
+    "contracts:test": "npm --workspace @ykms/contracts run test",
     "api:dev": "npm --workspace @ykms/api run dev",
     "api:migrate": "npm --workspace @ykms/api run migrate",
     "api:seed": "npm --workspace @ykms/api run seed",
@@ -13,7 +18,7 @@
     "admin:build": "npm --workspace @ykms/admin run build",
     "admin:test": "npm --workspace @ykms/admin run test",
     "ui:colors:check": "node scripts/check-theme-contract.mjs",
-    "check": "npm run ui:colors:check && npm run api:test && npm run admin:test && npm run admin:build",
+    "check": "npm run contracts:build && npm run contracts:test && npm run ui:colors:check && npm run api:test && npm run admin:test && npm run admin:build",
     "audit:deps": "npm audit",
     "audit:deps:prod": "npm audit --omit=dev"
   }

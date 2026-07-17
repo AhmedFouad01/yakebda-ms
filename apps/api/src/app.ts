@@ -62,6 +62,14 @@ const PAYMENT_INTEGRITY_MESSAGES: Record<string, string> = {
   payments_refund_over_paid_guard: ar.errors.refund_exceeds_paid,
 };
 
+/**
+ * Sprint 2 — inventory master-data constraint violations surfaced clearly
+ * instead of a generic 500, following the same constraint→message pattern
+ * as payment integrity. Schema constraints stay the authority; this only
+ * translates them into field-level Arabic validation details. Names are
+ * the exact PG identifiers (incl. the 63-char truncation on the
+ * unit-conversions unique).
+ */
 const INVENTORY_CONSTRAINT_MESSAGES: Record<string, { field: string; message: string }> = {
   inventory_units_account_id_symbol_unique: { field: "symbol", message: "رمز الوحدة مستخدم بالفعل في هذا الحساب." },
   inventory_items_account_id_name_ar_unique: { field: "name_ar", message: "اسم الصنف مستخدم بالفعل في هذا الحساب." },

@@ -1,33 +1,99 @@
 import { Router } from "express";
 import { Knex } from "knex";
 import { z } from "zod";
-import type { CustomerListItem } from "@ykms/contracts";
+import type { CustomerListItem, CustomerSortField, SortDirection } from "@ykms/contracts";
+import { CUSTOMER_SORT_FIELDS } from "@ykms/contracts";
 import { err } from "../lib/errors";
 import { canAccessBranch, requireUser } from "../middleware/auth";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 import { getSettings, Settings } from "./settings";
 
-const customerCursorValues = z.object({
-  created_at: z.string().datetime(),
+/**
+ * ADR-006 — sortable aggregate customers list.
+ * Cursor values carry the primary sort value (v, nullable) + id tie-breaker;
+ * the envelope's `sort` string binds field + direction, so a cursor minted
+ * under one ordering is rejected under any other (existing P3 check).
+ */
+const customerSortCursorValues = z.object({
+  v: z.union([z.string(), z.number(), z.boolean(), z.null()]),
   id: z.string().uuid(),
 }).strict();
 
-type CustomerCursorValues = z.infer<typeof customerCursorValues>;
+type CustomerSortCursorValues = z.infer<typeof customerSortCursorValues>;
 
 interface CustomerReadRow extends Omit<CustomerListItem, "created_at" | "updated_at"> {
   created_at: string | Date;
   updated_at: string | Date;
+  orders_count: number | string;
+  last_order_at: string | Date | null;
+  total_spent: number | string;
+  avg_order: number | string | null;
+  branch_name: string | null;
   [key: string]: unknown;
 }
 
-const customerListCursor: CursorDefinition<CustomerCursorValues> = {
-  endpoint: "customers.list",
-  sort: "created_at_desc_id_desc",
-  values: customerCursorValues,
-};
+function customerListCursor(sort: CustomerSortField, direction: SortDirection): CursorDefinition<CustomerSortCursorValues> {
+  return {
+    endpoint: "customers.list",
+    sort: `${sort}_${direction}`,
+    values: customerSortCursorValues,
+  };
+}
 
 function customerCursorTimestamp(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+/**
+ * Sortable column expressions over the aggregate join. All values the
+ * whitelist exposes; aggregates coalesce to 0 so only phone/last_order_at/
+ * avg_order/branch can be null (ordered NULLS LAST deterministically).
+ */
+const CUSTOMER_SORT_EXPRESSIONS: Record<CustomerSortField, { sql: string; nullable: boolean }> = {
+  name: { sql: "c.name", nullable: false },
+  phone: { sql: "c.phone", nullable: true },
+  orders_count: { sql: "coalesce(agg.orders_count, 0)", nullable: false },
+  last_order_at: { sql: "agg.last_order_at", nullable: true },
+  total_spent: { sql: "coalesce(agg.total_spent, 0)", nullable: false },
+  avg_order: { sql: "agg.avg_order", nullable: true },
+  branch: { sql: "b.name", nullable: true },
+  status: { sql: "c.is_blocked", nullable: false },
+  created_at: { sql: "c.created_at", nullable: false },
+};
+
+/** Keyset predicate implementing `<expr> <dir> NULLS LAST, id <dir>` after (v, id). */
+function applyCustomerSortCursor(
+  qb: Knex.QueryBuilder,
+  sort: CustomerSortField,
+  direction: SortDirection,
+  cursor: CustomerSortCursorValues | null
+): void {
+  if (!cursor) return;
+  const { sql, nullable } = CUSTOMER_SORT_EXPRESSIONS[sort];
+  const cmp = direction === "desc" ? "<" : ">";
+  const idCmp = cmp;
+  if (cursor.v === null) {
+    // Cursor row had a null sort value ⇒ we are inside the trailing null block.
+    qb.whereRaw(`${sql} is null`).andWhereRaw(`c.id ${idCmp} ?`, [cursor.id]);
+    return;
+  }
+  qb.where((page) => {
+    page
+      .whereRaw(`${sql} ${cmp} ?`, [cursor.v])
+      .orWhere((tie) => tie.whereRaw(`${sql} = ?`, [cursor.v]).andWhereRaw(`c.id ${idCmp} ?`, [cursor.id]));
+    if (nullable) page.orWhereRaw(`${sql} is null`); // nulls sort last in both directions
+  });
+}
+
+function parseCustomerSort(query: Record<string, unknown>): { sort: CustomerSortField; direction: SortDirection } {
+  const parsed = z
+    .object({
+      sort: z.enum(CUSTOMER_SORT_FIELDS).default("created_at"),
+      direction: z.enum(["asc", "desc"]).default("desc"),
+    })
+    .safeParse({ sort: query.sort ?? undefined, direction: query.direction ?? undefined });
+  if (!parsed.success) throw err.validation({ sort: "حقل الترتيب غير مدعوم" });
+  return parsed.data;
 }
 
 const SETTINGS_RUNTIME_KEYS: Array<keyof Settings> = [
@@ -130,36 +196,95 @@ export function customerReadRoutes(db: Knex): Router {
 
       const parsed = z.object({ search: z.string().optional() }).safeParse(req.query);
       if (!parsed.success) throw err.validation(parsed.error.flatten());
-      const page = parseCursorPage(req.query, customerListCursor);
+      const { sort, direction } = parseCustomerSort(req.query as Record<string, unknown>);
+      const definition = customerListCursor(sort, direction);
+      const page = parseCursorPage(req.query, definition);
+      const accountId = req.user!.accountId;
+      const sortExpr = CUSTOMER_SORT_EXPRESSIONS[sort];
 
-      const rows: CustomerReadRow[] = await db("customers")
-        .where({ account_id: req.user!.accountId })
+      // ADR-006: one aggregate subquery (account-scoped, non-cancelled) — no N+1.
+      const aggregates = db("orders")
+        .where("account_id", accountId)
+        .whereNot("status", "cancelled")
+        .whereNotNull("customer_id")
+        .groupBy("customer_id")
+        .select(
+          "customer_id",
+          db.raw("count(*)::int as orders_count"),
+          db.raw("max(created_at) as last_order_at"),
+          db.raw("coalesce(sum(total) filter (where status = 'completed'), 0) as total_spent"),
+          db.raw(`case when count(*) filter (where status = 'completed') > 0
+                    then round(sum(total) filter (where status = 'completed')
+                               / count(*) filter (where status = 'completed'), 2)
+                    end as avg_order`),
+          db.raw("(array_agg(branch_id order by created_at desc))[1] as last_branch_id")
+        )
+        .as("agg");
+
+      const rows: CustomerReadRow[] = await db("customers as c")
+        .leftJoin(aggregates, "agg.customer_id", "c.id")
+        .leftJoin("branches as b", "b.id", "agg.last_branch_id")
+        .where("c.account_id", accountId)
         .modify((query) => {
           const search = parsed.data.search?.trim();
-          if (!search) return;
-          query.where((where) =>
-            where
-              .where("name", "ilike", `%${search}%`)
-              .orWhere("phone", "ilike", `%${search}%`)
-              .orWhere("alt_phone", "ilike", `%${search}%`)
-          );
-          if (page.cursor) {
-            const cursor = page.cursor;
-            query.where((cursorQuery) => {
-              cursorQuery
-                .where("created_at", "<", cursor.created_at)
-                .orWhere((tie) => tie.where("created_at", cursor.created_at).andWhere("id", "<", cursor.id));
-            });
+          if (search) {
+            query.where((where) =>
+              where
+                .where("c.name", "ilike", `%${search}%`)
+                .orWhere("c.phone", "ilike", `%${search}%`)
+                .orWhere("c.alt_phone", "ilike", `%${search}%`)
+            );
           }
+          // P3 latent fix: the cursor now applies with AND without search.
+          applyCustomerSortCursor(query, sort, direction, page.cursor);
         })
-        .orderBy("created_at", "desc")
-        .orderBy("id", "desc")
+        .select(
+          "c.*",
+          db.raw("coalesce(agg.orders_count, 0)::int as orders_count"),
+          "agg.last_order_at",
+          db.raw("coalesce(agg.total_spent, 0) as total_spent"),
+          "agg.avg_order",
+          "b.name as branch_name"
+        )
+        .orderByRaw(`${sortExpr.sql} ${direction} nulls last`)
+        .orderBy("c.id", direction)
         .limit(page.limit + 1);
 
-      res.json(createCursorPage(rows, page.limit, customerListCursor, (row) => ({
-        created_at: customerCursorTimestamp(row.created_at),
-        id: row.id,
-      })));
+      const cursorValue = (row: CustomerReadRow): CustomerSortCursorValues => {
+        switch (sort) {
+          case "created_at":
+            return { v: customerCursorTimestamp(row.created_at), id: row.id };
+          case "last_order_at":
+            return { v: row.last_order_at ? customerCursorTimestamp(row.last_order_at) : null, id: row.id };
+          case "orders_count":
+            return { v: Number(row.orders_count), id: row.id };
+          case "total_spent":
+            return { v: Number(row.total_spent), id: row.id };
+          case "avg_order":
+            return { v: row.avg_order === null ? null : Number(row.avg_order), id: row.id };
+          case "branch":
+            return { v: row.branch_name, id: row.id };
+          case "status":
+            return { v: Boolean(row.is_blocked), id: row.id };
+          case "phone":
+            return { v: (row.phone as string | null) ?? null, id: row.id };
+          case "name":
+          default:
+            return { v: row.name as string, id: row.id };
+        }
+      };
+
+      const result = createCursorPage(rows, page.limit, definition, cursorValue);
+      res.json({
+        ...result,
+        data: result.data.map((row) => ({
+          ...row,
+          orders_count: Number(row.orders_count),
+          total_spent: Number(row.total_spent),
+          avg_order: row.avg_order === null ? null : Number(row.avg_order),
+          last_order_at: row.last_order_at ? customerCursorTimestamp(row.last_order_at) : null,
+        })),
+      });
     } catch (error) {
       next(error);
     }

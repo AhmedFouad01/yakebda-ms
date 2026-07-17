@@ -31,6 +31,7 @@ export const reportText = {
   branchTimezone: "توقيت الفرع المحدد",
   accountDefaultTimezone: "توقيت الحساب الافتراضي لكل الفروع",
   requestId: "معرف الطلب",
+  chartUnavailable: "تعذر تحميل الرسم التفاعلي؛ جدول البيانات بالأسفل ما زال متاحًا.",
   showChartData: "عرض جدول بيانات الرسم",
   item: "البند",
   value: "القيمة",

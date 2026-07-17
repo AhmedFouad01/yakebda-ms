@@ -61,6 +61,25 @@ const PAYMENT_INTEGRITY_MESSAGES: Record<string, string> = {
   payments_refund_over_paid_guard: ar.errors.refund_exceeds_paid,
 };
 
+/**
+ * Sprint 2 — inventory master-data constraint violations surfaced clearly
+ * instead of a generic 500, following the same constraint→message pattern
+ * as payment integrity. Schema constraints stay the authority; this only
+ * translates them into field-level Arabic validation details. Names are
+ * the exact PG identifiers (incl. the 63-char truncation on the
+ * unit-conversions unique).
+ */
+const INVENTORY_CONSTRAINT_MESSAGES: Record<string, { field: string; message: string }> = {
+  inventory_units_account_id_symbol_unique: { field: "symbol", message: "رمز الوحدة مستخدم بالفعل في هذا الحساب." },
+  inventory_items_account_id_name_ar_unique: { field: "name_ar", message: "اسم الصنف مستخدم بالفعل في هذا الحساب." },
+  inventory_items_sku_unique_idx: { field: "sku", message: "كود الصنف (SKU) مستخدم بالفعل." },
+  inventory_suppliers_account_id_name_ar_unique: { field: "name_ar", message: "اسم المورد مستخدم بالفعل في هذا الحساب." },
+  inventory_unit_conversions_account_id_from_unit_id_to_unit_id_u: { field: "to_unit_id", message: "يوجد معامل تحويل مسجّل بالفعل بين هاتين الوحدتين." },
+  inventory_locations_account_id_branch_id_name_ar_unique: { field: "name_ar", message: "اسم الموقع مستخدم بالفعل في هذا الفرع." },
+  inventory_unit_conversions_factor_positive: { field: "factor", message: "معامل التحويل يجب أن يكون أكبر من صفر." },
+  inventory_unit_conversions_distinct_units: { field: "to_unit_id", message: "لا يمكن تسجيل تحويل من وحدة إلى نفسها." },
+};
+
 function isOrderIntegrityError(error: DatabaseError): boolean {
   if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) return true;
   return /Selected variant does not belong|same modifier cannot|Selected modifier does not belong|Required modifier selections are missing|Too many modifiers were selected/i.test(
@@ -100,6 +119,16 @@ export function createApiErrorHandler(logger: StructuredLogSink) {
         code: "validation",
         message: ar.errors.validation,
         details: { amount: paymentMessage },
+      });
+    }
+
+    const inventoryHit = dbError.constraint ? INVENTORY_CONSTRAINT_MESSAGES[dbError.constraint] : undefined;
+    if (inventoryHit && (dbError.code === "23505" || dbError.code === "23514")) {
+      const status = dbError.code === "23505" ? 409 : 422;
+      return res.status(status).json({
+        code: status === 409 ? "conflict" : "validation",
+        message: inventoryHit.message,
+        details: { [inventoryHit.field]: inventoryHit.message },
       });
     }
 

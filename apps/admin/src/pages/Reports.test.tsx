@@ -6,42 +6,66 @@ const apiMock = vi.hoisted(() => vi.fn());
 vi.mock("../lib/api", () => ({ api: apiMock }));
 
 const branchId = "11111111-1111-4111-8111-111111111111";
-const meta = {
-  report_id: "sales.trend",
-  generated_at: "2026-07-17T15:00:00.000Z",
-  timezone: "Africa/Cairo",
-  currency: "EGP",
-  filters: { days: 30, branch_id: null },
-};
+const accountId = "22222222-2222-4222-8222-222222222222";
+
+function reportMeta(reportId: string, filters: { days?: number; branch_id?: string | null } = {}) {
+  return {
+    request_id: `${reportId}-request`,
+    report_id: reportId,
+    query_version: "1.1.0",
+    generated_at: "2026-07-17T15:00:00.000Z",
+    generated_by_user_id: "33333333-3333-4333-8333-333333333333",
+    timezone: "Africa/Cairo",
+    timezone_policy: "account_default",
+    currency: "EGP",
+    effective_scope: { account_id: accountId, branch_ids: [branchId] },
+    filters,
+  };
+}
+
+function catalogResponse() {
+  return {
+    data: [
+      {
+        id: "sales.summary",
+        category: "sales_orders",
+        title_ar: "ملخص التشغيل اليومي",
+        description_ar: "مؤشرات اليوم",
+        required_permissions: ["reports.view"],
+        filters: [{ key: "branch_id", kind: "branch", label_ar: "الفرع", required: false }],
+        dimensions: [],
+        measures: [{ key: "sales_today", label_ar: "مبيعات اليوم", format: "money", semantics: "settled" }],
+        visualizations: ["kpis"],
+        supported_outputs: ["screen"],
+        default_template_key: "sales-summary-default",
+        query_version: "1.1.0",
+        status: "active",
+      },
+      {
+        id: "sales.by_source",
+        category: "sales_orders",
+        title_ar: "المبيعات حسب المصدر",
+        description_ar: "مقارنة القنوات",
+        required_permissions: ["reports.view"],
+        filters: [
+          { key: "days", kind: "period_days", label_ar: "الفترة", required: true, allowed_values: [7, 30, 90] },
+          { key: "branch_id", kind: "branch", label_ar: "الفرع", required: false },
+        ],
+        dimensions: [{ key: "source_id", label_ar: "المصدر" }],
+        measures: [{ key: "total", label_ar: "الإجمالي", format: "money", semantics: "settled" }],
+        visualizations: ["bar", "table"],
+        supported_outputs: ["screen"],
+        default_template_key: "sales-by-source-default",
+        query_version: "1.1.0",
+        status: "active",
+      },
+    ],
+  };
+}
 
 function installSuccessApi(overrides: { invalidValues?: boolean } = {}) {
   apiMock.mockImplementation(async (path: string) => {
-    if (path === "/reports/catalog") {
-      return {
-        data: [
-          {
-            id: "sales.summary",
-            category: "sales_orders",
-            title_ar: "ملخص التشغيل اليومي",
-            description_ar: "مؤشرات اليوم",
-            permission: "reports.view",
-            filters: ["branch_id"],
-            visualizations: ["kpis"],
-            status: "active",
-          },
-          {
-            id: "sales.by_source",
-            category: "sales_orders",
-            title_ar: "المبيعات حسب المصدر",
-            description_ar: "مقارنة القنوات",
-            permission: "reports.view",
-            filters: ["days", "branch_id"],
-            visualizations: ["bar", "table"],
-            status: "active",
-          },
-        ],
-      };
-    }
+    if (path === "/reports/catalog") return catalogResponse();
     if (path === "/branches") {
       return { data: [{ id: branchId, name: "الفرع الرئيسي", timezone: "Africa/Cairo" }] };
     }
@@ -56,29 +80,42 @@ function installSuccessApi(overrides: { invalidValues?: boolean } = {}) {
           open_shifts: 1,
           open_shift_cash_sales: 700,
         },
-        meta: { ...meta, report_id: "sales.summary" },
+        meta: reportMeta("sales.summary", { branch_id: null }),
       };
     }
-    if (path.startsWith("/reports/sales")) {
+    if (path.startsWith("/reports/sales/trend")) {
       return {
-        data: {
-          by_day: [{ day: "2026-07-17", total: 1250 }],
-          by_branch: [{ branch_id: branchId, branch: "الفرع الرئيسي", total: 1250 }],
-          by_source: [{ source_id: null, source: "طلب مباشر", total: 1250 }],
-        },
-        meta,
+        data: { rows: [{ day: "2026-07-17", total: 1250 }] },
+        meta: reportMeta("sales.trend", { days: 30, branch_id: null }),
+      };
+    }
+    if (path.startsWith("/reports/sales/by-branch")) {
+      return {
+        data: { rows: [{ branch_id: branchId, branch: "الفرع الرئيسي", total: 1250 }] },
+        meta: reportMeta("sales.by_branch", { days: 30, branch_id: null }),
+      };
+    }
+    if (path.startsWith("/reports/sales/by-source")) {
+      return {
+        data: { rows: [{ source_id: null, source: "طلب مباشر", total: 1250 }] },
+        meta: reportMeta("sales.by_source", { days: 30, branch_id: null }),
       };
     }
     if (path.startsWith("/reports/top-products")) {
       return {
-        data: [{ name_ar: "ساندوتش كبدة", qty: 8, total: overrides.invalidValues ? Number.NaN : 640 }],
-        meta: { ...meta, report_id: "sales.top_products" },
+        data: [{
+          product_id: "44444444-4444-4444-8444-444444444444",
+          name_ar: "ساندوتش كبدة",
+          qty: 8,
+          gross_item_sales: overrides.invalidValues ? Number.NaN : 640,
+        }],
+        meta: reportMeta("sales.top_products", { days: 30, branch_id: null }),
       };
     }
     if (path.startsWith("/reports/payment-methods")) {
       return {
         data: [{ method: "cash", total: 1250, count: 12 }],
-        meta: { ...meta, report_id: "sales.payment_methods" },
+        meta: reportMeta("sales.payment_methods", { days: 30, branch_id: null }),
       };
     }
     throw new Error(`Unexpected API path: ${path}`);
@@ -91,7 +128,7 @@ beforeEach(() => {
 });
 
 describe("Reporting foundation Admin", () => {
-  it("renders the catalog, authoritative KPIs, accessible charts, and report metadata", async () => {
+  it("renders catalog, authoritative KPIs, accessible charts and response metadata", async () => {
     render(<Reports />);
 
     await waitFor(() => expect(screen.getByText("ملخص التشغيل اليومي")).toBeTruthy());
@@ -100,10 +137,11 @@ describe("Reporting foundation Admin", () => {
     expect(screen.getByRole("img", { name: "المبيعات حسب المصدر" })).toBeTruthy();
     expect(screen.getByText("ساندوتش كبدة")).toBeTruthy();
     expect(screen.getByText(/Africa\/Cairo/)).toBeTruthy();
+    expect(screen.getByText(/sales\.trend-request/)).toBeTruthy();
     expect(screen.getAllByText("عرض جدول بيانات الرسم").length).toBe(3);
   });
 
-  it("applies one period and branch filter to every report run", async () => {
+  it("applies one period and branch filter to every distinct report endpoint", async () => {
     render(<Reports />);
     await waitFor(() => expect(screen.getByText("ساندوتش كبدة")).toBeTruthy());
 
@@ -113,21 +151,64 @@ describe("Reporting foundation Admin", () => {
 
     await waitFor(() => {
       const paths = apiMock.mock.calls.map(([path]) => String(path));
-      expect(paths).toContain(`/reports/sales?days=7&branch_id=${branchId}`);
+      expect(paths).toContain(`/reports/sales/trend?days=7&branch_id=${branchId}`);
+      expect(paths).toContain(`/reports/sales/by-branch?days=7&branch_id=${branchId}`);
+      expect(paths).toContain(`/reports/sales/by-source?days=7&branch_id=${branchId}`);
       expect(paths).toContain(`/reports/top-products?days=7&branch_id=${branchId}`);
       expect(paths).toContain(`/reports/payment-methods?days=7&branch_id=${branchId}`);
       expect(paths).toContain(`/reports/summary?branch_id=${branchId}`);
     });
   });
 
-  it("keeps invalid numeric values explicit instead of displaying a fake zero", async () => {
+  it("keeps invalid client-side numeric values explicit instead of a fake zero", async () => {
     installSuccessApi({ invalidValues: true });
     render(<Reports />);
     await waitFor(() => expect(screen.getByText("ساندوتش كبدة")).toBeTruthy());
     expect(screen.getAllByText("غير متاح").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("shows a retryable server error and recovers without remounting", async () => {
+  it("clears old report data when a new filtered run fails", async () => {
+    let failFilteredRun = false;
+    installSuccessApi();
+    const successImplementation = apiMock.getMockImplementation()!;
+    apiMock.mockImplementation(async (path: string) => {
+      if (failFilteredRun && path.includes("branch_id=")) throw new Error("تعذر تشغيل الفلتر الجديد");
+      return successImplementation(path);
+    });
+
+    render(<Reports />);
+    await waitFor(() => expect(screen.getByText("ساندوتش كبدة")).toBeTruthy());
+
+    failFilteredRun = true;
+    fireEvent.change(screen.getByLabelText("الفرع"), { target: { value: branchId } });
+    fireEvent.click(screen.getByRole("button", { name: "تطبيق" }));
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("تعذر تشغيل الفلتر الجديد"));
+    expect(screen.queryByText("ساندوتش كبدة")).toBeNull();
+  });
+
+  it("retries catalog and branches bootstrap independently", async () => {
+    let failBootstrap = true;
+    installSuccessApi();
+    const successImplementation = apiMock.getMockImplementation()!;
+    apiMock.mockImplementation(async (path: string) => {
+      if (failBootstrap && (path === "/reports/catalog" || path === "/branches")) {
+        throw new Error("تعذر تحميل الدليل");
+      }
+      return successImplementation(path);
+    });
+
+    render(<Reports />);
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("تعذر تحميل الدليل"));
+    expect(screen.queryByText("ملخص التشغيل اليومي")).toBeNull();
+
+    failBootstrap = false;
+    fireEvent.click(screen.getByRole("button", { name: "إعادة المحاولة" }));
+    await waitFor(() => expect(screen.getByText("ملخص التشغيل اليومي")).toBeTruthy());
+    expect(screen.getByRole("option", { name: "الفرع الرئيسي" })).toBeTruthy();
+  });
+
+  it("retries a failed report run without remounting", async () => {
     let failSummary = true;
     installSuccessApi();
     const successImplementation = apiMock.getMockImplementation()!;

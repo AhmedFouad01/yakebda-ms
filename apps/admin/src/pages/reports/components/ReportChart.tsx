@@ -123,13 +123,16 @@ export function ReportChart({
   const chartRef = useRef<EChartsInstance | null>(null);
   const [chartError, setChartError] = useState(false);
   const validRows = rows.filter((row) => Number.isFinite(row.value));
+  const dataSignature = JSON.stringify(validRows);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host || validRows.length === 0) return;
     let cancelled = false;
     let resizeObserver: ResizeObserver | null = null;
+    let resizeHandler: (() => void) | null = null;
     let themeObserver: MutationObserver | null = null;
+    setChartError(false);
 
     void loadECharts()
       .then((echarts) => {
@@ -142,13 +145,13 @@ export function ReportChart({
           });
         };
         render();
-        setChartError(false);
 
         if (typeof ResizeObserver !== "undefined") {
           resizeObserver = new ResizeObserver(() => chart.resize());
           resizeObserver.observe(host);
         } else {
-          window.addEventListener("resize", chart.resize);
+          resizeHandler = () => chart.resize();
+          window.addEventListener("resize", resizeHandler);
         }
 
         if (typeof MutationObserver !== "undefined") {
@@ -167,13 +170,11 @@ export function ReportChart({
       cancelled = true;
       resizeObserver?.disconnect();
       themeObserver?.disconnect();
-      if (chartRef.current) {
-        window.removeEventListener("resize", chartRef.current.resize);
-        chartRef.current.dispose();
-        chartRef.current = null;
-      }
+      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+      chartRef.current?.dispose();
+      chartRef.current = null;
     };
-  }, [kind, title, rows]);
+  }, [kind, title, dataSignature]);
 
   if (!validRows.length) return null;
 

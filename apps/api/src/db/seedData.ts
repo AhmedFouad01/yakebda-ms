@@ -28,6 +28,7 @@ export const PERMISSIONS: Array<{ key: string; name_ar: string; group: string }>
   { key: "customers.manage", name_ar: "إدارة العملاء", group: "العملاء" },
   { key: "reports.view", name_ar: "عرض التقارير", group: "التقارير" },
   { key: "settings.manage", name_ar: "إدارة الإعدادات", group: "الإعدادات" },
+  { key: "kitchen.manage", name_ar: "إيقاف/استئناف المطبخ", group: "المطبخ" },
   { key: "orders.cancel", name_ar: "إلغاء الطلبات", group: "الطلبات" },
   { key: "orders.discount_above_limit", name_ar: "اعتماد خصم فوق حد الكاشير", group: "الطلبات" },
   { key: "orders.refund", name_ar: "استرداد المدفوعات (لاحقًا)", group: "الطلبات" },

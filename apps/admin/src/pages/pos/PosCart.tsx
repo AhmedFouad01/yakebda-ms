@@ -12,6 +12,7 @@ export function PosCart({ controller }: { controller: PosController }) {
     setDeliveryAddress, setAddressModalOpen, deliveryZoneId, deliveryZones, setPhoneModalOpen,
     deliveryPhone, setDeliveryPhone, customerPhoneOptions, settings, discount, setDiscount,
     discountReason, setDiscountReason, discountOverLimit, belowMinDelivery, deliveryMinimum,
+    kitchenPaused, kitchenPauseReason,
     orderNotes, setOrderNotes, enabledMethods, payment, setPayment, cashBlocked, currentQuote,
     serviceFeeEstimate, activeDeliveryFee, vatEstimate, quoteBusy, total, quoteError,
     discountReasonMissing, busy, fireOrder,
@@ -30,6 +31,11 @@ export function PosCart({ controller }: { controller: PosController }) {
           </div>
           {/* YKMS-02F: إحصائيات الشيفت انتقلت لشاشة «إدارة الشيفت» — السلة للتشغيل فقط */}
           {error && <div className="alert dark-alert">{error}</div>}
+          {kitchenPaused && (
+            <div className="posx-paused-banner" role="status" aria-live="polite">
+              المطبخ متوقف مؤقتًا{kitchenPauseReason ? ` — ${kitchenPauseReason}` : ""}. لا يمكن إرسال طلبات جديدة حتى الاستئناف.
+            </div>
+          )}
           {msg && <div className="ok dark-ok">{msg}</div>}
 
           <div className="posx-order-rail" aria-label="بيانات الطلب الأساسية">
@@ -218,7 +224,8 @@ export function PosCart({ controller }: { controller: PosController }) {
                     : discountOverLimit && !can("orders.discount_above_limit")
                       ? "الخصم يتطلب موافقة مدير"
                       : null;
-            const payReason = fireReason ?? (cashBlocked ? "يجب فتح شيفت" : null);
+            const pausedReason = kitchenPaused ? "المطبخ متوقف مؤقتًا — لا تُقبل طلبات جديدة" : null;
+            const payReason = pausedReason ?? fireReason ?? (cashBlocked ? "يجب فتح شيفت" : null);
             const fireDisabled = busy || !!fireReason;
             return (
               <div className="posx-fire-wrap">

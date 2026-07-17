@@ -273,7 +273,7 @@ export function reportRoutes(db: Knex): Router {
         .modify((qb) => applyBranchScope(qb, "o.branch_id", scope.branchIds))
         .select(db.raw(`${localDaySql} as day`, [scope.timezone]))
         .sum("p.amount as total")
-        .groupByRaw(localDaySql, [scope.timezone])
+        .groupBy("day")
         .orderBy("day", "asc");
 
       const data: SalesTrendReportData = {

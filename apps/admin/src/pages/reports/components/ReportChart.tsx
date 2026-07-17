@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { formatReportMoney } from "../reportFormat";
+import { reportText } from "../reportText";
 
 export interface ReportChartRow {
   label: string;
@@ -19,22 +20,30 @@ const TOP = 18;
 const BOTTOM = 38;
 const SIDE = 34;
 
-export function ReportChart({ title, rows, kind, valueLabel = "القيمة" }: ReportChartProps) {
+export function ReportChart({
+  title,
+  rows,
+  kind,
+  valueLabel = reportText.value,
+}: ReportChartProps) {
   const titleId = useId();
   const validRows = rows.filter((row) => Number.isFinite(row.value));
   if (!validRows.length) return null;
 
-  const maxMagnitude = Math.max(...validRows.map((row) => Math.abs(row.value)), 1);
+  const values = validRows.map((row) => row.value);
+  const minimum = Math.min(0, ...values);
+  const maximum = Math.max(0, ...values);
+  const range = Math.max(maximum - minimum, 1);
   const innerWidth = WIDTH - SIDE * 2;
   const innerHeight = HEIGHT - TOP - BOTTOM;
-  const baseline = HEIGHT - BOTTOM;
+  const yFor = (value: number) => TOP + ((maximum - value) / range) * innerHeight;
+  const baseline = yFor(0);
 
   const points = validRows.map((row, index) => {
     const x = validRows.length === 1
       ? WIDTH / 2
       : SIDE + (index / (validRows.length - 1)) * innerWidth;
-    const y = baseline - (Math.max(row.value, 0) / maxMagnitude) * innerHeight;
-    return { ...row, x, y };
+    return { ...row, x, y: yFor(row.value) };
   });
 
   return (
@@ -78,15 +87,15 @@ export function ReportChart({ title, rows, kind, valueLabel = "القيمة" }: 
           points.map((point, index) => {
             const slot = innerWidth / Math.max(points.length, 1);
             const barWidth = Math.min(52, Math.max(16, slot * 0.56));
-            const height = (Math.abs(point.value) / maxMagnitude) * innerHeight;
+            const valueY = yFor(point.value);
             return (
               <rect
                 key={`${point.label}-${index}`}
                 className={`rpt-chart-bar${point.value < 0 ? " is-negative" : ""}`}
                 x={SIDE + slot * index + (slot - barWidth) / 2}
-                y={point.value < 0 ? baseline : baseline - height}
+                y={Math.min(valueY, baseline)}
                 width={barWidth}
-                height={height}
+                height={Math.abs(baseline - valueY)}
                 rx="4"
               />
             );
@@ -95,11 +104,11 @@ export function ReportChart({ title, rows, kind, valueLabel = "القيمة" }: 
       </svg>
 
       <details className="rpt-chart-data">
-        <summary>عرض جدول بيانات الرسم</summary>
+        <summary>{reportText.showChartData}</summary>
         <div className="rpt-table-wrap">
           <table>
             <thead>
-              <tr><th>البند</th><th>{valueLabel}</th></tr>
+              <tr><th>{reportText.item}</th><th>{valueLabel}</th></tr>
             </thead>
             <tbody>
               {validRows.map((row) => (

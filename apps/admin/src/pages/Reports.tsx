@@ -4,7 +4,9 @@ import type {
   ReportDefinition,
   ReportResponse,
   ReportSummary,
-  SalesReportData,
+  SalesByBranchReportData,
+  SalesBySourceReportData,
+  SalesTrendReportData,
   TopProductReportRow,
 } from "@ykms/contracts";
 import {
@@ -25,7 +27,9 @@ import {
   fetchReportBranches,
   fetchReportCatalog,
   fetchReportSummary,
-  fetchSalesReport,
+  fetchSalesByBranchReport,
+  fetchSalesBySourceReport,
+  fetchSalesTrendReport,
   fetchTopProductsReport,
   type ReportBranch,
 } from "./reports/reportApi";
@@ -38,7 +42,9 @@ import {
 
 interface ReportBundle {
   summary: ReportResponse<ReportSummary>;
-  sales: ReportResponse<SalesReportData>;
+  trend: ReportResponse<SalesTrendReportData>;
+  byBranch: ReportResponse<SalesByBranchReportData>;
+  bySource: ReportResponse<SalesBySourceReportData>;
   topProducts: ReportResponse<TopProductReportRow[]>;
   paymentMethods: ReportResponse<PaymentMethodReportRow[]>;
 }
@@ -47,7 +53,6 @@ const PAYMENT_AR: Record<string, string> = {
   cash: t.pos.cash,
   card: t.pos.card,
   wallet: t.pos.wallet,
-  unpaid: t.pos.unpaid,
 };
 
 const CATEGORY_AR: Record<ReportDefinition["category"], string> = {
@@ -67,48 +72,60 @@ function errorMessage(error: unknown): string {
 export function Reports() {
   const [catalog, setCatalog] = useState<ReportDefinition[]>([]);
   const [branches, setBranches] = useState<ReportBranch[]>([]);
+  const [bootstrapLoading, setBootstrapLoading] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState("");
   const [draftDays, setDraftDays] = useState(30);
   const [draftBranchId, setDraftBranchId] = useState("");
   const [days, setDays] = useState(30);
   const [branchId, setBranchId] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [runNonce, setRunNonce] = useState(0);
   const [bundle, setBundle] = useState<ReportBundle | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [reportsError, setReportsError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([fetchReportCatalog(), fetchReportBranches()])
-      .then(([catalogResponse, branchResponse]) => {
-        if (cancelled) return;
-        setCatalog(catalogResponse.data);
-        setBranches(branchResponse.data);
-      })
-      .catch((reason) => {
-        if (!cancelled) setError(errorMessage(reason));
-      });
-    return () => {
-      cancelled = true;
-    };
+  const loadBootstrap = useCallback(async () => {
+    setBootstrapLoading(true);
+    setBootstrapError("");
+    try {
+      const [catalogResponse, branchResponse] = await Promise.all([
+        fetchReportCatalog(),
+        fetchReportBranches(),
+      ]);
+      setCatalog(catalogResponse.data);
+      setBranches(branchResponse.data);
+    } catch (reason) {
+      setCatalog([]);
+      setBranches([]);
+      setBootstrapError(errorMessage(reason));
+    } finally {
+      setBootstrapLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadBootstrap();
+  }, [loadBootstrap]);
+
   const loadReports = useCallback(async () => {
-    setLoading(true);
-    setError("");
+    setReportsLoading(true);
+    setReportsError("");
+    setBundle(null);
     try {
-      const [summary, sales, topProducts, paymentMethods] = await Promise.all([
+      const [summary, trend, byBranch, bySource, topProducts, paymentMethods] = await Promise.all([
         fetchReportSummary(branchId),
-        fetchSalesReport(days, branchId),
+        fetchSalesTrendReport(days, branchId),
+        fetchSalesByBranchReport(days, branchId),
+        fetchSalesBySourceReport(days, branchId),
         fetchTopProductsReport(days, branchId),
         fetchPaymentMethodsReport(days, branchId),
       ]);
-      setBundle({ summary, sales, topProducts, paymentMethods });
+      setBundle({ summary, trend, byBranch, bySource, topProducts, paymentMethods });
     } catch (reason) {
-      setError(errorMessage(reason));
+      setReportsError(errorMessage(reason));
     } finally {
-      setLoading(false);
+      setReportsLoading(false);
     }
-  }, [branchId, days, refreshKey]);
+  }, [branchId, days, runNonce]);
 
   useEffect(() => {
     void loadReports();
@@ -117,13 +134,16 @@ export function Reports() {
   function applyFilters() {
     setDays(draftDays);
     setBranchId(draftBranchId || null);
+    setRunNonce((value) => value + 1);
   }
 
   const summary = bundle?.summary.data;
-  const sales = bundle?.sales.data;
+  const trend = bundle?.trend.data.rows ?? [];
+  const byBranch = bundle?.byBranch.data.rows ?? [];
+  const bySource = bundle?.bySource.data.rows ?? [];
   const topProducts = bundle?.topProducts.data ?? [];
   const paymentMethods = bundle?.paymentMethods.data ?? [];
-  const meta = bundle?.sales.meta ?? bundle?.summary.meta;
+  const meta = bundle?.trend.meta ?? bundle?.summary.meta;
 
   return (
     <div dir="rtl" className="rpt-page">
@@ -131,7 +151,11 @@ export function Reports() {
         title={t.reports.title}
         subtitle={t.reports.subtitle}
         actions={(
-          <Button variant="ghost" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}>
+          <Button
+            variant="ghost"
+            onClick={() => setRunNonce((value) => value + 1)}
+            disabled={reportsLoading}
+          >
             {t.reports.refresh}
           </Button>
         )}
@@ -147,23 +171,29 @@ export function Reports() {
             </Select>
           </FormField>
           <FormField label={t.reports.branch}>
-            <Select value={draftBranchId} onChange={(event) => setDraftBranchId(event.target.value)}>
+            <Select
+              value={draftBranchId}
+              onChange={(event) => setDraftBranchId(event.target.value)}
+              disabled={bootstrapLoading || Boolean(bootstrapError)}
+            >
               <option value="">{t.reports.allBranches}</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>{branch.name}</option>
               ))}
             </Select>
           </FormField>
-          <Button variant="primary" onClick={applyFilters} disabled={loading}>
+          <Button variant="primary" onClick={applyFilters} disabled={reportsLoading || bootstrapLoading}>
             {t.reports.apply}
           </Button>
         </div>
       </SectionCard>
 
-      {error && <ErrorState message={error} onRetry={loadReports} />}
-      {loading && !bundle && <LoadingState label={t.reports.loading} />}
+      {bootstrapError && <ErrorState message={bootstrapError} onRetry={loadBootstrap} />}
+      {bootstrapLoading && <LoadingState label={t.reports.loadingCatalog} />}
+      {reportsError && <ErrorState message={reportsError} onRetry={loadReports} />}
+      {reportsLoading && <LoadingState label={t.reports.loading} />}
 
-      {catalog.length > 0 && (
+      {!bootstrapLoading && !bootstrapError && catalog.length > 0 && (
         <section className="rpt-catalog" aria-labelledby="rpt-catalog-title">
           <div className="rpt-section-head">
             <div>
@@ -199,31 +229,31 @@ export function Reports() {
       {bundle && (
         <div className="rpt-grid">
           <SectionCard title={t.reports.salesTrend} hint={t.reports.salesTrendHint}>
-            {sales?.by_day.length ? (
+            {trend.length ? (
               <ReportChart
                 title={t.reports.salesTrend}
                 kind="line"
-                rows={sales.by_day.map((row) => ({ label: formatReportDay(row.day), value: row.total }))}
+                rows={trend.map((row) => ({ label: formatReportDay(row.day), value: row.total }))}
               />
             ) : <EmptyState message={t.reports.noData} />}
           </SectionCard>
 
           <SectionCard title={t.reports.salesByBranch}>
-            {sales?.by_branch.length ? (
+            {byBranch.length ? (
               <ReportChart
                 title={t.reports.salesByBranch}
                 kind="bar"
-                rows={sales.by_branch.map((row) => ({ label: row.branch, value: row.total }))}
+                rows={byBranch.map((row) => ({ label: row.branch, value: row.total }))}
               />
             ) : <EmptyState message={t.reports.noData} />}
           </SectionCard>
 
           <SectionCard title={t.reports.salesBySource}>
-            {sales?.by_source.length ? (
+            {bySource.length ? (
               <ReportChart
                 title={t.reports.salesBySource}
                 kind="bar"
-                rows={sales.by_source.map((row) => ({ label: row.source, value: row.total }))}
+                rows={bySource.map((row) => ({ label: row.source, value: row.total }))}
               />
             ) : <EmptyState message={t.reports.noData} />}
           </SectionCard>
@@ -247,17 +277,17 @@ export function Reports() {
             ) : <EmptyState message={t.reports.noData} />}
           </SectionCard>
 
-          <SectionCard title={t.reports.topProducts}>
+          <SectionCard title={t.reports.topProducts} hint={t.reports.topProductsGrossHint}>
             {topProducts.length ? (
               <div className="rpt-table-wrap">
                 <table>
-                  <thead><tr><th>{t.reports.product}</th><th>{t.reports.qty}</th><th>{t.reports.totalSales}</th></tr></thead>
+                  <thead><tr><th>{t.reports.product}</th><th>{t.reports.qty}</th><th>{t.reports.grossItemSales}</th></tr></thead>
                   <tbody>
                     {topProducts.map((row) => (
-                      <tr key={row.name_ar}>
+                      <tr key={row.product_id}>
                         <td>{row.name_ar}</td>
                         <td>{formatReportNumber(row.qty)}</td>
-                        <td>{formatReportMoney(row.total)}</td>
+                        <td>{formatReportMoney(row.gross_item_sales)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -270,8 +300,10 @@ export function Reports() {
 
       {meta && (
         <footer className="rpt-meta">
-          <span>{t.reports.lastGenerated}: {formatReportTimestamp(meta.generated_at)}</span>
+          <span>{t.reports.lastGenerated}: {formatReportTimestamp(meta.generated_at, meta.timezone)}</span>
           <span>{t.reports.timezone}: <bdi dir="ltr">{meta.timezone}</bdi></span>
+          <span>{t.reports.timezonePolicy}: {meta.timezone_policy === "branch" ? t.reports.branchTimezone : t.reports.accountDefaultTimezone}</span>
+          <span>{t.reports.requestId}: <bdi dir="ltr">{meta.request_id}</bdi></span>
         </footer>
       )}
     </div>

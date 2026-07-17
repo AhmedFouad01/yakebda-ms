@@ -3,7 +3,7 @@ import { Knex } from "knex";
 import { z } from "zod";
 import type { CustomerListItem, CustomerSortField, SortDirection } from "@ykms/contracts";
 import { CUSTOMER_SORT_FIELDS } from "@ykms/contracts";
-import { err } from "../lib/errors";
+import { ApiError, err } from "../lib/errors";
 import { canAccessBranch, requireUser } from "../middleware/auth";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 import { getSettings, Settings } from "./settings";
@@ -92,7 +92,8 @@ function parseCustomerSort(query: Record<string, unknown>): { sort: CustomerSort
       direction: z.enum(["asc", "desc"]).default("desc"),
     })
     .safeParse({ sort: query.sort ?? undefined, direction: query.direction ?? undefined });
-  if (!parsed.success) throw err.validation({ sort: "حقل الترتيب غير مدعوم" });
+  // 400 like the cursor library's structured errors (ADR-006), not 422.
+  if (!parsed.success) throw new ApiError(400, "validation", { sort: "حقل الترتيب غير مدعوم" });
   return parsed.data;
 }
 

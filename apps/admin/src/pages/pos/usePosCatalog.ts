@@ -6,6 +6,7 @@ import { catRank } from "./utils";
 export interface UsePosCatalogOptions {
   branchId: string;
   sourceId: string;
+  orderType: string;
   refreshCartProducts: (products: ReadonlyMap<string, MenuProduct>) => void;
   onError: (message: string) => void;
 }
@@ -23,6 +24,7 @@ export interface UsePosCatalogResult {
 export function usePosCatalog({
   branchId,
   sourceId,
+  orderType,
   refreshCartProducts,
   onError,
 }: UsePosCatalogOptions): UsePosCatalogResult {
@@ -32,7 +34,11 @@ export function usePosCatalog({
 
   async function refreshCatalog(currentBranchId = branchId, currentSourceId = sourceId) {
     if (!currentBranchId) return;
-    const query = currentSourceId ? "?source_id=" + encodeURIComponent(currentSourceId) : "";
+    // YKMS-11: المصدر يُتحقق منه بنوع الطلب الحالي — وليس تيك أواي ثابتًا
+    const params = new URLSearchParams();
+    if (currentSourceId) params.set("source_id", currentSourceId);
+    if (orderType) params.set("order_type", orderType);
+    const query = params.size ? "?" + params.toString() : "";
     const response = await api<{ data: { categories: MenuCategory[] } }>("/branches/" + currentBranchId + "/menu" + query);
     const sorted = [...response.data.categories].sort((a, b) => catRank(a.name_ar) - catRank(b.name_ar));
     const refreshed = new Map(sorted.flatMap((category) => category.products).map((product) => [product.id, product]));
@@ -46,7 +52,7 @@ export function usePosCatalog({
     if (!branchId) return;
     refreshCatalog(branchId, sourceId).catch((e: Error) => onError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId, sourceId]);
+  }, [branchId, sourceId, orderType]);
 
   // YKMS-02E: إخفاء الأصناف غير المرئية في POS (pos_visible === false)
   const allProducts = useMemo(

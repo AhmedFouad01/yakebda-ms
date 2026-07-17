@@ -159,12 +159,27 @@ body,
   color: var(--text-primary);
 }
 
-.app2-pos .posx-shell-icon:hover,
 .app2-pos .posx-shell-icon:focus-within,
-.app2-pos .posx-history-btn:hover,
 .app2-pos .posx-history-btn:focus-visible {
   border-color: var(--brand);
   color: var(--brand);
+}
+
+@media (hover: hover) {
+  .app2-menu:hover,
+  .app2-home:hover,
+  .app2-back:hover,
+  .app2-pos .posx-shell-icon:hover,
+  .app2-pos .posx-history-btn:hover {
+    border-color: var(--brand);
+    background: var(--control-surface-hover);
+    color: var(--brand);
+  }
+
+  .app2-logout:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
 }
 
 .app2-brand {

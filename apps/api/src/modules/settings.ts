@@ -4,6 +4,7 @@ import { Knex } from "knex";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { writeAudit } from "../lib/audit";
+import { getStorage, MAX_IMAGE_BYTES, validateImageBuffer } from "../lib/storage";
 import { requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 
@@ -116,6 +117,14 @@ export const SETTINGS_SCHEMA = z.object({
 
 export type Settings = z.infer<typeof SETTINGS_SCHEMA>;
 
+const SETTINGS_UPDATE_SCHEMA = SETTINGS_SCHEMA.omit({ logo_url: true }).partial().strict();
+const LOGO_UPLOAD_SCHEMA = z
+  .object({
+    mime: z.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"]),
+    data_base64: z.string().min(1).max(Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 8),
+  })
+  .strict();
+
 export const SETTINGS_DEFAULTS: Settings = {
   restaurant_name: "يا كبدة",
   restaurant_name_en: "Ya Kebda",
@@ -207,6 +216,48 @@ export const SETTINGS_DEFAULTS: Settings = {
   allow_order_cancel: true,
 };
 
+function logoPrefix(accountId: string): string {
+  return `logos-${accountId}`;
+}
+
+function uploadedLogoKey(accountId: string, value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const prefix = logoPrefix(accountId);
+  const match = value.match(
+    new RegExp(`^/uploads/(${prefix}/[0-9]+-[a-f0-9]{16}\\.(?:jpg|png|webp))$`, "i")
+  );
+  return match?.[1] ?? null;
+}
+
+function safeLogoUrl(accountId: string, value: unknown): string {
+  if (value === SETTINGS_DEFAULTS.logo_url) return SETTINGS_DEFAULTS.logo_url;
+  return uploadedLogoKey(accountId, value) ? String(value) : SETTINGS_DEFAULTS.logo_url;
+}
+
+function decodeBase64(value: string): Buffer | null {
+  if (value.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    return null;
+  }
+  const data = Buffer.from(value, "base64");
+  return data.toString("base64") === value ? data : null;
+}
+
+async function setAccountLogo(db: Knex, accountId: string, logoUrl: string): Promise<void> {
+  const updated = await db("settings")
+    .where({ account_id: accountId, key: "logo_url" })
+    .whereNull("branch_id")
+    .update({ value: JSON.stringify(logoUrl), updated_at: db.fn.now() });
+  if (!updated) {
+    await db("settings").insert({
+      id: newId(),
+      account_id: accountId,
+      branch_id: null,
+      key: "logo_url",
+      value: JSON.stringify(logoUrl),
+    });
+  }
+}
+
 /** Merge: defaults ← account-level ← branch-level. */
 export async function getSettings(db: Knex, accountId: string, branchId?: string | null): Promise<Settings> {
   const rows = await db("settings")
@@ -220,12 +271,93 @@ export async function getSettings(db: Knex, accountId: string, branchId?: string
   for (const row of rows) {
     if (row.key in SETTINGS_DEFAULTS) merged[row.key] = row.value;
   }
-  return SETTINGS_SCHEMA.parse(merged);
+  const parsed = SETTINGS_SCHEMA.parse(merged);
+  return { ...parsed, logo_url: safeLogoUrl(accountId, parsed.logo_url) };
 }
 
 export function settingsRoutes(db: Knex): Router {
   const r = Router();
   r.use(requireUser(db));
+
+  // GET /settings/brand — إعداد هوية آمن للحساب الحالي فقط.
+  r.get("/brand", async (req, res, next) => {
+    try {
+      const settings = await getSettings(db, req.user!.accountId);
+      res.json({ data: { logo_url: settings.logo_url } });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // POST /settings/logo — رفع صورة مولدة الاسم ومملوكة للحساب الحالي.
+  r.post("/logo", requirePermission("settings.manage"), async (req, res, next) => {
+    const storage = getStorage();
+    let storedKey: string | null = null;
+    try {
+      const body = LOGO_UPLOAD_SCHEMA.safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      const data = decodeBase64(body.data.data_base64);
+      if (!data) throw err.validation({ data_base64: ["بيانات الصورة غير صالحة"] });
+      const imageError = validateImageBuffer(body.data.mime, data);
+      if (imageError) throw err.validation({ image: [imageError] });
+
+      const current = await getSettings(db, req.user!.accountId);
+      const oldKey = uploadedLogoKey(req.user!.accountId, current.logo_url);
+      const stored = await storage.save({
+        data,
+        mime: body.data.mime,
+        prefix: logoPrefix(req.user!.accountId),
+      });
+      storedKey = stored.key;
+
+      await db.transaction(async (trx) => {
+        await trx("accounts").where({ id: req.user!.accountId }).forUpdate().first();
+        await setAccountLogo(trx, req.user!.accountId, stored.url);
+        await writeAudit(trx, {
+          accountId: req.user!.accountId,
+          userId: req.user!.id,
+          action: "settings.logo_upload",
+          entityType: "settings",
+          entityId: req.user!.accountId,
+          meta: { mime: stored.mime, size: stored.size },
+          ip: req.ip,
+        });
+      });
+      storedKey = null;
+      if (oldKey && oldKey !== stored.key) await storage.delete(oldKey).catch(() => undefined);
+      res.json({ data: { logo_url: stored.url, size: stored.size }, message: ar.messages.updated });
+    } catch (e) {
+      if (storedKey) await storage.delete(storedKey).catch(() => undefined);
+      next(e);
+    }
+  });
+
+  // DELETE /settings/logo — العودة إلى اللوجو الافتراضي دون قبول مسار من العميل.
+  r.delete("/logo", requirePermission("settings.manage"), async (req, res, next) => {
+    try {
+      const current = await getSettings(db, req.user!.accountId);
+      const oldKey = uploadedLogoKey(req.user!.accountId, current.logo_url);
+      await db.transaction(async (trx) => {
+        await trx("accounts").where({ id: req.user!.accountId }).forUpdate().first();
+        await trx("settings")
+          .where({ account_id: req.user!.accountId, key: "logo_url" })
+          .whereNull("branch_id")
+          .del();
+        await writeAudit(trx, {
+          accountId: req.user!.accountId,
+          userId: req.user!.id,
+          action: "settings.logo_remove",
+          entityType: "settings",
+          entityId: req.user!.accountId,
+          ip: req.ip,
+        });
+      });
+      if (oldKey) await getStorage().delete(oldKey).catch(() => undefined);
+      res.json({ data: { logo_url: SETTINGS_DEFAULTS.logo_url }, message: ar.messages.updated });
+    } catch (e) {
+      next(e);
+    }
+  });
 
   // GET /settings[?branch_id=] — أي مستخدم مسجل (POS يحتاجها)
   r.get("/", async (req, res, next) => {
@@ -249,7 +381,7 @@ export function settingsRoutes(db: Knex): Router {
     try {
       const q = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
       if (!q.success) throw err.validation(q.error.flatten());
-      const body = SETTINGS_SCHEMA.partial().safeParse(req.body);
+      const body = SETTINGS_UPDATE_SCHEMA.safeParse(req.body);
       if (!body.success) throw err.validation(body.error.flatten());
       if (q.data.branch_id) {
         const branch = await db("branches")

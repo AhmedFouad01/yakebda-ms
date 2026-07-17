@@ -309,17 +309,23 @@ export function RolesSection() {
     <SectionCard title="المستخدمون والصلاحيات">
       {error && <div className="alert">{error}</div>}
       <div className="muted">إدارة المستخدمين من صفحة <Link to="/users">المستخدمين</Link>. الخريطة أدناه للقراءة — تحرير الأدوار endpoint لاحقًا.</div>
-      {roles.map((role) => (
-        <div key={role.id} className="set-role">
-          <strong>{role.name_ar}</strong> <span className="muted" dir="ltr">({role.key})</span>
-          <div className="set-perms">
-            {role.key === "owner" || role.key === "admin"
-              ? <span className="stub">كل الصلاحيات</span>
-              : (role.permissions ?? []).map((p) => <span key={p.key} className="stub">{p.name_ar}</span>)}
-            {role.key !== "owner" && role.key !== "admin" && !(role.permissions ?? []).length && <span className="muted">بلا صلاحيات</span>}
+      {roles.map((role) => {
+        const count = (role.permissions ?? []).length;
+        const isFull = role.key === "owner" || role.key === "admin";
+        return (
+          <div key={role.id} className="set-role">
+            <strong>{role.name_ar}</strong> <span className="muted" dir="ltr">({role.key})</span>
+            <div className="set-perms">
+              {/* العدّاد نص حقيقي — لا يُصنع من CSS counters (عناصر display:none لا تُحتسب) */}
+              {isFull
+                ? <span className="stub on">كل الصلاحيات</span>
+                : count > 0
+                  ? <span className="stub" title={(role.permissions ?? []).map((p) => p.name_ar).join("، ")}>{count} صلاحية</span>
+                  : <span className="muted">بلا صلاحيات</span>}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </SectionCard>
   );
 }

@@ -140,7 +140,9 @@ export function useSettingsDoc(): SettingsDoc {
       if (!data || saving) return;
       setSaving(true);
       try {
-        const res = await api<{ data: SettingsData }>("/settings", { method: "PATCH", body: data });
+        const body: Partial<SettingsData> = { ...data };
+        delete body.logo_url;
+        const res = await api<{ data: SettingsData }>("/settings", { method: "PATCH", body });
         setData(res.data);
         setInitial(JSON.stringify(res.data));
         toast("تم حفظ الإعدادات ✓");

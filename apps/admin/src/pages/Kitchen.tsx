@@ -390,7 +390,7 @@ export function Kitchen() {
                             <div className="kds-order-identity">
                               <strong>{t.kitchen.orderNo} #{order.order_prefix ?? ""}{order.order_no}</strong>
                               <div className="kds-order-tags">
-                                <Badge tone={workflowTone(status)}>{label}</Badge>
+                                {/* W4d: العمود يعبر عن الحالة — لا بادج حالة مكررة داخل الكارت */}
                                 <span className="kds-order-type">{orderType}</span>
                               </div>
                             </div>
@@ -401,12 +401,13 @@ export function Kitchen() {
                           </div>
 
                           <div className="kds-meta">
+                            {/* W4 phase1: توقيت واضح (label ثم الوقت أساسيًا ثم التاريخ ثانويًا) */}
                             <span className="kds-received" title={formatExact(anchor)}>
-                              <b>ورد</b>
+                              <b>التوقيت</b>
                               <time dateTime={anchor ?? undefined}>{formatClock(anchor)}</time>
                               <small>{formatDay(anchor)}</small>
                             </span>
-                            <span>
+                            <span className="kds-count">
                               <b>الأصناف</b>
                               <strong>{itemCount}</strong>
                             </span>

@@ -38,6 +38,24 @@ export function validateImage(mime: string, size: number): string | null {
   return null;
 }
 
+export function validateImageBuffer(mime: string, data: Buffer): string | null {
+  const basicError = validateImage(mime, data.length);
+  if (basicError) return basicError;
+
+  const isPng = data.length >= 8 && data.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"));
+  const isJpeg = data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  const isWebp =
+    data.length >= 12 &&
+    data.subarray(0, 4).toString("ascii") === "RIFF" &&
+    data.subarray(8, 12).toString("ascii") === "WEBP";
+  const signatureMatches =
+    (mime === "image/png" && isPng) ||
+    ((mime === "image/jpeg" || mime === "image/jpg") && isJpeg) ||
+    (mime === "image/webp" && isWebp);
+
+  return signatureMatches ? null : "محتوى الصورة لا يطابق نوع الملف";
+}
+
 export class LocalStorageAdapter implements StorageAdapter {
   private root: string;
   private publicBase: string;

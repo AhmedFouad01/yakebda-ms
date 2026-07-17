@@ -26,6 +26,16 @@ export interface InventoryUnit {
   updated_at?: string;
 }
 
+export interface InventoryUnitConversion {
+  id: string;
+  account_id: string;
+  from_unit_id: string;
+  to_unit_id: string;
+  factor: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface InventoryItem {
   id: string;
   account_id: string;

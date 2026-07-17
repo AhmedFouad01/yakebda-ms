@@ -6,6 +6,7 @@ import type {
   InventoryMovementRow,
   InventorySupplier,
   InventoryUnit,
+  InventoryUnitConversion,
 } from "./inventoryTypes";
 
 /**
@@ -40,6 +41,44 @@ export function fetchInventoryMovements(filters: { location_id?: string; item_id
   if (filters.item_id) params.set("item_id", filters.item_id);
   const qs = params.toString();
   return api<{ data: InventoryMovementRow[] }>(`/inventory/movements${qs ? `?${qs}` : ""}`);
+}
+
+/* ——— Sprint 2 — master-data creates (the ONLY writes the current API supports) ——— */
+
+export function createInventoryUnit(body: { name_ar: string; symbol: string }) {
+  return api<{ data: InventoryUnit }>("/inventory/units", { method: "POST", body });
+}
+
+export function createInventoryConversion(body: { from_unit_id: string; to_unit_id: string; factor: string }) {
+  return api<{ data: InventoryUnitConversion }>("/inventory/unit-conversions", { method: "POST", body });
+}
+
+export function createInventoryItem(body: { name_ar: string; sku?: string; base_unit_id: string; reorder_level?: string }) {
+  return api<{ data: InventoryItem }>("/inventory/items", { method: "POST", body });
+}
+
+export function createInventorySupplier(body: { name_ar: string; phone?: string }) {
+  return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
+}
+
+/** يستخرج أخطاء الحقول من ApiFail.details (zod flatten أو خرائط الحقول من الخادم). */
+export function fieldErrorsOf(err: unknown): Record<string, string> {
+  const details = (err as { details?: unknown })?.details;
+  if (!details || typeof details !== "object") return {};
+  const out: Record<string, string> = {};
+  const record = details as Record<string, unknown>;
+  const fieldErrors = record.fieldErrors;
+  if (fieldErrors && typeof fieldErrors === "object") {
+    for (const [k, v] of Object.entries(fieldErrors as Record<string, unknown>)) {
+      if (Array.isArray(v) && v.length) out[k] = String(v[0]);
+    }
+    return out;
+  }
+  for (const [k, v] of Object.entries(record)) {
+    if (typeof v === "string") out[k] = v;
+    else if (Array.isArray(v) && v.length) out[k] = String(v[0]);
+  }
+  return out;
 }
 
 /** «غير متاح» بدل الصفر الزائف: لا fallback صفري لقيم مفقودة أو غير صالحة. */

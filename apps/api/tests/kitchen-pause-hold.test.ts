@@ -237,7 +237,7 @@ describe("order hold", () => {
     await expect(db("kitchen_order_holds").insert({ ...base, id: newId(), hold_key: key("db2") })).rejects.toThrow();
   });
 
-  it("migration 020 down/up cycles cleanly", async () => {
+  it("migration 027 down/up cycles cleanly", async () => {
     await db.migrate.down();
     await db.migrate.latest();
     const perm = await db("permissions").where({ key: "kitchen.manage" }).first();

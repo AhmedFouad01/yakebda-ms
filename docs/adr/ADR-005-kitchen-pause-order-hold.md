@@ -98,7 +98,7 @@ Errors are structured `{code, message}`; Arabic messages via `ar.errors`.
 
 No secrets/payload bodies in meta.
 
-## Schema (migration `20260717_020_kitchen_pause_order_hold`)
+## Schema (migration `20260717_027_kitchen_pause_order_hold`)
 
 - `kitchen_branch_states` — one row per (account_id, branch_id) [unique];
   `is_paused, paused_at/by, pause_reason, resumed_at/by, version` (optimistic

@@ -8,7 +8,7 @@ import { requirePermission, requireUser } from "../middleware/auth";
 import { ar } from "../i18n/ar";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 
-/** YKMS-02 — Tables (light), Customers (light), Reports. Account-scoped throughout. */
+/** YKMS-02 — Tables (light) and Customers (light). Account-scoped throughout. */
 
 const TABLE_STATUSES = ["available", "occupied", "reserved", "cleaning"] as const;
 
@@ -331,140 +331,6 @@ export function customerRoutes(db: Knex): Router {
       if (!row) throw err.notFound();
       await db("customers").where({ id: row.id }).update({ ...normalize(body.data), updated_at: db.fn.now() });
       res.json({ data: await db("customers").where({ id: row.id }).first(), message: ar.messages.updated });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  return r;
-}
-
-export function reportRoutes(db: Knex): Router {
-  const r = Router();
-  r.use(requireUser(db));
-  r.use(requirePermission("reports.view"));
-
-  const startOfToday = () => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-
-  // GET /summary — dashboard numbers
-  r.get("/summary", async (req, res, next) => {
-    try {
-      const acc = req.user!.accountId;
-      const today = startOfToday();
-      const [sales] = await db("payments as p")
-        .join("orders as o", "o.id", "p.order_id")
-        .where("o.account_id", acc)
-        .where("p.created_at", ">=", today)
-        .whereNot("p.method", "unpaid")
-        .sum("p.amount as total");
-      const [ordersToday] = await db("orders")
-        .where({ account_id: acc })
-        .where("created_at", ">=", today)
-        .count("id as c");
-      const [openOrders] = await db("orders")
-        .where({ account_id: acc })
-        .whereIn("status", ["submitted", "in_kitchen", "ready"])
-        .count("id as c");
-      const [kitchenPending] = await db("orders")
-        .where({ account_id: acc })
-        .whereIn("status", ["submitted", "in_kitchen"])
-        .count("id as c");
-      const [cancelled] = await db("orders")
-        .where({ account_id: acc, status: "cancelled" })
-        .where("created_at", ">=", today)
-        .count("id as c");
-      const [openShifts] = await db("shifts")
-        .where({ account_id: acc, status: "open" })
-        .count("id as c");
-      const [cashExpected] = await db("shifts as s")
-        .leftJoin("payments as p", function () {
-          this.on("p.shift_id", "=", "s.id").andOn("p.method", "=", db.raw("?", ["cash"]));
-        })
-        .where("s.account_id", acc)
-        .where("s.status", "open")
-        .sum("p.amount as cash_sales");
-      res.json({
-        data: {
-          sales_today: Number(sales.total ?? 0),
-          orders_today: Number(ordersToday.c),
-          open_orders: Number(openOrders.c),
-          kitchen_pending: Number(kitchenPending.c),
-          cancelled_today: Number(cancelled.c),
-          open_shifts: Number(openShifts.c),
-          open_shift_cash_sales: Number(cashExpected.cash_sales ?? 0),
-        },
-      });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  // GET /sales?days=7 — sales by day and by branch
-  r.get("/sales", async (req, res, next) => {
-    try {
-      const q = z.object({ days: z.coerce.number().int().min(1).max(90).default(7) }).safeParse(req.query);
-      if (!q.success) throw err.validation(q.error.flatten());
-      const since = new Date();
-      since.setDate(since.getDate() - q.data.days);
-      since.setHours(0, 0, 0, 0);
-      const byDay = await db("payments as p")
-        .join("orders as o", "o.id", "p.order_id")
-        .where("o.account_id", req.user!.accountId)
-        .where("p.created_at", ">=", since)
-        .whereNot("p.method", "unpaid")
-        .select(db.raw("date(p.created_at) as day"))
-        .sum("p.amount as total")
-        .groupByRaw("date(p.created_at)")
-        .orderBy("day", "asc");
-      const byBranch = await db("payments as p")
-        .join("orders as o", "o.id", "p.order_id")
-        .join("branches as b", "b.id", "o.branch_id")
-        .where("o.account_id", req.user!.accountId)
-        .where("p.created_at", ">=", since)
-        .whereNot("p.method", "unpaid")
-        .select("b.name as branch")
-        .sum("p.amount as total")
-        .groupBy("b.name");
-      res.json({ data: { by_day: byDay, by_branch: byBranch } });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  // GET /top-products
-  r.get("/top-products", async (req, res, next) => {
-    try {
-      const rows = await db("order_items as i")
-        .join("orders as o", "o.id", "i.order_id")
-        .where("o.account_id", req.user!.accountId)
-        .whereNot("o.status", "cancelled")
-        .select("i.name_ar")
-        .sum("i.qty as qty")
-        .sum("i.line_total as total")
-        .groupBy("i.name_ar")
-        .orderBy("qty", "desc")
-        .limit(10);
-      res.json({ data: rows });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  // GET /payment-methods
-  r.get("/payment-methods", async (req, res, next) => {
-    try {
-      const rows = await db("payments as p")
-        .join("orders as o", "o.id", "p.order_id")
-        .where("o.account_id", req.user!.accountId)
-        .select("p.method")
-        .sum("p.amount as total")
-        .count("p.id as count")
-        .groupBy("p.method");
-      res.json({ data: rows });
     } catch (e) {
       next(e);
     }

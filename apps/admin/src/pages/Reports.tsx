@@ -49,6 +49,10 @@ interface ReportBundle {
   paymentMethods: ReportResponse<PaymentMethodReportRow[]>;
 }
 
+type ReportKey = keyof ReportBundle;
+type PartialReportBundle = Partial<ReportBundle>;
+type ReportErrors = Partial<Record<ReportKey, string>>;
+
 const PAYMENT_AR: Record<string, string> = {
   cash: t.pos.cash,
   card: t.pos.card,
@@ -79,9 +83,9 @@ export function Reports() {
   const [days, setDays] = useState(30);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [runNonce, setRunNonce] = useState(0);
-  const [bundle, setBundle] = useState<ReportBundle | null>(null);
+  const [bundle, setBundle] = useState<PartialReportBundle>({});
+  const [reportErrors, setReportErrors] = useState<ReportErrors>({});
   const [reportsLoading, setReportsLoading] = useState(true);
-  const [reportsError, setReportsError] = useState("");
 
   const loadBootstrap = useCallback(async () => {
     setBootstrapLoading(true);
@@ -108,23 +112,34 @@ export function Reports() {
 
   const loadReports = useCallback(async () => {
     setReportsLoading(true);
-    setReportsError("");
-    setBundle(null);
-    try {
-      const [summary, trend, byBranch, bySource, topProducts, paymentMethods] = await Promise.all([
-        fetchReportSummary(branchId),
-        fetchSalesTrendReport(days, branchId),
-        fetchSalesByBranchReport(days, branchId),
-        fetchSalesBySourceReport(days, branchId),
-        fetchTopProductsReport(days, branchId),
-        fetchPaymentMethodsReport(days, branchId),
-      ]);
-      setBundle({ summary, trend, byBranch, bySource, topProducts, paymentMethods });
-    } catch (reason) {
-      setReportsError(errorMessage(reason));
-    } finally {
-      setReportsLoading(false);
-    }
+    setBundle({});
+    setReportErrors({});
+
+    const requests: Array<[ReportKey, Promise<ReportBundle[ReportKey]>]> = [
+      ["summary", fetchReportSummary(branchId)],
+      ["trend", fetchSalesTrendReport(days, branchId)],
+      ["byBranch", fetchSalesByBranchReport(days, branchId)],
+      ["bySource", fetchSalesBySourceReport(days, branchId)],
+      ["topProducts", fetchTopProductsReport(days, branchId)],
+      ["paymentMethods", fetchPaymentMethodsReport(days, branchId)],
+    ];
+
+    const settled = await Promise.allSettled(requests.map(([, promise]) => promise));
+    const nextBundle: PartialReportBundle = {};
+    const nextErrors: ReportErrors = {};
+
+    settled.forEach((result, index) => {
+      const [key] = requests[index];
+      if (result.status === "fulfilled") {
+        nextBundle[key] = result.value as never;
+      } else {
+        nextErrors[key] = errorMessage(result.reason);
+      }
+    });
+
+    setBundle(nextBundle);
+    setReportErrors(nextErrors);
+    setReportsLoading(false);
   }, [branchId, days, runNonce]);
 
   useEffect(() => {
@@ -137,13 +152,18 @@ export function Reports() {
     setRunNonce((value) => value + 1);
   }
 
-  const summary = bundle?.summary.data;
-  const trend = bundle?.trend.data.rows ?? [];
-  const byBranch = bundle?.byBranch.data.rows ?? [];
-  const bySource = bundle?.bySource.data.rows ?? [];
-  const topProducts = bundle?.topProducts.data ?? [];
-  const paymentMethods = bundle?.paymentMethods.data ?? [];
-  const meta = bundle?.trend.meta ?? bundle?.summary.meta;
+  const summary = bundle.summary?.data;
+  const trend = bundle.trend?.data.rows ?? [];
+  const byBranch = bundle.byBranch?.data.rows ?? [];
+  const bySource = bundle.bySource?.data.rows ?? [];
+  const topProducts = bundle.topProducts?.data ?? [];
+  const paymentMethods = bundle.paymentMethods?.data ?? [];
+  const meta = bundle.trend?.meta
+    ?? bundle.summary?.meta
+    ?? bundle.byBranch?.meta
+    ?? bundle.bySource?.meta
+    ?? bundle.topProducts?.meta
+    ?? bundle.paymentMethods?.meta;
 
   return (
     <div dir="rtl" className="rpt-page">
@@ -190,7 +210,6 @@ export function Reports() {
 
       {bootstrapError && <ErrorState message={bootstrapError} onRetry={loadBootstrap} />}
       {bootstrapLoading && <LoadingState label={t.reports.loadingCatalog} />}
-      {reportsError && <ErrorState message={reportsError} onRetry={loadReports} />}
       {reportsLoading && <LoadingState label={t.reports.loading} />}
 
       {!bootstrapLoading && !bootstrapError && catalog.length > 0 && (
@@ -214,6 +233,10 @@ export function Reports() {
         </section>
       )}
 
+      {reportErrors.summary && (
+        <ErrorState message={`${t.reports.operationalSummary}: ${reportErrors.summary}`} onRetry={loadReports} />
+      )}
+
       {summary && (
         <section className="rpt-summary-grid" aria-label={t.reports.operationalSummary}>
           <div className="card"><div className="num">{formatReportMoney(summary.sales_today)}</div><div className="lbl">{t.reports.salesToday}</div></div>
@@ -226,77 +249,85 @@ export function Reports() {
         </section>
       )}
 
-      {bundle && (
-        <div className="rpt-grid">
-          <SectionCard title={t.reports.salesTrend} hint={t.reports.salesTrendHint}>
-            {trend.length ? (
-              <ReportChart
-                title={t.reports.salesTrend}
-                kind="line"
-                rows={trend.map((row) => ({ label: formatReportDay(row.day), value: row.total }))}
-              />
-            ) : <EmptyState message={t.reports.noData} />}
-          </SectionCard>
+      <div className="rpt-grid">
+        <SectionCard title={t.reports.salesTrend} hint={t.reports.salesTrendHint}>
+          {reportErrors.trend ? (
+            <ErrorState message={reportErrors.trend} onRetry={loadReports} />
+          ) : trend.length ? (
+            <ReportChart
+              title={t.reports.salesTrend}
+              kind="line"
+              rows={trend.map((row) => ({ label: formatReportDay(row.day), value: row.total }))}
+            />
+          ) : !reportsLoading ? <EmptyState message={t.reports.noData} /> : null}
+        </SectionCard>
 
-          <SectionCard title={t.reports.salesByBranch}>
-            {byBranch.length ? (
-              <ReportChart
-                title={t.reports.salesByBranch}
-                kind="bar"
-                rows={byBranch.map((row) => ({ label: row.branch, value: row.total }))}
-              />
-            ) : <EmptyState message={t.reports.noData} />}
-          </SectionCard>
+        <SectionCard title={t.reports.salesByBranch}>
+          {reportErrors.byBranch ? (
+            <ErrorState message={reportErrors.byBranch} onRetry={loadReports} />
+          ) : byBranch.length ? (
+            <ReportChart
+              title={t.reports.salesByBranch}
+              kind="bar"
+              rows={byBranch.map((row) => ({ label: row.branch, value: row.total }))}
+            />
+          ) : !reportsLoading ? <EmptyState message={t.reports.noData} /> : null}
+        </SectionCard>
 
-          <SectionCard title={t.reports.salesBySource}>
-            {bySource.length ? (
-              <ReportChart
-                title={t.reports.salesBySource}
-                kind="bar"
-                rows={bySource.map((row) => ({ label: row.source, value: row.total }))}
-              />
-            ) : <EmptyState message={t.reports.noData} />}
-          </SectionCard>
+        <SectionCard title={t.reports.salesBySource}>
+          {reportErrors.bySource ? (
+            <ErrorState message={reportErrors.bySource} onRetry={loadReports} />
+          ) : bySource.length ? (
+            <ReportChart
+              title={t.reports.salesBySource}
+              kind="bar"
+              rows={bySource.map((row) => ({ label: row.source, value: row.total }))}
+            />
+          ) : !reportsLoading ? <EmptyState message={t.reports.noData} /> : null}
+        </SectionCard>
 
-          <SectionCard title={t.reports.paymentMethods}>
-            {paymentMethods.length ? (
-              <div className="rpt-table-wrap">
-                <table>
-                  <thead><tr><th>{t.reports.paymentMethod}</th><th>{t.reports.count}</th><th>{t.reports.totalSales}</th></tr></thead>
-                  <tbody>
-                    {paymentMethods.map((row) => (
-                      <tr key={row.method}>
-                        <td>{PAYMENT_AR[row.method] ?? row.method}</td>
-                        <td>{formatReportNumber(row.count)}</td>
-                        <td>{formatReportMoney(row.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : <EmptyState message={t.reports.noData} />}
-          </SectionCard>
+        <SectionCard title={t.reports.paymentMethods}>
+          {reportErrors.paymentMethods ? (
+            <ErrorState message={reportErrors.paymentMethods} onRetry={loadReports} />
+          ) : paymentMethods.length ? (
+            <div className="rpt-table-wrap">
+              <table>
+                <thead><tr><th>{t.reports.paymentMethod}</th><th>{t.reports.count}</th><th>{t.reports.totalSales}</th></tr></thead>
+                <tbody>
+                  {paymentMethods.map((row) => (
+                    <tr key={row.method}>
+                      <td>{PAYMENT_AR[row.method] ?? row.method}</td>
+                      <td>{formatReportNumber(row.count)}</td>
+                      <td>{formatReportMoney(row.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : !reportsLoading ? <EmptyState message={t.reports.noData} /> : null}
+        </SectionCard>
 
-          <SectionCard title={t.reports.topProducts} hint={t.reports.topProductsGrossHint}>
-            {topProducts.length ? (
-              <div className="rpt-table-wrap">
-                <table>
-                  <thead><tr><th>{t.reports.product}</th><th>{t.reports.qty}</th><th>{t.reports.grossItemSales}</th></tr></thead>
-                  <tbody>
-                    {topProducts.map((row) => (
-                      <tr key={row.product_id}>
-                        <td>{row.name_ar}</td>
-                        <td>{formatReportNumber(row.qty)}</td>
-                        <td>{formatReportMoney(row.gross_item_sales)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : <EmptyState message={t.reports.noData} />}
-          </SectionCard>
-        </div>
-      )}
+        <SectionCard title={t.reports.topProducts} hint={t.reports.topProductsGrossHint}>
+          {reportErrors.topProducts ? (
+            <ErrorState message={reportErrors.topProducts} onRetry={loadReports} />
+          ) : topProducts.length ? (
+            <div className="rpt-table-wrap">
+              <table>
+                <thead><tr><th>{t.reports.product}</th><th>{t.reports.qty}</th><th>{t.reports.grossItemSales}</th></tr></thead>
+                <tbody>
+                  {topProducts.map((row) => (
+                    <tr key={row.product_id}>
+                      <td>{row.name_ar}</td>
+                      <td>{formatReportNumber(row.qty)}</td>
+                      <td>{formatReportMoney(row.gross_item_sales)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : !reportsLoading ? <EmptyState message={t.reports.noData} /> : null}
+        </SectionCard>
+      </div>
 
       {meta && (
         <footer className="rpt-meta">

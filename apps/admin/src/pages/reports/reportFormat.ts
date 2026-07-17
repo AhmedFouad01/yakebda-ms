@@ -32,11 +32,16 @@ export function formatReportDay(value: string): string {
   });
 }
 
-export function formatReportTimestamp(value: string): string {
+export function formatReportTimestamp(value: string, timezone: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "غير متاح";
-  return parsed.toLocaleString("ar-EG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  try {
+    return parsed.toLocaleString("ar-EG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: timezone,
+    });
+  } catch {
+    return "غير متاح";
+  }
 }

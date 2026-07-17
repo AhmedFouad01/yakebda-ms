@@ -183,8 +183,31 @@ describe("Reporting foundation Admin", () => {
     fireEvent.change(screen.getByLabelText("الفرع"), { target: { value: branchId } });
     fireEvent.click(screen.getByRole("button", { name: "تطبيق" }));
 
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("تعذر تشغيل الفلتر الجديد"));
+    await waitFor(() => {
+      expect(screen.getAllByRole("alert").some((alert) =>
+        alert.textContent?.includes("تعذر تشغيل الفلتر الجديد")
+      )).toBe(true);
+    });
     expect(screen.queryByText("ساندوتش كبدة")).toBeNull();
+  });
+
+  it("keeps successful sections visible when one report fails", async () => {
+    installSuccessApi();
+    const successImplementation = apiMock.getMockImplementation()!;
+    apiMock.mockImplementation(async (path: string) => {
+      if (path.startsWith("/reports/sales/trend")) throw new Error("تعذر تحميل اتجاه المبيعات");
+      return successImplementation(path);
+    });
+
+    render(<Reports />);
+
+    await waitFor(() => expect(screen.getByText("ساندوتش كبدة")).toBeTruthy());
+    expect(screen.getAllByRole("alert").some((alert) =>
+      alert.textContent?.includes("تعذر تحميل اتجاه المبيعات")
+    )).toBe(true);
+    expect(screen.queryByRole("img", { name: "اتجاه المبيعات" })).toBeNull();
+    expect(screen.getByRole("img", { name: "المبيعات حسب الفرع" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "المبيعات حسب المصدر" })).toBeTruthy();
   });
 
   it("retries catalog and branches bootstrap independently", async () => {
@@ -219,9 +242,10 @@ describe("Reporting foundation Admin", () => {
 
     render(<Reports />);
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("تعذر الاتصال"));
+    expect(screen.getByText("ساندوتش كبدة")).toBeTruthy();
 
     failSummary = false;
     fireEvent.click(screen.getByRole("button", { name: "إعادة المحاولة" }));
-    await waitFor(() => expect(screen.getByText("ساندوتش كبدة")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("ساندوتش كبدة").length).toBeGreaterThan(0));
   });
 });

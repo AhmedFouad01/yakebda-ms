@@ -50,7 +50,7 @@
 
 .rpt-catalog-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
 }
 
@@ -64,6 +64,11 @@
   border-radius: var(--radius-lg, 12px);
   background: var(--surface-1);
   color: var(--text-primary);
+}
+
+.rpt-catalog-card .uif-badge {
+  justify-self: start;
+  inline-size: auto;
 }
 
 .rpt-catalog-card h3 {
@@ -172,6 +177,12 @@
   overflow-wrap: anywhere;
 }
 
+@media (max-width: 1280px) {
+  .rpt-catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 980px) {
   .rpt-grid {
     grid-template-columns: 1fr;
@@ -190,6 +201,10 @@
   .rpt-section-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .rpt-catalog-grid {
+    grid-template-columns: 1fr;
   }
 
   .rpt-summary-grid {

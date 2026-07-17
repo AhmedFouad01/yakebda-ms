@@ -102,44 +102,34 @@
   gap: var(--sp-3, 12px);
 }
 
-.rpt-chart-svg {
-  display: block;
+.rpt-chart-canvas {
   inline-size: 100%;
-  block-size: auto;
+  min-inline-size: 0;
+  block-size: 280px;
   min-block-size: 220px;
-  overflow: visible;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
 }
 
-.rpt-chart-axis {
-  stroke: var(--border-strong);
-  stroke-width: 1.5;
+.rpt-chart-warning {
+  margin: 0;
+  padding: var(--sp-2, 8px) var(--sp-3, 12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
-.rpt-chart-grid {
-  stroke: var(--border-subtle);
-  stroke-width: 1;
-  stroke-dasharray: 5 6;
-}
-
-.rpt-chart-series {
-  stroke: var(--brand);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.rpt-chart-point {
-  fill: var(--surface-1);
-  stroke: var(--brand);
-  stroke-width: 3;
-}
-
-.rpt-chart-bar {
-  fill: var(--brand);
-}
-
-.rpt-chart-bar.is-negative {
-  fill: var(--danger);
+.rpt-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .rpt-chart-data {
@@ -151,6 +141,12 @@
   cursor: pointer;
   color: var(--brand);
   font-weight: 700;
+}
+
+.rpt-chart-data summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm, 6px);
 }
 
 .rpt-table-wrap {
@@ -173,6 +169,7 @@
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 980px) {
@@ -199,13 +196,18 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .rpt-chart-svg {
-    min-block-size: 180px;
+  .rpt-chart-canvas {
+    block-size: 240px;
+    min-block-size: 200px;
   }
 }
 
 @media (max-width: 440px) {
   .rpt-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .rpt-chart-canvas {
+    block-size: 220px;
   }
 }

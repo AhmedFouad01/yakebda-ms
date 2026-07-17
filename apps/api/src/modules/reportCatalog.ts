@@ -1,0 +1,88 @@
+import type { ReportDefinition } from "@ykms/contracts";
+
+export const REPORT_CATALOG: ReportDefinition[] = [
+  {
+    id: "sales.summary",
+    category: "sales_orders",
+    title_ar: "ملخص التشغيل اليومي",
+    description_ar: "مبيعات وطلبات اليوم وحالة الطلبات والشيفتات المفتوحة.",
+    permission: "reports.view",
+    filters: ["branch_id"],
+    visualizations: ["kpis"],
+    status: "active",
+  },
+  {
+    id: "sales.trend",
+    category: "sales_orders",
+    title_ar: "اتجاه المبيعات",
+    description_ar: "صافي المدفوعات المسجلة عبر الفترة المحددة.",
+    permission: "reports.view",
+    filters: ["days", "branch_id"],
+    visualizations: ["line", "table"],
+    status: "active",
+  },
+  {
+    id: "sales.by_branch",
+    category: "sales_orders",
+    title_ar: "المبيعات حسب الفرع",
+    description_ar: "مقارنة صافي المدفوعات بين الفروع المسموح بها.",
+    permission: "reports.view",
+    filters: ["days"],
+    visualizations: ["bar", "table"],
+    status: "active",
+  },
+  {
+    id: "sales.by_source",
+    category: "sales_orders",
+    title_ar: "المبيعات حسب المصدر",
+    description_ar: "مقارنة القنوات التشغيلية ومصادر الطلبات.",
+    permission: "reports.view",
+    filters: ["days", "branch_id"],
+    visualizations: ["bar", "table"],
+    status: "active",
+  },
+  {
+    id: "sales.payment_methods",
+    category: "sales_orders",
+    title_ar: "طرق الدفع",
+    description_ar: "إجمالي وعدد عمليات الدفع حسب الطريقة.",
+    permission: "reports.view",
+    filters: ["days", "branch_id"],
+    visualizations: ["bar", "table"],
+    status: "active",
+  },
+  {
+    id: "sales.top_products",
+    category: "products_menu",
+    title_ar: "أفضل الأصناف",
+    description_ar: "الأصناف الأعلى كمية ومبيعات خلال الفترة.",
+    permission: "reports.view",
+    filters: ["days", "branch_id"],
+    visualizations: ["bar", "table"],
+    status: "active",
+  },
+  {
+    id: "inventory.current_stock",
+    category: "inventory",
+    title_ar: "الرصيد الحالي",
+    description_ar: "أرصدة وتقييم المخزون حسب الموقع.",
+    permission: "reports.view",
+    filters: ["branch_id"],
+    visualizations: ["table"],
+    status: "planned",
+  },
+  {
+    id: "shifts.close_snapshot",
+    category: "shifts_cash",
+    title_ar: "إغلاق الشيفت",
+    description_ar: "Snapshot ثابت للمبيعات والمدفوعات وفروق النقدية.",
+    permission: "reports.view",
+    filters: ["branch_id"],
+    visualizations: ["kpis", "table"],
+    status: "planned",
+  },
+];
+
+export const ACTIVE_REPORT_CATALOG = REPORT_CATALOG.filter(
+  (definition) => definition.status === "active"
+);

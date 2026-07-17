@@ -217,12 +217,14 @@ export function SourcesSection({ editable }: { editable: boolean }) {
               onClick={() => setSelectedId(source.id)}
             >
               <strong>{source.name_ar}</strong>
-              <span>{source.is_active ? "نشط" : "موقوف"}</span>
-              <small>
-                {source.supports_takeaway ? "تيك أواي" : ""}
-                {source.supports_takeaway && source.supports_delivery ? " + " : ""}
-                {source.supports_delivery ? "دليفري" : ""}
-              </small>
+              {/* W4c: خصائص العقد الفعلية فقط كوسوم دلالية قصيرة */}
+              <span className="source-card-tags">
+                <span className={"uif-badge " + (source.is_active ? "success" : "warning")}>
+                  {source.is_active ? "نشط" : "موقوف"}
+                </span>
+                {source.supports_takeaway && <span className="uif-badge info">تيك أواي</span>}
+                {source.supports_delivery && <span className="uif-badge info">دليفري</span>}
+              </span>
             </button>
           ))}
         </div>

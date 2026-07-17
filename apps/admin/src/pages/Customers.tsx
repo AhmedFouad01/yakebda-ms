@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import type { CustomerListItem, CustomerOrderSummary } from "@ykms/contracts";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CustomerListItem, CustomerListRow, CustomerOrderSummary, CustomerSortField, PaginationResponse, SortDirection } from "@ykms/contracts";
 import { api, apiAllPages } from "../lib/api";
 import { t } from "../lib/t";
 import { Drawer, toast } from "../components/ui/overlays";
@@ -24,55 +24,148 @@ const NA = "غير متاح";
 const money = (v: number | null | undefined) => (v == null ? NA : `${Number(v).toFixed(2)} ج.م`);
 const dateAr = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) : NA);
 
+/** ADR-006 — sortable header definitions (order = column order). */
+const SORT_COLUMNS: Array<{ field: CustomerSortField; label: string }> = [
+  { field: "name", label: "الاسم" },
+  { field: "phone", label: "الهاتف" },
+  { field: "orders_count", label: "عدد الطلبات" },
+  { field: "last_order_at", label: "آخر طلب" },
+  { field: "total_spent", label: "إجمالي الإنفاق" },
+  { field: "avg_order", label: "متوسط الطلب" },
+  { field: "branch", label: "الفرع" },
+  { field: "status", label: "الحالة" },
+  { field: "created_at", label: "تاريخ الإنشاء" },
+];
+
+const PAGE_LIMIT = 50;
+
 export function Customers() {
   const { can } = useMe();
   const canManage = can("customers.manage");
-  const [rows, setRows] = useState<Customer[]>([]);
+  const [rows, setRows] = useState<CustomerListRow[]>([]);
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<CustomerSortField>("created_at");
+  const [direction, setDirection] = useState<SortDirection>("desc");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Customer | null>(null);
   const [adding, setAdding] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const requestSeq = useRef(0);
 
-  async function load() {
-    const res = await apiAllPages<Customer>(`/customers${search ? `?search=${encodeURIComponent(search)}` : ""}`);
-    setRows(res.data);
+  const pageUrl = useCallback((cursor: string | null) => {
+    const params = new URLSearchParams();
+    params.set("sort", sort);
+    params.set("direction", direction);
+    params.set("limit", String(PAGE_LIMIT));
+    if (search.trim()) params.set("search", search.trim());
+    if (cursor) params.set("cursor", cursor);
+    return `/customers?${params.toString()}`;
+  }, [sort, direction, search]);
+
+  // Server-side sorting only: sort/direction/search changes reset the cursor and refetch page 1.
+  const loadFirst = useCallback(async () => {
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api<PaginationResponse<CustomerListRow>>(pageUrl(null));
+      if (seq !== requestSeq.current) return; // stale response
+      setRows(res.data);
+      setNextCursor(res.next_cursor);
+      setHasMore(res.has_more);
+    } catch (e: any) {
+      if (seq === requestSeq.current) setError(e.message);
+    } finally {
+      if (seq === requestSeq.current) setLoading(false);
+    }
+  }, [pageUrl]);
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    try {
+      const res = await api<PaginationResponse<CustomerListRow>>(pageUrl(nextCursor));
+      if (seq !== requestSeq.current) return;
+      setRows((prev) => [...prev, ...res.data]);
+      setNextCursor(res.next_cursor);
+      setHasMore(res.has_more);
+    } catch (e: any) {
+      if (seq === requestSeq.current) setError(e.message);
+    } finally {
+      if (seq === requestSeq.current) setLoading(false);
+    }
   }
+
   useEffect(() => {
-    const id = setTimeout(() => load().catch((e) => setError(e.message)), 250);
+    const id = setTimeout(() => { loadFirst(); }, 250);
     return () => clearTimeout(id);
-  }, [search]);
+  }, [loadFirst]);
+
+  function toggleSort(field: CustomerSortField) {
+    if (field === sort) {
+      setDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSort(field);
+      setDirection(field === "name" || field === "phone" || field === "branch" ? "asc" : "desc");
+    }
+  }
+
+  const ariaSort = (field: CustomerSortField): "ascending" | "descending" | undefined =>
+    field === sort ? (direction === "asc" ? "ascending" : "descending") : undefined;
 
   return (
     <div dir="rtl">
       <PageHeader title={t.customers.title} subtitle="قاعدة عملاء وتحليلات الطلبات"
         actions={canManage ? <button className="primary" onClick={() => setAdding(true)}>+ عميل جديد</button> : undefined} />
-      {error && <div className="alert">{error}</div>}
+      {error && <div className="alert" role="alert">{error}</div>}
 
       <div className="crm-search">
         <input placeholder="ابحث بالاسم أو الهاتف…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <span className="muted">{rows.length} عميل</span>
+        <span className="muted" aria-live="polite">{loading ? "جارٍ التحميل…" : `${rows.length} عميل${hasMore ? "+" : ""}`}</span>
       </div>
 
-      {!rows.length ? (
-        <EmptyState message="لا عملاء بعد" action={canManage ? <button className="primary" onClick={() => setAdding(true)}>إضافة أول عميل</button> : undefined} />
+      {!rows.length && !loading ? (
+        <EmptyState message={search ? "لا نتائج مطابقة للبحث" : "لا عملاء بعد"}
+          action={canManage && !search ? <button className="primary" onClick={() => setAdding(true)}>إضافة أول عميل</button> : undefined} />
       ) : (
         <div className="panel">
-          <table className="crm-table">
-            <thead><tr><th>الاسم</th><th>الهاتف</th><th>الوسوم</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <table className="crm-table crm-table-rich" aria-busy={loading}>
+            <thead>
+              <tr>
+                {SORT_COLUMNS.map(({ field, label }) => (
+                  <th key={field} aria-sort={ariaSort(field)}>
+                    <button type="button" className="crm-sort-btn" onClick={() => toggleSort(field)}
+                      aria-label={`ترتيب حسب ${label}`}>
+                      <span>{label}</span>
+                      <span className="crm-sort-icon" aria-hidden="true">
+                        {field === sort ? (direction === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  </th>
+                ))}
+                <th>إجراءات</th>
+              </tr>
+            </thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id}>
                   <td>
                     <button className="crm-name" onClick={() => setProfileId(c.id)}>{c.name}</button>
+                    {c.is_vip && <span className="crm-badge vip">VIP</span>}
                     {c.email && <div className="muted mono">{c.email}</div>}
                   </td>
                   <td className="mono">{c.phone || "—"}{c.alt_phone ? ` / ${c.alt_phone}` : ""}</td>
-                  <td>
-                    {c.is_vip && <span className="crm-badge vip">VIP</span>}
-                    {c.tags && c.tags.split(",").filter(Boolean).map((tag) => <span key={tag} className="crm-badge">{tag.trim()}</span>)}
-                  </td>
+                  <td className="mono crm-num">{c.orders_count}</td>
+                  <td className="muted">{c.last_order_at ? dateAr(c.last_order_at) : "—"}</td>
+                  <td className="mono crm-num">{money(c.total_spent)}</td>
+                  <td className="mono crm-num">{c.avg_order == null ? "—" : money(c.avg_order)}</td>
+                  <td>{c.branch_name ?? "—"}</td>
                   <td>{c.is_blocked ? <span className="crm-badge blocked">محظور</span> : <span className="muted">نشط</span>}</td>
+                  <td className="muted">{dateAr(c.created_at)}</td>
                   <td>
                     <div className="menu-row-actions">
                       <button className="sm" onClick={() => setProfileId(c.id)}>الملف</button>
@@ -83,12 +176,19 @@ export function Customers() {
               ))}
             </tbody>
           </table>
+          {hasMore && (
+            <div className="crm-load-more">
+              <button type="button" onClick={loadMore} disabled={loading}>
+                {loading ? "جارٍ التحميل…" : "تحميل المزيد"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {(adding || editing) && (
         <CustomerEditor customer={editing} onClose={() => { setAdding(false); setEditing(null); }}
-          onSaved={() => { setAdding(false); setEditing(null); load(); }} />
+          onSaved={() => { setAdding(false); setEditing(null); loadFirst(); }} />
       )}
       {profileId && <CustomerProfile id={profileId} canManage={canManage} onClose={() => setProfileId(null)}
         onEdit={(c) => { setProfileId(null); setEditing(c); }} />}

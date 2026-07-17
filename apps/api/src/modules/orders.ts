@@ -11,6 +11,7 @@ import { renderReceiptPayload, renderKitchenTicketPayload } from "../lib/receipt
 import { getSettings, Settings } from "./settings";
 import { transitionOrderStatus } from "./orderStatus";
 import { enqueuePaymentFinancialEvent } from "./financialOutbox";
+import { assertKitchenAcceptsOrders, holdSummaryForOrders } from "./kitchenControl";
 /**
  * YKMS-02/03-lite — Orders & POS flow.
  * Prices are ALWAYS computed server-side from the branch menu (never trusted from the client).
@@ -296,6 +297,14 @@ export function orderRoutes(db: Knex): Router {
 
       // YKMS-02E: الإعدادات مصدر الحقيقة التشغيلي
       const settings = await getSettings(db, accountId, branch.id);
+      // ADR-005: مطبخ متوقف ⇒ 409 قبل أي أثر جانبي (طلب/دفع/مخزون/حدث مالي)
+      await assertKitchenAcceptsOrders(db, {
+        accountId,
+        branchId: branch.id,
+        userId: req.user!.id,
+        ip: req.ip,
+        requestId: (req as { requestId?: string }).requestId ?? null,
+      });
       const typeEnabled: Record<string, boolean> = {
         takeaway: settings.order_type_takeaway_enabled && branch.accepts_takeaway !== false,
         delivery: settings.order_type_delivery_enabled && branch.accepts_delivery !== false,
@@ -801,6 +810,7 @@ export function kitchenRoutes(db: Knex): Router {
         })
         .orderBy("submitted_at", "asc");
       const ids = orders.map((o: { id: string }) => o.id);
+      const holds = await holdSummaryForOrders(db, req.user!.accountId, ids);
       const items = ids.length
         ? await db("order_items as i")
             .leftJoin("products as p", "p.id", "i.product_id")
@@ -822,6 +832,9 @@ export function kitchenRoutes(db: Knex): Router {
       res.json({
         data: orders.map((o: Record<string, unknown> & { id: string }) => ({
           ...o,
+          // ADR-005: بيانات التعليق لعرض KDS واستبعاد مدد الـHold من SLA
+          held_total_seconds: holds.get(o.id)?.held_total_seconds ?? 0,
+          active_hold: holds.get(o.id)?.active_hold ?? null,
           items: items
             .filter((i) => i.order_id === o.id)
             .map((i) => ({ ...i, modifiers: mods.filter((m) => m.order_item_id === i.id) })),

@@ -2,6 +2,7 @@ import { api } from "../../lib/api";
 import { t } from "../../lib/t";
 import { Receipt } from "../../components/Receipt";
 import { OrderDetail } from "../../components/OrderDetail";
+import { DialogLayer } from "../../components/ui/overlays";
 import { ShiftPanel } from "./ShiftPanel";
 import type { PosController } from "./usePosController";
 import { money } from "./utils";
@@ -20,24 +21,27 @@ export function PosModals({ controller }: { controller: PosController }) {
   return (
     <>
       {historyOrder && (
-        <div className="modal-back" onClick={() => setHistoryOrder(null)}>
-          <div className="modal od-modal" role="dialog" aria-modal="true" aria-labelledby="pos-order-detail-title" onClick={(e) => e.stopPropagation()}>
-            <header className="od-modal-head">
-              <div className="od-modal-title">
-                <h3 id="pos-order-detail-title">تفاصيل الطلب #{historyOrder.order_prefix ?? ""}{historyOrder.order_no}</h3>
-                <span className="od-modal-meta">{new Date(historyOrder.created_at).toLocaleString("ar-EG")}</span>
-              </div>
-              <button type="button" className="od-modal-x" onClick={() => setHistoryOrder(null)} aria-label="إغلاق تفاصيل الطلب">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6 6 18" />
-                </svg>
-              </button>
-            </header>
-            <div className="od-modal-body">
-              <OrderDetail order={historyOrder} />
+        <DialogLayer
+          open
+          onClose={() => setHistoryOrder(null)}
+          className="modal wide od-modal"
+          ariaLabelledBy="pos-order-detail-title"
+        >
+          <header className="od-modal-head">
+            <div className="od-modal-title">
+              <h3 id="pos-order-detail-title">تفاصيل الطلب #{historyOrder.order_prefix ?? ""}{historyOrder.order_no}</h3>
+              <span className="od-modal-meta">{new Date(historyOrder.created_at).toLocaleString("ar-EG")}</span>
             </div>
+            <button type="button" className="od-modal-x" onClick={() => setHistoryOrder(null)} aria-label="إغلاق تفاصيل الطلب">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </header>
+          <div className="od-modal-body">
+            <OrderDetail order={historyOrder} />
           </div>
-        </div>
+        </DialogLayer>
       )}
 
       {done && (

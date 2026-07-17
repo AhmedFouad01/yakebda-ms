@@ -3,6 +3,7 @@ import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { ar } from "../i18n/ar";
 import { createConsumptionEventForOrder, processConsumptionEvent } from "./inventoryConsumption";
+import { assertNotHeldForReady } from "./kitchenControl";
 
 const TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
@@ -31,6 +32,16 @@ export async function transitionOrderStatus(
     if (!order) throw err.notFound();
     if (!TRANSITIONS[order.status]?.includes(input.to)) {
       throw err.validation({ status: ar.errors.bad_status_transition });
+    }
+    // ADR-005: الطلب المعلّق لا ينتقل إلى «جاهز». نستخدم اتصال المجمّع (db) لا trx
+    // كي يثبت سجل التدقيق «kitchen.transition_blocked_by_hold» حتى عند رمي الحارس
+    // وتراجُع المعاملة (لا يلمس صف الطلب المقفول ⇒ لا deadlock).
+    if (input.to === "ready") {
+      await assertNotHeldForReady(db, {
+        accountId: input.accountId,
+        order: { id: order.id, branch_id: order.branch_id },
+        userId: input.userId,
+      });
     }
 
     const patch: Record<string, unknown> = { status: input.to, updated_at: trx.fn.now() };

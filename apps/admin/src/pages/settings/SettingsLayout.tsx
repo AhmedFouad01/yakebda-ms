@@ -22,6 +22,7 @@ import {
   RolesSection,
 } from "./crudSections";
 import { SourcesSection } from "./SourcesSection";
+import { LogoUploadField } from "./LogoUploadField";
 
 /**
  * YKMS-02F — الإعدادات: 12 قسمًا مطابقة للوثيقة، مبنية على نظام uif.
@@ -47,7 +48,7 @@ const SECTIONS: Array<[string, string, boolean]> = [
 ];
 
 export function SettingsLayout() {
-  const { can, ready } = useMe();
+  const { can, ready, me } = useMe();
   const editable = can("settings.manage");
   const [section, setSection] = useState("profile");
   const doc = useSettingsDoc();
@@ -77,6 +78,13 @@ export function SettingsLayout() {
 
           {isDoc && doc.data && (
             <>
+              {/* W4b: شريط الحفظ أعلى المحتوى مباشرة تحت الـAppShell — يظهر عند وجود تغييرات */}
+              {editable && (doc.dirty || doc.saving) && (
+                <StickyActionBar dirty={doc.dirty}>
+                  <CancelButton onClick={doc.reset}>تراجع</CancelButton>
+                  <SaveButton busy={doc.saving} disabled={!doc.dirty} onClick={doc.save} />
+                </StickyActionBar>
+              )}
               {section === "profile" && (
                 <SectionCard title="بيانات المطعم" hint="الاسم والهوية البصرية وبيانات الفاتورة">
                   <RowText ctx={ctx} k="restaurant_name" label="اسم المطعم بالعربية" />
@@ -85,7 +93,12 @@ export function SettingsLayout() {
                   <RowText ctx={ctx} k="address" label="العنوان" />
                   <RowText ctx={ctx} k="phone" label="أرقام التواصل" ltr />
                   <RowText ctx={ctx} k="tax_number" label="الرقم الضريبي" ltr />
-                  <RowText ctx={ctx} k="logo_url" label="رابط اللوجو" ltr />
+                  <LogoUploadField
+                    accountId={me?.accountId ?? ""}
+                    logoUrl={doc.data.logo_url}
+                    editable={editable}
+                    onChanged={doc.reload}
+                  />
                   <RowSelect ctx={ctx} k="default_language" label="اللغة الافتراضية" options={[["ar", "العربية"], ["en", "English"]]} />
                   <RowToggle ctx={ctx} k="rtl_enabled" label="واجهة RTL" />
                   <RowText ctx={ctx} k="currency" label="العملة" ltr />
@@ -203,13 +216,6 @@ export function SettingsLayout() {
                 </>
               )}
 
-              {/* شريط الحفظ الثابت لأقسام الوثيقة القابلة للتحرير */}
-              {editable && (
-                <StickyActionBar dirty={doc.dirty}>
-                  <CancelButton onClick={doc.reset}>تراجع</CancelButton>
-                  <SaveButton busy={doc.saving} disabled={!doc.dirty} onClick={doc.save} />
-                </StickyActionBar>
-              )}
             </>
           )}
 

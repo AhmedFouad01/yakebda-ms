@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 
 /* YAKEBDA MS consolidated stylesheet — original cascade order preserved. */
 
@@ -181,6 +180,96 @@ code.token {
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+/* W2b — account-owned brand upload; AppShell geometry remains owned by W2a. */
+.settings-logo-field {
+  display: grid;
+  grid-template-columns: minmax(132px, 180px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-5);
+  padding-block: var(--sp-3);
+}
+
+.settings-logo-preview {
+  inline-size: 100%;
+  block-size: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.settings-logo-preview img {
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  object-fit: contain;
+}
+
+.settings-logo-controls {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.settings-logo-picker-row {
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.settings-logo-native-input {
+  display: none;
+}
+
+.settings-logo-picker {
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.settings-logo-file-name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-logo-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.app2-navdrawer-logo {
+  inline-size: 26px;
+  block-size: 26px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-inline-end: 8px;
+}
+
+@media (max-width: 560px) {
+  .settings-logo-field {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .settings-logo-preview {
+    inline-size: min(100%, 180px);
+    justify-self: center;
+  }
+
+  .settings-logo-picker-row,
+  .settings-logo-actions .uif-btn {
+    inline-size: 100%;
+  }
+
+  .settings-logo-picker-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 /* ---------- YKMS-02: brand ---------- */
@@ -371,7 +460,8 @@ button.wide { width: 100%; margin-top: 8px; }
 }
 
 html, body, #root { height: 100%; }
-body, button, input, select, textarea { font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+/* W4a: single family hierarchy — the token owns the stack (no Cairo/Tajawal split). */
+body, button, input, select, textarea { font-family: var(--font); }
 * { scrollbar-width: thin; scrollbar-color: #56616b #0d1114; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: #0d1114; border-radius: 999px; }
@@ -487,7 +577,7 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
    ================================================================ */
 
 :root {
-  --appbar-h: 48px;
+  --appbar-h: 64px;
   --z-app-sticky: 40;
   --z-appbar: 60;
   --z-drawer-backdrop: 100;
@@ -520,7 +610,6 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
   border: 1px solid var(--yk-line); border-radius: 8px;
   font-size: 16px; cursor: pointer; text-decoration: none;
 }
-.app2-menu:hover, .app2-home:hover, .app2-back:hover { border-color: var(--yk-yellow); color: var(--yk-yellow); }
 .app2-brand { display: flex; align-items: center; gap: var(--sp-2); color: var(--yk-yellow); text-decoration: none; font-size: 15px; }
 .app2-brand img { width: 28px; height: 28px; }
 .app2-crumb { font-size: 13px; font-weight: 800; color: var(--yk-muted); border-inline-start: 1px solid var(--yk-line); padding-inline-start: var(--sp-3); }
@@ -528,7 +617,6 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .app2-user { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--yk-text); }
 .app2-user-dot { width: 8px; height: 8px; border-radius: 50%; background: #37c978; }
 .app2-logout { background: transparent; color: var(--yk-muted); border: 1px solid var(--yk-line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 12.5px; }
-.app2-logout:hover { color: #ff9c8a; border-color: #ff9c8a; }
 
 .app2-body { flex: 1; display: flex; min-height: 0; }
 .app2-side { width: 200px; flex: 0 0 200px; background: var(--yk-black); overflow-y: auto; padding: var(--sp-3) 0; }
@@ -537,6 +625,8 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .app2-side a.active { background: #1f252b; color: var(--yk-yellow); box-shadow: inset 3px 0 0 var(--yk-yellow); }
 .app2-side a:hover { color: var(--yk-yellow); }
 .app2-main { flex: 1; min-width: 0; overflow-y: auto; padding: var(--sp-4); }
+/* W4b: reserve the gutter so scrollbar appearance never shifts layout. */
+.app2-main:not(.full) { scrollbar-gutter: stable; }
 .app2-main.full { padding: 0; overflow: hidden; }
 
 /* POS يعيش داخل الشِل — لا fixed ولا تغطية للتنقل بعد اليوم */
@@ -666,15 +756,17 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .uif-back { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #d8dcd6; background: #fff; cursor: pointer; font-size: 15px; }
 
 /* ——— StickyActionBar ——— */
+/* W4b: the bar lives at the top of the scroll container, directly under
+   the AppShell, so Save/Undo are reachable without scrolling. */
 .uif-sticky {
-  position: sticky; bottom: 0; z-index: 30;
+  position: sticky; top: calc(-1 * var(--sp-4)); z-index: 30;
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
-  background: var(--yk-panel-2); border-top: 2px solid var(--yk-line);
-  margin-top: var(--sp-3);
-  border-radius: 12px 12px 0 0;
+  background: var(--yk-panel-2); border-bottom: 2px solid var(--yk-line);
+  margin-bottom: var(--sp-3);
+  border-radius: 0 0 12px 12px;
 }
-.uif-sticky.dirty { border-top-color: var(--yk-yellow); }
+.uif-sticky.dirty { border-bottom-color: var(--yk-yellow); }
 .uif-dirty-dot { color: var(--yk-yellow); font-size: 12.5px; font-weight: 800; }
 .uif-sticky-actions { display: flex; gap: var(--sp-2); margin-inline-start: auto; }
 
@@ -710,22 +802,24 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
 .uif-toast.info { background: var(--yk-panel-2); color: var(--yk-text); border: 1px solid var(--yk-line); }
 @keyframes uif-in { from { transform: translateY(8px); opacity: 0; } }
 
-/* ——— شاشات فاتحة (الإدارية) داخل app2-main: تكييف البطاقات ——— */
-.app2-main:not(.full) .uif-card { background: #fff; color: #23261f; border-color: #e2e5df; }
-.app2-main:not(.full) .uif-card-head h3 { color: #8a5b00; }
-.app2-main:not(.full) .uif-input { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) .uif-label { color: #6d746c; }
-.app2-main:not(.full) .uif-sticky { background: #fff; border-top-color: #e2e5df; box-shadow: 0 -6px 18px rgba(0,0,0,0.06); }
-.app2-main:not(.full) .uif-sticky.dirty { border-top-color: var(--yk-yellow); }
-.app2-main:not(.full) .uif-btn { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) .uif-btn.primary { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
-.app2-main:not(.full) .uif-btn.danger { background: #b3392e; border-color: #b3392e; color: #fff; }
-.app2-main:not(.full) .uif-toggle-track { background: #cfd4cc; border-color: #c2c7bf; }
-.app2-main:not(.full) .uif-toggle input:checked + .uif-toggle-track { background: var(--yk-yellow); border-color: #d9a800; }
-.app2-main:not(.full) .uif-tabs button, .app2-main:not(.full) .uif-radio button { background: #fff; color: #23261f; border-color: #d8dcd6; }
-.app2-main:not(.full) .uif-tabs button.active, .app2-main:not(.full) .uif-radio button.active { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
-.app2-main:not(.full) .uif-viewonly { background: #fff8e3; border-color: #ecd9a0; color: #7a5b00; }
-.app2-main:not(.full) .uif-perm { background: #23261f; }
+/* ——— شاشات فاتحة (الإدارية) — legacy raw-hex adaptation.
+   W4c: demoted with :where() so the theme-aware semantic tokens win;
+   kept only as a no-token fallback. ——— */
+:where(.app2-main:not(.full)) .uif-card { background: #fff; color: #23261f; border-color: #e2e5df; }
+:where(.app2-main:not(.full)) .uif-card-head h3 { color: #8a5b00; }
+:where(.app2-main:not(.full)) .uif-input { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) .uif-label { color: #6d746c; }
+:where(.app2-main:not(.full)) .uif-sticky { background: #fff; border-top-color: #e2e5df; box-shadow: 0 -6px 18px rgba(0,0,0,0.06); }
+:where(.app2-main:not(.full)) .uif-sticky.dirty { border-top-color: var(--yk-yellow); }
+:where(.app2-main:not(.full)) .uif-btn { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) .uif-btn.primary { background: var(--yk-yellow); border-color: var(--yk-yellow); color: #111; }
+:where(.app2-main:not(.full)) .uif-btn.danger { background: #b3392e; border-color: #b3392e; color: #fff; }
+:where(.app2-main:not(.full)) .uif-toggle-track { background: #cfd4cc; border-color: #c2c7bf; }
+:where(.app2-main:not(.full)) .uif-toggle input:checked + .uif-toggle-track { background: var(--yk-yellow); border-color: #d9a800; }
+:where(.app2-main:not(.full)) .uif-tabs button,  :where(.app2-main:not(.full)) .uif-radio button { background: #fff; color: #23261f; border-color: #d8dcd6; }
+:where(.app2-main:not(.full)) .uif-tabs button.active,  :where(.app2-main:not(.full)) .uif-radio button.active { background: var(--yk-yellow); color: #111; border-color: var(--yk-yellow); }
+:where(.app2-main:not(.full)) .uif-viewonly { background: #fff8e3; border-color: #ecd9a0; color: #7a5b00; }
+:where(.app2-main:not(.full)) .uif-perm { background: #23261f; }
 
 /* الشاشات القديمة داخل الشِل الجديد: أزل ازدواج الهيكل القديم */
 .shell-legacy-hidden { display: none !important; }
@@ -911,6 +1005,17 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .crm-table { width: 100%; border-collapse: collapse; }
 .crm-table th, .crm-table td { text-align: start; padding: 9px 10px; border-bottom: 1px solid var(--yk-line); font-size: 13px; vertical-align: middle; }
 .crm-table th { color: var(--yk-muted); font-size: 11.5px; font-weight: 800; }
+/* W4f — rich sortable table: header buttons, tabular numerals, load-more.
+   الجدول العريض يتمرر أفقيًا داخل .panel (سلوك قائم: overflow-x auto) — لا viewport overflow. */
+/* 0,2,0 to win over `:is(.panel,…) > table {min-width:680px}` without !important. */
+.crm-table.crm-table-rich { min-width: 960px; }
+.crm-sort-btn { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: inherit; cursor: pointer; }
+.crm-sort-btn:hover { color: var(--yk-yellow-2); }
+.crm-sort-btn:focus-visible { outline: 2px solid var(--yk-yellow-2); outline-offset: 2px; border-radius: 4px; }
+.crm-sort-icon { font-size: 9px; opacity: 0.55; }
+.crm-table-rich th[aria-sort] .crm-sort-icon { opacity: 1; }
+.crm-num { font-variant-numeric: tabular-nums; }
+.crm-load-more { display: flex; justify-content: center; padding: var(--sp-2); border-top: 1px solid var(--yk-line); }
 .crm-name { background: none; border: 0; color: var(--yk-yellow-2); font-weight: 800; font-family: inherit; font-size: 13.5px; cursor: pointer; padding: 0; text-align: start; }
 .crm-name:hover { text-decoration: underline; }
 :where(.app2-main:not(.full)) .crm-name { color: #8a6d10; }
@@ -997,7 +1102,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
   cursor: pointer;
   white-space: nowrap;
 }
-.posx-history-btn:hover { background: rgba(246, 192, 38, 0.1); }
 .posx-menu-top .posx-cats {
   position: static;
   margin: 0;
@@ -2115,7 +2219,7 @@ button.danger:hover:not(:disabled) {
 }
 
 .uif-input,
-.app2-main:not(.full) .uif-input,
+:where(.app2-main:not(.full)) .uif-input,
 .field input,
 .field select,
 .field textarea,
@@ -2219,11 +2323,11 @@ input[type="checkbox"] {
   box-shadow: none;
 }
 
-.app2-main:not(.full) .uif-btn,
-.app2-main:not(.full) .uif-input,
-.app2-main:not(.full) .uif-toggle-track,
-.app2-main:not(.full) .uif-radio button,
-.app2-main:not(.full) .uif-tabs button {
+:where(.app2-main:not(.full)) .uif-btn,
+:where(.app2-main:not(.full)) .uif-input,
+:where(.app2-main:not(.full)) .uif-toggle-track,
+:where(.app2-main:not(.full)) .uif-radio button,
+:where(.app2-main:not(.full)) .uif-tabs button {
   border-color: var(--border-strong);
 }
 
@@ -2282,7 +2386,9 @@ input[type="checkbox"] {
   outline-offset: 2px;
 }
 
-:is(button, input, select, textarea):disabled,
+/* :where() keeps the element half at (0,0,0) so component hiding rules
+   (e.g. the visually-hidden toggle input) still win when disabled. */
+:where(:is(button, input, select, textarea):disabled),
 .uif-checkbox.disabled,
 .uif-toggle.disabled {
   opacity: 0.58;
@@ -2294,7 +2400,7 @@ input[type="checkbox"] {
 .settings-page,
 .users-page {
   min-width: 0;
-  overflow-x: hidden;
+  /* W4b: no overflow context — .app2-main owns scroll and sticky. */
   color: var(--text-primary);
 }
 
@@ -2646,7 +2752,7 @@ input[type="checkbox"] {
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 2px 7px;
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   font-weight: 800;
 }
 
@@ -2743,7 +2849,7 @@ input[type="checkbox"] {
 .rbac-perm-copy > span {
   overflow-wrap: anywhere;
   color: var(--text-secondary);
-  font-size: 11.5px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 
@@ -2752,7 +2858,7 @@ input[type="checkbox"] {
   max-width: 100%;
   overflow-wrap: anywhere;
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   unicode-bidi: isolate;
 }
 
@@ -2902,7 +3008,7 @@ input[type="checkbox"] {
 
 .kds-stat span {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -2994,7 +3100,7 @@ input[type="checkbox"] {
   border-radius: 10px;
   background: var(--surface-2);
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: var(--text-caption);
   font-weight: 700;
   text-align: center;
 }
@@ -3080,7 +3186,7 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   font-weight: 900;
   line-height: 1.25;
   text-align: center;
@@ -3093,8 +3199,8 @@ input[type="checkbox"] {
   height: 14px;
   border: 1px solid currentColor;
   border-radius: 50%;
-  font-size: 9px;
-  line-height: 1;
+  font-size: var(--text-caption);
+  line-height: var(--line-compact);
 }
 
 .kds-timer {
@@ -3127,14 +3233,14 @@ input[type="checkbox"] {
   gap: 2px;
   overflow-wrap: anywhere;
   color: var(--text-primary);
-  font-size: 11.5px;
+  font-size: var(--text-caption);
   font-weight: 700;
   line-height: 1.45;
 }
 
 .kds-meta > span > b {
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-meta .kds-received {
@@ -3190,7 +3296,7 @@ input[type="checkbox"] {
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 
@@ -3215,7 +3321,7 @@ input[type="checkbox"] {
   border-radius: 999px;
   background: var(--surface-1);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -3233,7 +3339,7 @@ input[type="checkbox"] {
   border-radius: 8px;
   background: color-mix(in srgb, var(--warning) 8%, var(--surface-1));
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 
@@ -3820,7 +3926,7 @@ input[type="checkbox"] {
 @media (max-width: 640px) {
   .od-modal.modal {
     width: calc(100vw - 16px);
-    max-height: calc(100dvh - 16px);
+    max-block-size: calc(100dvh - var(--appbar-h) - (2 * var(--sp-4)));
     border-radius: 12px;
   }
 
@@ -4004,7 +4110,6 @@ input[type="checkbox"] {
 
 .app2-pos .posx-cats button:hover,
 .app2-pos .seg.dark button:hover,
-.app2-pos .posx-history-btn:hover,
 .app2-pos .posx-cart-toggle:hover,
 .app2-pos .posx-cart-close:hover,
 .app2-pos .posx-shift button:hover,
@@ -4440,7 +4545,9 @@ button.danger,
   outline-offset: 2px;
 }
 
-:is(button, input, select, textarea):disabled {
+/* :where() keeps this at (0,0,0) so component hiding rules (e.g. the
+   visually-hidden toggle input, opacity: 0) still win when disabled. */
+:where(:is(button, input, select, textarea):disabled) {
   opacity: 0.68;
 }
 
@@ -5137,30 +5244,13 @@ button.sm,
 }
 
 .settings-page .set-perms {
-  counter-reset: permission-count;
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
   justify-content: flex-start;
   min-height: 34px;
   margin: 0;
-}
-
-.settings-page .set-perms > .stub {
-  counter-increment: permission-count;
-  display: none;
-}
-
-.settings-page .set-perms::before {
-  content: counter(permission-count) " صلاحيات";
-  min-height: 28px;
-  padding: 4px 11px;
-  border: 1px solid var(--danger);
-  border-radius: 999px;
-  background: var(--theme-danger-soft);
-  color: var(--danger);
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.4;
 }
 
 .settings-page .set-perms:has(> .stub:nth-child(n + 5))::before {
@@ -5210,7 +5300,7 @@ button.sm,
 }
 
 .kds-stat span {
-  font-size: 10.5px;
+  font-size: var(--text-caption);
 }
 
 .kds {
@@ -5251,12 +5341,12 @@ button.sm,
 }
 
 .kds-sla-label {
-  font-size: 9.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-timer {
   min-width: 66px;
-  font-size: 12.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-meta {
@@ -5267,12 +5357,12 @@ button.sm,
 }
 
 .kds-meta > span {
-  font-size: 10.5px;
+  font-size: var(--text-caption);
   line-height: 1.3;
 }
 
 .kds-meta > span > b {
-  font-size: 9.5px;
+  font-size: var(--text-caption);
 }
 
 .kds-meta .kds-received {
@@ -5292,7 +5382,7 @@ button.sm,
 .kds-mods {
   margin-top: 3px;
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -5303,7 +5393,7 @@ button.sm,
 
 .kds-mods b::after {
   content: "نوع العيش:";
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 
 .kds-station {
@@ -5313,13 +5403,13 @@ button.sm,
 
 .kds-station > span {
   padding: 3px 6px;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .kds-note {
   margin-top: 5px;
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
@@ -5427,7 +5517,7 @@ button.sm,
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -5532,8 +5622,10 @@ button.sm,
   transition: transform 180ms ease, background 180ms ease;
 }
 
-.app2-theme-control .uif-toggle:hover .uif-toggle-track {
-  border-color: var(--brand);
+@media (hover: hover) {
+  .app2-theme-control .uif-toggle:hover .uif-toggle-track {
+    border-color: var(--brand);
+  }
 }
 
 .app2-theme-control .uif-toggle input:checked + .uif-toggle-track {
@@ -5661,12 +5753,12 @@ button.sm,
 .kds-page-head p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 .kds-page-eyebrow {
   color: var(--brand);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 900;
   letter-spacing: 0.08em;
 }
@@ -5681,7 +5773,7 @@ button.sm,
   border-radius: 999px;
   background: var(--theme-success-soft);
   color: var(--success);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 800;
 }
 
@@ -5725,13 +5817,13 @@ button.sm,
 .kitchen-page .kds-stat b {
   color: var(--text-primary);
   font-size: 19px;
-  line-height: 1.1;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
 .kitchen-page .kds-stat span {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -5796,10 +5888,8 @@ button.sm,
 .kitchen-page .kds-col {
   min-width: 0;
   padding: 9px;
-  border: 1px solid var(--kds-accent);
   border-radius: 16px;
-  background: var(--kds-soft);
-  box-shadow: 0 7px 20px var(--theme-shadow);
+  background: var(--surface-2);
 }
 
 .kitchen-page .kds-col-head {
@@ -5837,7 +5927,7 @@ button.sm,
 .kds-col-head-copy small {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: var(--text-caption);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5872,7 +5962,7 @@ button.sm,
   background: color-mix(in srgb, var(--surface-1) 78%, transparent);
   color: var(--text-secondary);
   text-align: center;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-col-list {
@@ -5897,11 +5987,9 @@ button.sm,
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin: -2px -2px 7px;
-  padding: 7px;
-  border: 1px solid color-mix(in srgb, var(--kds-accent) 42%, var(--border-subtle));
-  border-radius: 9px;
-  background: var(--kds-soft);
+  margin-bottom: 7px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .kds-order-identity {
@@ -5924,16 +6012,11 @@ button.sm,
 }
 
 .kds-order-type {
-  min-height: 23px;
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-raised);
   color: var(--text-secondary);
-  font-size: 9.5px;
-  font-weight: 800;
+  font-size: var(--text-caption);
+  font-weight: 700;
 }
 
 .kitchen-page .kds-sla {
@@ -5965,7 +6048,7 @@ button.sm,
   align-items: center;
   gap: 4px;
   color: currentColor;
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 900;
   white-space: nowrap;
 }
@@ -5990,36 +6073,59 @@ button.sm,
 
 .kitchen-page .kds-meta > span {
   min-width: 0;
-  min-height: 46px;
   display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 2px 6px;
-  padding: 6px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--surface-2);
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: 1px;
+  padding: 2px 0;
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--text-caption);
+}
+
+/* W4 phase1: الوقت قيمة أساسية >=14px والتاريخ سطر ثانوي تحته */
+.kitchen-page .kds-received time {
+  font-size: var(--text-body-sm);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kitchen-page .kds-received small {
+  color: var(--text-secondary);
+}
+
+/* W4 phase1: رقم الأصناف هو الأبرز بصريًا (>=16px) في الطرف المقابل */
+.kitchen-page .kds-count {
+  justify-items: end;
+  text-align: end;
+}
+
+.kitchen-page .kds-count strong {
+  font-size: var(--type-md);
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .kitchen-page .kds-meta > span > b {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
-.kitchen-page .kds-meta > span > :is(strong, time) {
-  justify-self: end;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
+.kitchen-page .kds-meta > span > time {
+  font-size: var(--text-body-sm);
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.kitchen-page .kds-meta > span > strong {
+  font-size: var(--type-md);
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .kitchen-page .kds-meta > span > small {
   grid-column: 1 / -1;
   color: var(--text-secondary);
-  font-size: 8.5px;
+  font-size: var(--text-caption);
   text-align: end;
 }
 
@@ -6032,10 +6138,11 @@ button.sm,
 }
 
 .kitchen-page .kds-items > li {
-  padding: 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 9px;
-  background: var(--surface-2);
+  padding: 7px 0;
+}
+
+.kds-items > li + li {
+  border-top: 1px solid var(--border-subtle);
 }
 
 .kds-item-top {
@@ -6062,13 +6169,13 @@ button.sm,
 
 .kds-item-qty {
   min-width: 27px;
-  height: 25px;
+  min-height: 25px;
   display: inline-grid;
   place-items: center;
   border-radius: 7px;
   background: var(--kds-accent);
   color: var(--surface-1);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
@@ -6085,17 +6192,26 @@ button.sm,
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 7px;
-  border: 1px solid;
+  padding: 3px 8px;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 900;
   line-height: 1.2;
 }
 
 .kds-choice b {
-  font-size: 8px;
+  font-size: var(--text-caption);
   opacity: 0.76;
+}
+
+/* W4a: operational floor inside the readability scope only — badges,
+   helper copy, labels, and table headers never drop below 13px here. */
+:is(.kitchen-page, .settings-page, .users-page) :is(.uif-badge, .uif-status, .uif-sub, .uif-hint, .uif-label, th, .muted, small, code) {
+  font-size: var(--text-caption);
+}
+
+:is(.kitchen-page, .settings-page, .users-page) .uif-btn.sm {
+  font-size: var(--text-caption);
 }
 
 .kds-choice.size {
@@ -6120,12 +6236,12 @@ button.sm,
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .kitchen-page .kds-mods > b {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 
 .kds-extra-list {
@@ -6140,7 +6256,7 @@ button.sm,
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--text-primary);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -6157,17 +6273,61 @@ button.sm,
   border-radius: 6px;
   background: var(--surface-1);
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--text-caption);
+}
+
+/* ADR-005: صف التعليق داخل الكارت — نفس فلسفة W4d (صبغة + accent، لا صندوق) */
+.kitchen-page .kds-hold {
+  margin-top: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-inline-start: 3px solid var(--warning);
+  border-radius: 7px;
+  background: var(--theme-warning-soft);
+  font-size: var(--text-caption);
+}
+
+.kitchen-page .kds-hold-meta {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kitchen-page .kds-hold-note {
+  color: var(--text-secondary);
+}
+
+.kitchen-page .kds-head-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kitchen-page .kds-card-actions .kds-action-secondary {
+  min-height: 36px;
+}
+
+.app2-pos .posx-paused-banner {
+  padding: 9px 12px;
+  border-inline-start: 3px solid var(--warning);
+  border-radius: 9px;
+  background: var(--theme-warning-soft);
+  color: var(--text-primary);
+  font-size: var(--text-caption);
+  font-weight: 700;
 }
 
 .kitchen-page .kds-note {
   margin-top: 6px;
-  padding: 6px 7px;
-  border: 1px solid var(--warning);
+  padding: 6px 8px;
+  border-inline-start: 3px solid var(--warning);
   border-radius: 7px;
   background: var(--theme-warning-soft);
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.35;
 }
 
@@ -7216,6 +7376,17 @@ button.danger,
   --type-lg: 1.125rem;
   --type-xl: clamp(1.35rem, 1.7vw, 1.6rem);
   --type-leading-ar: 1.55;
+
+  /* W4a — semantic readable scale. Operational information never renders
+     below --text-caption (13px); Arabic body copy uses --line-body. */
+  --text-caption: 0.8125rem;   /* 13px — smallest operational size */
+  --text-body-sm: 0.875rem;    /* 14px */
+  --text-body: 0.9375rem;      /* 15px */
+  --text-control: 0.875rem;    /* 14px */
+  --text-section: 1.0625rem;   /* 17px */
+  --text-page: 1.375rem;       /* 22px */
+  --line-compact: 1.35;
+  --line-body: 1.6;
 }
 
 /* Typography contract for admin pages, settings, tables, modals, and drawers. */
@@ -7284,7 +7455,7 @@ button.danger,
 .settings-page {
   width: min(1480px, 100%);
   max-width: 100%;
-  overflow-x: hidden;
+  /* W4b: no overflow context here — .app2-main owns scrolling and sticky. */
 }
 
 .settings-page .setx2 {
@@ -7297,7 +7468,7 @@ button.danger,
 .settings-page .setx2-body {
   width: 100%;
   max-width: none;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .settings-page .uif-card-body:has(.settings-menu-table) {
@@ -7674,17 +7845,32 @@ button.danger,
 }
 
 .settings-page button.source-picker-card {
-  min-height: 88px;
+  min-height: 0;
   display: grid;
   justify-items: start;
   align-content: center;
-  gap: 7px;
-  padding: 11px 13px;
+  gap: 8px;
+  padding: 10px 13px;
   border: 1px solid var(--border-subtle);
   border-radius: 11px;
   background: var(--surface-2);
   color: var(--text-primary);
   text-align: start;
+}
+
+.settings-page .source-picker-card > strong {
+  font-size: var(--text-body-sm);
+}
+
+.settings-page .source-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.settings-page .source-card-tags .uif-badge {
+  min-height: 22px;
+  padding-block: 1px;
 }
 
 .settings-page .source-picker-card.active {
@@ -7983,48 +8169,7 @@ button.danger,
   font-weight: 900;
 }
 
-@media (min-width: 561px) and (max-width: 900px) {
-  .app2-pos {
-    --appbar-h: 96px;
-  }
-
-  .app2-pos .app2-bar {
-    height: var(--appbar-h);
-    flex-basis: var(--appbar-h);
-    min-height: var(--appbar-h);
-    box-sizing: border-box;
-    display: grid;
-    grid-template-columns: 40px auto 40px minmax(0, 1fr) minmax(116px, auto) 48px 52px;
-    grid-template-rows: 42px 40px;
-    grid-template-areas:
-      "menu brand home spacer account theme logout"
-      "controls controls controls controls controls controls controls";
-    align-items: center;
-    padding-inline: 8px;
-  }
-
-  .app2-pos .app2-menu { grid-area: menu; }
-  .app2-pos .app2-brand { grid-area: brand; min-width: 0; white-space: nowrap; }
-  .app2-pos .app2-home { grid-area: home; }
-  .app2-pos .app2-pos-controls-slot { grid-area: controls; width: 100%; }
-  .app2-pos .app2-spacer { grid-area: spacer; }
-  .app2-pos .app2-theme-control { grid-area: theme; }
-  .app2-pos .app2-account-cluster { grid-area: account; }
-  .app2-pos .app2-logout { grid-area: logout; }
-
-  .app2-pos .posx-shell-operation-controls {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: 40px 40px minmax(0, 1fr);
-    justify-self: center;
-  }
-
-  .app2-pos .app2-account-cluster .app2-user {
-    max-width: 72px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
+@media (max-width: 900px) {
   .app2-pos .posx-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
@@ -8258,8 +8403,18 @@ button.danger,
 .app2-pos .posx-delivery-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "customer"
+    "phone"
+    "address"
+    "zone"
+    "notes";
   gap: 8px;
   min-width: 0;
+}
+
+.app2-pos .posx-cart {
+  container-type: inline-size;
 }
 
 .app2-pos .posx-delivery-field {
@@ -8270,10 +8425,6 @@ button.danger,
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--surface-2);
-}
-
-.app2-pos .posx-delivery-field-full {
-  grid-column: 1 / -1;
 }
 
 .app2-pos .posx-delivery-label {
@@ -8327,18 +8478,30 @@ button.danger,
   cursor: not-allowed;
 }
 
-.app2-pos .posx-delivery-field select {
+.app2-pos .posx-delivery-field :is(input, select) {
   width: 100%;
   min-width: 0;
   height: 40px;
   min-height: 40px;
+  box-sizing: border-box;
 }
 
-.app2-pos .posx-delivery-split {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
+.app2-pos .posx-delivery-customer { grid-area: customer; }
+.app2-pos .posx-delivery-phone { grid-area: phone; }
+.app2-pos .posx-delivery-address { grid-area: address; }
+.app2-pos .posx-delivery-zone { grid-area: zone; }
+.app2-pos .posx-delivery-notes { grid-area: notes; }
+
+@media (min-width: 900px) {
+  @container (min-width: 460px) {
+    .app2-pos .posx-delivery-fields {
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      grid-template-areas:
+        "customer phone"
+        "address zone"
+        "notes notes";
+    }
+  }
 }
 
 .posx-quick-modal {
@@ -8361,12 +8524,6 @@ button.danger,
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-}
-
-@media (max-width: 520px) {
-  .app2-pos .posx-delivery-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* ===== migrated from pos-fast-rail.css ===== */
@@ -8761,12 +8918,6 @@ button.danger,
   background: var(--yk-black-2);
   color: var(--yk-text);
   cursor: pointer;
-}
-
-.app2-pos .posx-shell-icon:hover,
-.app2-pos .posx-shell-icon:focus-within {
-  border-color: var(--yk-yellow);
-  color: var(--yk-yellow);
 }
 
 .app2-pos .posx-branch-picker select {
@@ -9289,6 +9440,196 @@ button.danger,
   border-color: var(--border-subtle);
   background: var(--surface-2);
   color: var(--text-primary);
+}
+
+/* W2.0 responsive safeguards retained under the core AppShell layout. */
+@media (max-width: 900px) {
+  .app2:not(.app2-pos) .app2-side { display: none; }
+  .app2-pos .posx-shell-operation-controls .posx-search { grid-column: auto; }
+}
+
+/* W2a core AppShell: equal side tracks keep the brand centered in the viewport. */
+.app2-bar {
+  height: var(--appbar-h);
+  min-height: var(--appbar-h);
+  flex: 0 0 var(--appbar-h);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(96px, 10vw, 160px) minmax(0, 1fr);
+  grid-template-areas: "operations brand session";
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+}
+
+.app2-shell-operations,
+.app2-shell-nav,
+.app2-shell-session {
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+}
+
+.app2-shell-operations {
+  grid-area: operations;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.app2-shell-nav {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.app2-shell-session {
+  grid-area: session;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.app2-brand {
+  grid-area: brand;
+  justify-self: center;
+  align-self: stretch;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app2-brand img {
+  inline-size: auto;
+  max-inline-size: 100%;
+  block-size: min(48px, calc(var(--appbar-h) - 16px));
+  object-fit: contain;
+}
+
+.app2-crumb {
+  min-inline-size: 0;
+  max-inline-size: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app2-pos .app2-pos-controls-slot {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.app2-pos .posx-shell-operation-controls {
+  inline-size: 100%;
+  max-inline-size: 760px;
+  min-inline-size: 0;
+}
+
+:is(
+  .app2-menu,
+  .app2-home,
+  .app2-back,
+  .app2-brand,
+  .app2-logout,
+  .app2-pos .posx-shell-icon,
+  .app2-pos .posx-history-btn,
+  .app2-pos .posx-shift-action
+) {
+  transform-origin: center;
+  transition: transform 120ms ease-out;
+}
+
+:is(
+  .app2-menu,
+  .app2-home,
+  .app2-back,
+  .app2-brand,
+  .app2-logout,
+  .app2-pos .posx-shell-icon,
+  .app2-pos .posx-history-btn,
+  .app2-pos .posx-shift-action
+):active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (max-width: 900px) {
+  .app2-pos {
+    --appbar-h: 104px;
+  }
+
+  .app2-pos .app2-bar {
+    grid-template-columns: minmax(0, 1fr) clamp(88px, 16vw, 112px) minmax(0, 1fr);
+    grid-template-rows: calc(var(--appbar-h) - 40px) 40px;
+    grid-template-areas:
+      "nav brand session"
+      "controls controls controls";
+    row-gap: 0;
+    column-gap: 8px;
+    padding: 0 8px;
+  }
+
+  .app2-pos .app2-shell-operations {
+    display: contents;
+  }
+
+  .app2-pos .app2-shell-nav {
+    grid-area: nav;
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+
+  .app2-pos .app2-pos-controls-slot {
+    grid-area: controls;
+    inline-size: 100%;
+    justify-content: center;
+  }
+
+  .app2-pos .app2-shell-session { grid-area: session; }
+  .app2-pos .app2-brand { grid-area: brand; }
+
+  .app2-pos .posx-shell-operation-controls {
+    inline-size: 100%;
+    max-inline-size: none;
+    grid-template-columns: 40px 40px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .app2:not(.app2-pos) .app2-crumb,
+  .app2:not(.app2-pos) .app2-account-cluster .app2-user,
+  .app2-pos .app2-account-cluster .app2-user {
+    display: none;
+  }
+
+  .app2-shell-nav,
+  .app2-shell-session {
+    gap: 4px;
+  }
+
+  .app2-brand img {
+    block-size: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .app2-menu,
+    .app2-home,
+    .app2-back,
+    .app2-brand,
+    .app2-logout,
+    .app2-pos .posx-shell-icon,
+    .app2-pos .posx-history-btn,
+    .app2-pos .posx-shift-action
+  ) {
+    transition: none;
+  }
 }
 
 .uif-drawer .posx-history-item-copy,

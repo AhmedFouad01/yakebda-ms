@@ -41,6 +41,7 @@ export function usePosController() {
     itemCount,
     localSubtotal,
   } = usePosCart();
+  const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const {
     categories,
     activeCat,
@@ -52,10 +53,10 @@ export function usePosController() {
   } = usePosCatalog({
     branchId,
     sourceId,
+    orderType,
     refreshCartProducts: refreshProducts,
     onError: setError,
   });
-  const [orderType, setOrderType] = useState<OrderType>("takeaway");
   const [discount, setDiscount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
@@ -65,6 +66,9 @@ export function usePosController() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sourceSelectRef = useRef<HTMLSelectElement>(null);
   const [msg, setMsg] = useState("");
+  // ADR-005: حالة مطبخ الفرع — الخادم هو المرجع؛ البانر والتعطيل تجربة فقط
+  const [kitchenPaused, setKitchenPaused] = useState(false);
+  const [kitchenPauseReason, setKitchenPauseReason] = useState<string | null>(null);
   const {
     customers,
     customerId,
@@ -259,6 +263,18 @@ export function usePosController() {
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
+    const load = () =>
+      api<{ data: { is_paused: boolean; pause_reason?: string | null } }>(`/kitchen/state?branch_id=${branchId}`)
+        .then((r) => { if (!cancelled) { setKitchenPaused(r.data.is_paused); setKitchenPauseReason(r.data.pause_reason ?? null); } })
+        .catch(() => undefined);
+    void load();
+    const timer = window.setInterval(load, 10_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [branchId]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
     setSources([]);
     setSourceId("");
     api<{ data: OrderSource[] }>("/order-sources?active_only=true&order_type=" + orderType)
@@ -384,6 +400,8 @@ export function usePosController() {
     discountOverLimit,
     discountReasonMissing,
     cashBlocked,
+    kitchenPaused,
+    kitchenPauseReason,
     enabledMethods,
     itemCount,
     addProduct,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Drawer, Modal } from "./overlays";
+import { DialogLayer, Drawer, Modal } from "./overlays";
 
 function DrawerHarness() {
   const [open, setOpen] = useState(false);
@@ -25,6 +25,32 @@ function ModalHarness() {
         <input aria-label="الاسم" />
         <button type="button">حفظ</button>
       </Modal>
+    </>
+  );
+}
+
+function NestedOrderDialogHarness() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setDrawerOpen(true)}>فتح سجل الطلبات</button>
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="سجل الطلبات">
+        <button type="button" onClick={() => setOrderOpen(true)}>فتح تفاصيل الطلب</button>
+      </Drawer>
+      <DialogLayer
+        open={orderOpen}
+        onClose={() => setOrderOpen(false)}
+        className="modal wide od-modal"
+        ariaLabel="تفاصيل الطلب"
+      >
+        <header className="od-modal-head">
+          <button type="button" onClick={() => setOrderOpen(false)}>إغلاق التفاصيل</button>
+        </header>
+        <div className="od-modal-body">
+          <button type="button">آخر إجراء في الطلب</button>
+        </div>
+      </DialogLayer>
     </>
   );
 }
@@ -88,5 +114,30 @@ describe("overlay accessibility", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("keeps the background locked and restores focus when an order modal closes over a Drawer", () => {
+    render(<NestedOrderDialogHarness />);
+    const drawerTrigger = screen.getByRole("button", { name: "فتح سجل الطلبات" });
+    drawerTrigger.focus();
+    fireEvent.click(drawerTrigger);
+
+    const orderTrigger = screen.getByRole("button", { name: "فتح تفاصيل الطلب" });
+    orderTrigger.focus();
+    fireEvent.click(orderTrigger);
+
+    expect(screen.getAllByRole("dialog")).toHaveLength(2);
+    expect(document.body.classList.contains("uif-no-scroll")).toBe(true);
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "إغلاق التفاصيل" }));
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(document.body.classList.contains("uif-no-scroll")).toBe(true);
+    expect(document.activeElement).toBe(orderTrigger);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.body.classList.contains("uif-no-scroll")).toBe(false);
+    expect(document.activeElement).toBe(drawerTrigger);
   });
 });

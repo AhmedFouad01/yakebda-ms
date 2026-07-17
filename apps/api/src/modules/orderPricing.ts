@@ -12,6 +12,7 @@ import { validateOrderConfiguration } from "./orderIntegrity";
 import { OrderSourceRow, resolveOrderSource } from "./orderSources";
 import { loadFullOrder } from "./orders";
 import { enqueuePaymentFinancialEvent } from "./financialOutbox";
+import { assertKitchenAcceptsOrders } from "./kitchenControl";
 
 export interface PricingItemInput {
   product_id: string;
@@ -360,6 +361,14 @@ export function orderPricingRoutes(db: Knex): Router {
 
         const settings = await getSettings(db, accountId, branch.id);
         assertOrderTypeEnabled(settings, branch, input.order_type);
+        // ADR-005: مطبخ متوقف ⇒ 409 قبل أي أثر جانبي (هذا هو مسار الإنشاء الفعلي — POS Fast Rail)
+        await assertKitchenAcceptsOrders(db, {
+          accountId,
+          branchId: branch.id,
+          userId: req.user!.id,
+          ip: req.ip,
+          requestId: (req as { requestId?: string }).requestId ?? null,
+        });
 
         if (input.order_type === "delivery") {
           if (settings.require_customer_for_delivery && !input.customer_id) {

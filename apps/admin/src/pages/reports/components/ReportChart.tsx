@@ -1,6 +1,7 @@
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { formatReportMoney } from "../reportFormat";
 import { reportText } from "../reportText";
+import { loadECharts, type EChartsInstance } from "./echartsAdapter";
 
 export interface ReportChartRow {
   label: string;
@@ -14,11 +15,102 @@ interface ReportChartProps {
   valueLabel?: string;
 }
 
-const WIDTH = 640;
-const HEIGHT = 240;
-const TOP = 18;
-const BOTTOM = 38;
-const SIDE = 34;
+interface ChartTokens {
+  brand: string;
+  danger: string;
+  text: string;
+  muted: string;
+  border: string;
+  surface: string;
+}
+
+function cssToken(style: CSSStyleDeclaration, name: string, fallback: string): string {
+  return style.getPropertyValue(name).trim() || fallback;
+}
+
+function readChartTokens(element: HTMLElement): ChartTokens {
+  const style = getComputedStyle(element);
+  return {
+    brand: cssToken(style, "--brand", "currentColor"),
+    danger: cssToken(style, "--danger", "currentColor"),
+    text: cssToken(style, "--text-primary", "currentColor"),
+    muted: cssToken(style, "--text-secondary", "currentColor"),
+    border: cssToken(style, "--border-subtle", "currentColor"),
+    surface: cssToken(style, "--surface-1", "transparent"),
+  };
+}
+
+function chartOption(
+  title: string,
+  rows: ReportChartRow[],
+  kind: "line" | "bar",
+  tokens: ChartTokens
+): Record<string, unknown> {
+  const data = rows.map((row) => ({
+    value: row.value,
+    itemStyle: { color: row.value < 0 ? tokens.danger : tokens.brand },
+  }));
+
+  return {
+    animation: false,
+    backgroundColor: "transparent",
+    aria: {
+      enabled: true,
+      decal: { show: false },
+      description: `${title}. ${rows.map((row) => `${row.label}: ${formatReportMoney(row.value)}`).join("، ")}`,
+    },
+    grid: {
+      top: 24,
+      right: 18,
+      bottom: rows.length > 6 ? 76 : 54,
+      left: 70,
+      containLabel: true,
+    },
+    tooltip: {
+      trigger: "axis",
+      appendToBody: true,
+      backgroundColor: tokens.surface,
+      borderColor: tokens.border,
+      textStyle: { color: tokens.text, fontFamily: "inherit" },
+      valueFormatter: (value: unknown) => formatReportMoney(Number(value)),
+    },
+    xAxis: {
+      type: "category",
+      data: rows.map((row) => row.label),
+      axisLine: { lineStyle: { color: tokens.border } },
+      axisTick: { alignWithLabel: true },
+      axisLabel: {
+        color: tokens.muted,
+        interval: 0,
+        rotate: rows.length > 6 ? 28 : 0,
+        hideOverlap: true,
+      },
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: {
+        color: tokens.muted,
+        formatter: (value: number) => new Intl.NumberFormat("ar-EG", {
+          notation: "compact",
+          maximumFractionDigits: 1,
+        }).format(value),
+      },
+      splitLine: { lineStyle: { color: tokens.border, type: "dashed" } },
+    },
+    series: [{
+      name: title,
+      type: kind,
+      data,
+      smooth: false,
+      symbolSize: 8,
+      showSymbol: kind === "line",
+      lineStyle: { width: 3, color: tokens.brand },
+      itemStyle: { color: tokens.brand },
+      barMaxWidth: 52,
+      emphasis: { focus: "series" },
+    }],
+  };
+}
 
 export function ReportChart({
   title,
@@ -27,81 +119,74 @@ export function ReportChart({
   valueLabel = reportText.value,
 }: ReportChartProps) {
   const titleId = useId();
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<EChartsInstance | null>(null);
+  const [chartError, setChartError] = useState(false);
   const validRows = rows.filter((row) => Number.isFinite(row.value));
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || validRows.length === 0) return;
+    let cancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
+    let themeObserver: MutationObserver | null = null;
+
+    void loadECharts()
+      .then((echarts) => {
+        if (cancelled || !host) return;
+        const chart = echarts.init(host, null, { renderer: "svg" });
+        chartRef.current = chart;
+        const render = () => {
+          chart.setOption(chartOption(title, validRows, kind, readChartTokens(host)), {
+            notMerge: true,
+          });
+        };
+        render();
+        setChartError(false);
+
+        if (typeof ResizeObserver !== "undefined") {
+          resizeObserver = new ResizeObserver(() => chart.resize());
+          resizeObserver.observe(host);
+        } else {
+          window.addEventListener("resize", chart.resize);
+        }
+
+        if (typeof MutationObserver !== "undefined") {
+          themeObserver = new MutationObserver(render);
+          themeObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["class", "data-theme"],
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setChartError(true);
+      });
+
+    return () => {
+      cancelled = true;
+      resizeObserver?.disconnect();
+      themeObserver?.disconnect();
+      if (chartRef.current) {
+        window.removeEventListener("resize", chartRef.current.resize);
+        chartRef.current.dispose();
+        chartRef.current = null;
+      }
+    };
+  }, [kind, title, rows]);
+
   if (!validRows.length) return null;
 
-  const values = validRows.map((row) => row.value);
-  const minimum = Math.min(0, ...values);
-  const maximum = Math.max(0, ...values);
-  const range = Math.max(maximum - minimum, 1);
-  const innerWidth = WIDTH - SIDE * 2;
-  const innerHeight = HEIGHT - TOP - BOTTOM;
-  const yFor = (value: number) => TOP + ((maximum - value) / range) * innerHeight;
-  const baseline = yFor(0);
-
-  const points = validRows.map((row, index) => {
-    const x = validRows.length === 1
-      ? WIDTH / 2
-      : SIDE + (index / (validRows.length - 1)) * innerWidth;
-    return { ...row, x, y: yFor(row.value) };
-  });
-
   return (
-    <div className="rpt-chart">
-      <svg
-        className="rpt-chart-svg"
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+    <div className="rpt-chart" aria-labelledby={titleId}>
+      <span id={titleId} className="rpt-visually-hidden">{title}</span>
+      <div
+        ref={hostRef}
+        className="rpt-chart-canvas"
         role="img"
-        aria-labelledby={titleId}
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <title id={titleId}>{title}</title>
-        <line className="rpt-chart-axis" x1={SIDE} y1={baseline} x2={WIDTH - SIDE} y2={baseline} />
-        <line className="rpt-chart-grid" x1={SIDE} y1={TOP} x2={WIDTH - SIDE} y2={TOP} />
-        <line
-          className="rpt-chart-grid"
-          x1={SIDE}
-          y1={TOP + innerHeight / 2}
-          x2={WIDTH - SIDE}
-          y2={TOP + innerHeight / 2}
-        />
-
-        {kind === "line" ? (
-          <>
-            <polyline
-              className="rpt-chart-series"
-              points={points.map((point) => `${point.x},${point.y}`).join(" ")}
-              fill="none"
-            />
-            {points.map((point) => (
-              <circle
-                key={`${point.label}-${point.x}`}
-                className="rpt-chart-point"
-                cx={point.x}
-                cy={point.y}
-                r="5"
-              />
-            ))}
-          </>
-        ) : (
-          points.map((point, index) => {
-            const slot = innerWidth / Math.max(points.length, 1);
-            const barWidth = Math.min(52, Math.max(16, slot * 0.56));
-            const valueY = yFor(point.value);
-            return (
-              <rect
-                key={`${point.label}-${index}`}
-                className={`rpt-chart-bar${point.value < 0 ? " is-negative" : ""}`}
-                x={SIDE + slot * index + (slot - barWidth) / 2}
-                y={Math.min(valueY, baseline)}
-                width={barWidth}
-                height={Math.abs(baseline - valueY)}
-                rx="4"
-              />
-            );
-          })
-        )}
-      </svg>
+        aria-label={title}
+      />
+      {chartError && <p className="rpt-chart-warning" role="status">{reportText.chartUnavailable}</p>}
 
       <details className="rpt-chart-data">
         <summary>{reportText.showChartData}</summary>

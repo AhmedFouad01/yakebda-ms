@@ -1016,6 +1016,15 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .crm-table-rich th[aria-sort] .crm-sort-icon { opacity: 1; }
 .crm-num { font-variant-numeric: tabular-nums; }
 .crm-load-more { display: flex; justify-content: center; padding: var(--sp-2); border-top: 1px solid var(--yk-line); }
+
+/* Sprint 1 — Inventory Admin (read-only): toolbar + tabular numerals.
+   الجدول يتمرر أفقيًا داخل .panel (سلوك قائم) — لا viewport overflow. */
+.inv-toolbar { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: flex-end; margin-bottom: var(--sp-2); }
+.inv-toolbar .uif-field { min-width: 220px; flex: 0 1 280px; }
+.inv-toolbar > .uif-input { flex: 1 1 220px; max-width: 340px; height: var(--field-h); }
+.inv-num { font-variant-numeric: tabular-nums; }
+.inv-table { min-width: 720px; }
+.inv-rev { font-size: var(--text-caption); }
 .crm-name { background: none; border: 0; color: var(--yk-yellow-2); font-weight: 800; font-family: inherit; font-size: 13.5px; cursor: pointer; padding: 0; text-align: start; }
 .crm-name:hover { text-decoration: underline; }
 :where(.app2-main:not(.full)) .crm-name { color: #8a6d10; }

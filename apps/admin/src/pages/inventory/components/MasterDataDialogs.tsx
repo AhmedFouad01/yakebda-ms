@@ -120,7 +120,8 @@ export function ItemCreateDialog({ open, onClose, onSaved, units }: DialogProps 
   const [baseUnitId, setBaseUnitId] = useState("");
   const [reorderLevel, setReorderLevel] = useState("0");
   const m = useMutation();
-  const valid = nameAr.trim().length > 0 && nameAr.trim().length <= 160 && !!baseUnitId;
+  const skuValid = /^[A-Za-z0-9-]*$/.test(sku.trim());
+  const valid = nameAr.trim().length > 0 && nameAr.trim().length <= 160 && !!baseUnitId && skuValid;
 
   return (
     <Modal open={open} onClose={onClose} title="صنف مخزني جديد"
@@ -144,8 +145,8 @@ export function ItemCreateDialog({ open, onClose, onSaved, units }: DialogProps 
       <FormField label="اسم الصنف" error={m.fieldErrors.name_ar}>
         <TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} maxLength={160} />
       </FormField>
-      <FormField label="كود الصنف (SKU)" error={m.fieldErrors.sku} hint="اختياري — فريد داخل الحساب">
-        <TextInput value={sku} onChange={(e) => setSku(e.target.value)} maxLength={80} dir="ltr" />
+      <FormField label="كود الصنف (SKU)" error={m.fieldErrors.sku ?? (!skuValid ? "SKU يجب أن يكون بحروف إنجليزية وأرقام وشرطات فقط." : undefined)} hint="اختياري — فريد داخل الحساب">
+        <TextInput value={sku} onChange={(e) => setSku(e.target.value)} maxLength={80} dir="ltr" pattern="[A-Za-z0-9-]*" />
       </FormField>
       <FormField label="الوحدة الأساسية" error={m.fieldErrors.base_unit_id}>
         <Select value={baseUnitId} onChange={(e) => setBaseUnitId(e.target.value)}>
@@ -164,7 +165,8 @@ export function SupplierCreateDialog({ open, onClose, onSaved }: DialogProps) {
   const [nameAr, setNameAr] = useState("");
   const [phone, setPhone] = useState("");
   const m = useMutation();
-  const valid = nameAr.trim().length > 0 && nameAr.trim().length <= 160;
+  const phoneValid = /^$|^[0-9+\-\s]{6,40}$/.test(phone.trim());
+  const valid = nameAr.trim().length > 0 && nameAr.trim().length <= 160 && phoneValid;
 
   return (
     <Modal open={open} onClose={onClose} title="مورد جديد"
@@ -179,8 +181,8 @@ export function SupplierCreateDialog({ open, onClose, onSaved }: DialogProps) {
       <FormField label="اسم المورد" error={m.fieldErrors.name_ar}>
         <TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} maxLength={160} />
       </FormField>
-      <FormField label="الهاتف" error={m.fieldErrors.phone} hint="اختياري">
-        <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} dir="ltr" />
+      <FormField label="الهاتف" error={m.fieldErrors.phone ?? (!phoneValid ? "رقم الهاتف يجب أن يكون فارغًا أو ٦-٤٠ محرفًا من أرقام أو + أو شرطات أو مسافات." : undefined)} hint="اختياري">
+        <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} dir="ltr" type="tel" pattern="^$|^[0-9+\-\s]{6,40}$" />
       </FormField>
     </Modal>
   );

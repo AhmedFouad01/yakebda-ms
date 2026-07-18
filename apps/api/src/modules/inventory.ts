@@ -104,7 +104,14 @@ export function inventoryRoutes(db: Knex): Router {
 
   router.post("/items", requirePermission("inventory.manage"), async (req, res, next) => {
     try {
-      const parsed = z.object({ name_ar: z.string().trim().min(1).max(160), sku: z.string().trim().max(80).optional(), base_unit_id: z.string().uuid(), reorder_level: decimalInput.default("0") }).safeParse(req.body);
+      const parsed = z
+        .object({
+          name_ar: z.string().trim().min(1).max(160),
+          sku: z.string().trim().max(80).regex(/^[A-Za-z0-9-]*$/, "كود الصنف (SKU) يجب أن يكون بحروف إنجليزية وأرقام وشرطات فقط.").optional(),
+          base_unit_id: z.string().uuid(),
+          reorder_level: decimalInput.default("0"),
+        })
+        .safeParse(req.body);
       if (!parsed.success) throw err.validation(parsed.error.flatten());
       const unit = await db("inventory_units").where({ id: parsed.data.base_unit_id, account_id: req.user!.accountId }).first();
       if (!unit) throw err.notFound();
@@ -126,7 +133,12 @@ export function inventoryRoutes(db: Knex): Router {
 
   router.post("/suppliers", requirePermission("inventory.manage"), async (req, res, next) => {
     try {
-      const parsed = z.object({ name_ar: z.string().trim().min(1).max(160), phone: z.string().trim().max(40).optional() }).safeParse(req.body);
+      const parsed = z
+        .object({
+          name_ar: z.string().trim().min(1).max(160),
+          phone: z.string().trim().max(40).regex(/^$|^[0-9+\-\s]{6,40}$/, "رقم الهاتف يجب أن يكون فارغًا أو ٦-٤٠ محرفًا من أرقام أو + أو شرطات أو مسافات.").optional(),
+        })
+        .safeParse(req.body);
       if (!parsed.success) throw err.validation(parsed.error.flatten());
       const id = newId();
       await db("inventory_suppliers").insert({ id, account_id: req.user!.accountId, ...parsed.data, phone: parsed.data.phone || null });

@@ -107,6 +107,44 @@ describe("manage operations on current contracts (S2.8-2)", () => {
   });
 });
 
+describe("SKU and supplier phone format validation (F1/F2)", () => {
+  it("rejects an Arabic SKU with 422 and a field-level message", async () => {
+    const res = await request(app).post("/api/v1/inventory/items").set(auth(ownerToken)).send({ name_ar: "صنف SKU عربي", sku: "دقيق١", base_unit_id: unitAId });
+    expect(res.status).toBe(422);
+    expect(res.body.details?.fieldErrors?.sku).toBeTruthy();
+  });
+
+  it("accepts an English/numeric/hyphenated SKU", async () => {
+    const res = await request(app).post("/api/v1/inventory/items").set(auth(ownerToken)).send({ name_ar: "صنف SKU إنجليزي", sku: "FLR-2", base_unit_id: unitAId });
+    expect(res.status).toBe(201);
+    expect(res.body.data.sku).toBe("FLR-2");
+  });
+
+  it("accepts an omitted SKU", async () => {
+    const res = await request(app).post("/api/v1/inventory/items").set(auth(ownerToken)).send({ name_ar: "صنف بدون SKU", base_unit_id: unitAId });
+    expect(res.status).toBe(201);
+    expect(res.body.data.sku).toBeNull();
+  });
+
+  it("rejects a non-numeric supplier phone with 422 and a field-level message", async () => {
+    const res = await request(app).post("/api/v1/inventory/suppliers").set(auth(ownerToken)).send({ name_ar: "مورد هاتف نصي", phone: "غير رقمي" });
+    expect(res.status).toBe(422);
+    expect(res.body.details?.fieldErrors?.phone).toBeTruthy();
+  });
+
+  it("accepts a numeric supplier phone", async () => {
+    const res = await request(app).post("/api/v1/inventory/suppliers").set(auth(ownerToken)).send({ name_ar: "مورد هاتف رقمي", phone: "0101234567" });
+    expect(res.status).toBe(201);
+    expect(res.body.data.phone).toBe("0101234567");
+  });
+
+  it("accepts an omitted supplier phone", async () => {
+    const res = await request(app).post("/api/v1/inventory/suppliers").set(auth(ownerToken)).send({ name_ar: "مورد بدون هاتف" });
+    expect(res.status).toBe(201);
+    expect(res.body.data.phone).toBeNull();
+  });
+});
+
 describe("constraint violations surface clearly (S2.2/S2.3)", () => {
   it("duplicate unit symbol → 409 with a field-level Arabic message (not 500)", async () => {
     const res = await request(app).post("/api/v1/inventory/units").set(auth(ownerToken)).send({ name_ar: "كيلو مكرر", symbol: "كجم" });

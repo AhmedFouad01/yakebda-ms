@@ -52,9 +52,12 @@ Before editing:
 Run from the repository root:
 
 ```bash
+npm run contracts:build   # required once after npm ci; not built automatically
 npm run api:test
 npm run admin:build
 ```
+
+Or run `npm run check` for the full gate (contracts build + contracts test + color contract + api test + admin test + admin build).
 
 Also run migrations and focused manual QA when the change affects database behavior or operational screens.
 

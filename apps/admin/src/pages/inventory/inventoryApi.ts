@@ -7,6 +7,7 @@ import type {
   InventorySupplier,
   InventoryUnit,
   InventoryUnitConversion,
+  StockMovement,
 } from "./inventoryTypes";
 
 /**
@@ -59,6 +60,21 @@ export function createInventoryItem(body: { name_ar: string; sku?: string; base_
 
 export function createInventorySupplier(body: { name_ar: string; phone?: string }) {
   return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
+}
+
+/* ——— Sprint 3 — inventory operations (B1: purchase receipts only) ——— */
+
+export function createInventoryPurchaseReceipt(body: {
+  location_id: string;
+  item_id: string;
+  supplier_id: string;
+  quantity: string;
+  unit_id?: string;
+  unit_cost: string;
+  receipt_reference: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/purchase-receipts", { method: "POST", body });
 }
 
 /** يستخرج أخطاء الحقول من ApiFail.details (zod flatten أو خرائط الحقول من الخادم). */

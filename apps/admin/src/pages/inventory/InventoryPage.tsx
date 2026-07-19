@@ -28,6 +28,7 @@ import {
   SupplierCreateDialog,
   UnitCreateDialog,
 } from "./components/MasterDataDialogs";
+import { PurchaseReceiptDialog } from "./components/PurchaseReceiptDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -53,6 +54,9 @@ export function InventoryPage() {
   const [branchNames, setBranchNames] = useState<Map<string, string>>(new Map());
   // اختيار الموقع يبقى حيًّا طوال بقاء الصفحة (S1.4)
   const [locationId, setLocationId] = useState("");
+  // يُزاد بعد كل عملية كتابة ناجحة (B1: استلام) لفرض إعادة تحميل الأرصدة من الخادم
+  // فورًا في تبويب "نظرة عامة" — لا حساب رصيد في React، فقط طلب جديد لـ GET /inventory/levels.
+  const [overviewReloadSignal, setOverviewReloadSignal] = useState(0);
 
   const loadRefs = useCallback(async () => {
     setRefState("loading");
@@ -97,6 +101,7 @@ export function InventoryPage() {
         tabs={[
           ["overview", "نظرة عامة"],
           ["movements", "الحركات"],
+          ["receipts", "استلام مشتريات"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -115,6 +120,7 @@ export function InventoryPage() {
           locationId={locationId}
           onLocationChange={setLocationId}
           unitsById={unitsById}
+          reloadSignal={overviewReloadSignal}
         />
       )}
       {refState === "ready" && tab === "movements" && (
@@ -126,6 +132,16 @@ export function InventoryPage() {
           itemsById={itemsById}
           locationsById={locationsById}
           items={items}
+        />
+      )}
+      {refState === "ready" && tab === "receipts" && (
+        <PurchaseReceiptsTab
+          locations={locations}
+          items={items}
+          suppliers={suppliers}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
         />
       )}
       {refState === "ready" && tab === "items" && (
@@ -283,18 +299,67 @@ function SuppliersTab({ suppliers, canManage, onChanged }: { suppliers: Inventor
   );
 }
 
+/* ——— Sprint 3 — B1: purchase receipts (POST /inventory/purchase-receipts only) ——— */
+
+function PurchaseReceiptsTab({
+  locations,
+  items,
+  suppliers,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  suppliers: InventorySupplier[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ استلام جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل استلامات — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل استلامات المشتريات؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها الاستلامات، نوعها «استلام»).
+        </p>
+      )}
+      <PurchaseReceiptDialog
+        open={open}
+        locations={locations}
+        items={items}
+        suppliers={suppliers}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
 function OverviewTab({
   locations,
   branchNames,
   locationId,
   onLocationChange,
   unitsById,
+  reloadSignal,
 }: {
   locations: InventoryLocation[];
   branchNames: Map<string, string>;
   locationId: string;
   onLocationChange: (id: string) => void;
   unitsById: Map<string, InventoryUnit>;
+  reloadSignal: number;
 }) {
   const [state, setState] = useState<LoadState>("loading");
   const [error, setError] = useState("");
@@ -316,7 +381,8 @@ function OverviewTab({
 
   useEffect(() => {
     load();
-  }, [load]);
+    // reloadSignal: يفرض إعادة الجلب فور نجاح عملية كتابة من تبويب آخر (مثل استلام مشتريات)
+  }, [load, reloadSignal]);
 
   // فلترة عرضية فقط على صفوف أعادها الخادم كاملة ضمن نطاق المستخدم
   const visible = useMemo(() => {

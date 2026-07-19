@@ -92,3 +92,25 @@ export interface InventoryMovementRow {
   created_by: string | null;
   created_at: string;
 }
+
+/** Response shape of write endpoints backed by createStockMovement (e.g. POST /inventory/purchase-receipts). */
+export interface StockMovement {
+  id: string;
+  account_id: string;
+  branch_id: string;
+  location_id: string;
+  item_id: string;
+  supplier_id: string | null;
+  movement_type: string;
+  quantity_base: string;
+  unit_cost: string;
+  total_value: string;
+  source_type: string;
+  source_id: string | null;
+  idempotency_key: string;
+  reason: string | null;
+  created_by: string | null;
+  reversal_of_movement_id: string | null;
+  transfer_group_id: string | null;
+  idempotent_replay: boolean;
+}

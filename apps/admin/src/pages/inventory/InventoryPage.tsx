@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EmptyState, ErrorState, FormField, LoadingState, PageHeader, Select, Tabs, TextInput, ViewOnlyNotice } from "../../components/ui/primitives";
+import { Button, EmptyState, ErrorState, FormField, LoadingState, PageHeader, Select, Tabs, TextInput, ViewOnlyNotice } from "../../components/ui/primitives";
 import { api } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import {
@@ -7,18 +7,27 @@ import {
   fetchInventoryLevels,
   fetchInventoryLocations,
   fetchInventoryMovements,
+  fetchInventorySuppliers,
   fetchInventoryUnits,
+  fmtQuantity,
 } from "./inventoryApi";
 import type {
   InventoryItem,
   InventoryLevelRow,
   InventoryLocation,
   InventoryMovementRow,
+  InventorySupplier,
   InventoryUnit,
 } from "./inventoryTypes";
 import { InventoryLocationSelect } from "./components/InventoryLocationSelect";
 import { InventoryLevelsTable } from "./components/InventoryLevelsTable";
 import { InventoryMovementsTable } from "./components/InventoryMovementsTable";
+import {
+  ConversionCreateDialog,
+  ItemCreateDialog,
+  SupplierCreateDialog,
+  UnitCreateDialog,
+} from "./components/MasterDataDialogs";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -40,6 +49,7 @@ export function InventoryPage() {
   const [locations, setLocations] = useState<InventoryLocation[]>([]);
   const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [suppliers, setSuppliers] = useState<InventorySupplier[]>([]);
   const [branchNames, setBranchNames] = useState<Map<string, string>>(new Map());
   // اختيار الموقع يبقى حيًّا طوال بقاء الصفحة (S1.4)
   const [locationId, setLocationId] = useState("");
@@ -48,15 +58,17 @@ export function InventoryPage() {
     setRefState("loading");
     setRefError("");
     try {
-      const [locs, us, its, branches] = await Promise.all([
+      const [locs, us, its, sups, branches] = await Promise.all([
         fetchInventoryLocations(),
         fetchInventoryUnits(),
         fetchInventoryItems(),
+        fetchInventorySuppliers(),
         api<{ data: Array<{ id: string; name: string }> }>("/branches").catch(() => ({ data: [] })),
       ]);
       setLocations(locs.data);
       setUnits(us.data);
       setItems(its.data);
+      setSuppliers(sups.data);
       setBranchNames(new Map(branches.data.map((b) => [b.id, b.name])));
       setRefState("ready");
     } catch (e: any) {
@@ -85,6 +97,9 @@ export function InventoryPage() {
         tabs={[
           ["overview", "نظرة عامة"],
           ["movements", "الحركات"],
+          ["items", "الأصناف"],
+          ["units", "الوحدات"],
+          ["suppliers", "الموردون"],
         ]}
         active={tab}
         onChange={setTab}
@@ -113,6 +128,157 @@ export function InventoryPage() {
           items={items}
         />
       )}
+      {refState === "ready" && tab === "items" && (
+        <ItemsTab items={items} unitsById={unitsById} canManage={canManage} units={units} onChanged={loadRefs} />
+      )}
+      {refState === "ready" && tab === "units" && (
+        <UnitsTab units={units} canManage={canManage} onChanged={loadRefs} />
+      )}
+      {refState === "ready" && tab === "suppliers" && (
+        <SuppliersTab suppliers={suppliers} canManage={canManage} onChanged={loadRefs} />
+      )}
+    </div>
+  );
+}
+
+/* ——— Sprint 2 — master-data tabs (create-only per the current contracts) ——— */
+
+function ItemsTab({
+  items,
+  unitsById,
+  units,
+  canManage,
+  onChanged,
+}: {
+  items: InventoryItem[];
+  unitsById: Map<string, InventoryUnit>;
+  units: InventoryUnit[];
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setAdding(true)}>+ صنف جديد</Button>
+        </div>
+      )}
+      {!items.length ? (
+        <EmptyState message="لا أصناف بعد" action={canManage ? <Button variant="primary" onClick={() => setAdding(true)}>إضافة أول صنف</Button> : undefined} />
+      ) : (
+        <div className="panel">
+          <table className="crm-table inv-table" dir="rtl">
+            <thead>
+              <tr>
+                <th scope="col">الاسم</th>
+                <th scope="col">SKU</th>
+                <th scope="col">الوحدة الأساسية</th>
+                <th scope="col">حد إعادة الطلب</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((i) => {
+                const u = unitsById.get(i.base_unit_id);
+                return (
+                  <tr key={i.id}>
+                    <td>{i.name_ar}</td>
+                    <td className="mono">{i.sku ?? "—"}</td>
+                    <td>{u ? `${u.name_ar} (${u.symbol})` : "غير متاح"}</td>
+                    <td className="mono inv-num">{fmtQuantity(i.reorder_level)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <ItemCreateDialog open={adding} units={units} onClose={() => setAdding(false)}
+        onSaved={() => { setAdding(false); onChanged(); }} />
+    </div>
+  );
+}
+
+function UnitsTab({ units, canManage, onChanged }: { units: InventoryUnit[]; canManage: boolean; onChanged: () => void }) {
+  const [addingUnit, setAddingUnit] = useState(false);
+  const [addingConversion, setAddingConversion] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setAddingUnit(true)}>+ وحدة جديدة</Button>
+          <Button onClick={() => setAddingConversion(true)} disabled={units.length < 2}
+            title={units.length < 2 ? "أضف وحدتين على الأقل أولًا" : undefined}>+ معامل تحويل</Button>
+        </div>
+      )}
+      {!units.length ? (
+        <EmptyState message="لا وحدات قياس بعد" action={canManage ? <Button variant="primary" onClick={() => setAddingUnit(true)}>إضافة أول وحدة</Button> : undefined} />
+      ) : (
+        <div className="panel">
+          <table className="crm-table inv-table" dir="rtl">
+            <thead>
+              <tr>
+                <th scope="col">الاسم</th>
+                <th scope="col">الرمز</th>
+              </tr>
+            </thead>
+            <tbody>
+              {units.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.name_ar}</td>
+                  <td className="mono">{u.symbol}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          معاملات التحويل تُسجَّل عبر «+ معامل تحويل»؛ لا يوفر العقد الحالي مسار قراءة لقائمتها بعد — التكرارات يرفضها الخادم.
+        </p>
+      )}
+      <UnitCreateDialog open={addingUnit} onClose={() => setAddingUnit(false)}
+        onSaved={() => { setAddingUnit(false); onChanged(); }} />
+      <ConversionCreateDialog open={addingConversion} units={units} onClose={() => setAddingConversion(false)}
+        onSaved={() => { setAddingConversion(false); onChanged(); }} />
+    </div>
+  );
+}
+
+function SuppliersTab({ suppliers, canManage, onChanged }: { suppliers: InventorySupplier[]; canManage: boolean; onChanged: () => void }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setAdding(true)}>+ مورد جديد</Button>
+        </div>
+      )}
+      {!suppliers.length ? (
+        <EmptyState message="لا موردون بعد" action={canManage ? <Button variant="primary" onClick={() => setAdding(true)}>إضافة أول مورد</Button> : undefined} />
+      ) : (
+        <div className="panel">
+          <table className="crm-table inv-table" dir="rtl">
+            <thead>
+              <tr>
+                <th scope="col">الاسم</th>
+                <th scope="col">الهاتف</th>
+              </tr>
+            </thead>
+            <tbody>
+              {suppliers.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.name_ar}</td>
+                  <td className="mono" dir="ltr">{s.phone ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <SupplierCreateDialog open={adding} onClose={() => setAdding(false)}
+        onSaved={() => { setAdding(false); onChanged(); }} />
     </div>
   );
 }

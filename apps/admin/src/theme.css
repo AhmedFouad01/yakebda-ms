@@ -1025,6 +1025,9 @@ button.sm:hover { border-color: var(--yk-yellow); }
 .inv-num { font-variant-numeric: tabular-nums; }
 .inv-table { min-width: 720px; }
 .inv-rev { font-size: var(--text-caption); }
+/* Sprint 2 — master-data actions row + documented-gap note */
+.inv-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.inv-gap-note { font-size: var(--text-caption); padding: 6px 10px; border: 1px dashed var(--yk-line); border-radius: 8px; }
 .crm-name { background: none; border: 0; color: var(--yk-yellow-2); font-weight: 800; font-family: inherit; font-size: 13.5px; cursor: pointer; padding: 0; text-align: start; }
 .crm-name:hover { text-decoration: underline; }
 :where(.app2-main:not(.full)) .crm-name { color: #8a6d10; }

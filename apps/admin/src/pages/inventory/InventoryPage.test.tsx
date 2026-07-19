@@ -39,6 +39,7 @@ function primeApi(overrides: { levels?: unknown[]; movements?: unknown[]; failLe
     if (path.startsWith("/inventory/locations")) return { data: [LOC1, LOC2] };
     if (path.startsWith("/inventory/units")) return { data: [UNIT] };
     if (path.startsWith("/inventory/items")) return { data: [ITEM] };
+    if (path.startsWith("/inventory/suppliers")) return { data: [] };
     if (path.startsWith("/branches")) return { data: [{ id: "b1", name: "الرئيسي" }, { id: "b2", name: "الثاني" }] };
     if (path.startsWith("/inventory/levels")) {
       if (overrides.failLevels) throw new Error("انقطع الاتصال بالخادم");

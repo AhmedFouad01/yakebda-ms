@@ -29,6 +29,7 @@ import {
   UnitCreateDialog,
 } from "./components/MasterDataDialogs";
 import { PurchaseReceiptDialog } from "./components/PurchaseReceiptDialog";
+import { IssueMovementDialog } from "./components/IssueMovementDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -102,6 +103,7 @@ export function InventoryPage() {
           ["overview", "نظرة عامة"],
           ["movements", "الحركات"],
           ["receipts", "استلام مشتريات"],
+          ["issue", "صرف"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -139,6 +141,15 @@ export function InventoryPage() {
           locations={locations}
           items={items}
           suppliers={suppliers}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "issue" && (
+        <IssueTab
+          locations={locations}
+          items={items}
           units={units}
           canManage={canManage}
           onSaved={() => setOverviewReloadSignal((n) => n + 1)}
@@ -338,6 +349,50 @@ function PurchaseReceiptsTab({
         locations={locations}
         items={items}
         suppliers={suppliers}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B2: issue (POST /inventory/movements, movement_type=issue only) ——— */
+
+function IssueTab({
+  locations,
+  items,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ صرف جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل عمليات صرف — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل عمليات الصرف؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها الصرف، نوعها «صرف»).
+        </p>
+      )}
+      <IssueMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
         units={units}
         onClose={() => setOpen(false)}
         onSaved={() => { setOpen(false); onSaved(); }}

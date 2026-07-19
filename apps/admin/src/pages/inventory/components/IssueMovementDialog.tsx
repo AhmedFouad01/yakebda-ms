@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../../../components/ui/overlays";
 import { Button, FormField, NumberInput, Select, TextInput } from "../../../components/ui/primitives";
-import { createInventoryPurchaseReceipt } from "../inventoryApi";
-import type { InventoryItem, InventoryLocation, InventorySupplier, InventoryUnit } from "../inventoryTypes";
+import { createInventoryIssue } from "../inventoryApi";
+import type { InventoryItem, InventoryLocation, InventoryUnit } from "../inventoryTypes";
 import { useInventoryMutation } from "../useInventoryMutation";
 
 /**
- * B1 — purchase-receipt create dialog over POST /inventory/purchase-receipts
- * ONLY (no /movements generic path here). No read endpoint exists for a
- * dedicated receipts log; the movements tab already covers that — not
- * duplicated here. Success is declared ONLY after server confirmation.
+ * B2 — issue create dialog over POST /inventory/movements (movement_type=issue)
+ * ONLY. movement_type and source_type are fixed internally, not user-facing —
+ * the generic /movements contract takes a free-text source_type but this
+ * screen only ever emits one kind of write. `reason` is optional in the
+ * contract; required here in the UI only (client-side rule, not a server
+ * constraint) since an issue reduces stock and needs a stated justification.
+ * Success is declared ONLY after server confirmation.
  */
 
 interface DialogProps {
@@ -18,18 +21,15 @@ interface DialogProps {
   onSaved: () => void;
   locations: InventoryLocation[];
   items: InventoryItem[];
-  suppliers: InventorySupplier[];
   units: InventoryUnit[];
 }
 
-export function PurchaseReceiptDialog({ open, onClose, onSaved, locations, items, suppliers, units }: DialogProps) {
+export function IssueMovementDialog({ open, onClose, onSaved, locations, items, units }: DialogProps) {
   const [locationId, setLocationId] = useState("");
   const [itemId, setItemId] = useState("");
-  const [supplierId, setSupplierId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitId, setUnitId] = useState("");
-  const [unitCost, setUnitCost] = useState("");
-  const [receiptReference, setReceiptReference] = useState("");
+  const [reason, setReason] = useState("");
   // مفتاح واحد لكل فتح للـ dialog — يُعاد استخدامه عند إعادة المحاولة بعد فشل،
   // ويُستبدل فقط عند فتح عملية جديدة (open ينتقل من false إلى true).
   const [idempotencyKey, setIdempotencyKey] = useState("");
@@ -39,45 +39,42 @@ export function PurchaseReceiptDialog({ open, onClose, onSaved, locations, items
     if (open) {
       setLocationId("");
       setItemId("");
-      setSupplierId("");
       setQuantity("");
       setUnitId("");
-      setUnitCost("");
-      setReceiptReference("");
+      setReason("");
       setIdempotencyKey(crypto.randomUUID());
     }
   }, [open]);
 
   const quantityNumber = Number(quantity);
-  const unitCostNumber = Number(unitCost);
   const valid =
     !!locationId &&
     !!itemId &&
-    !!supplierId &&
     quantity.trim() !== "" &&
     Number.isFinite(quantityNumber) &&
     quantityNumber > 0 &&
-    unitCost.trim() !== "" &&
-    Number.isFinite(unitCostNumber) &&
-    unitCostNumber >= 0 &&
-    receiptReference.trim().length > 0 &&
-    receiptReference.trim().length <= 160;
+    reason.trim().length > 0 &&
+    reason.trim().length <= 500;
 
   function submit() {
     m.run(
       () =>
-        createInventoryPurchaseReceipt({
+        createInventoryIssue({
           location_id: locationId,
           item_id: itemId,
-          supplier_id: supplierId,
           quantity: quantity.trim(),
           unit_id: unitId || undefined,
-          unit_cost: unitCost.trim(),
-          receipt_reference: receiptReference.trim(),
+          reason: reason.trim(),
           idempotency_key: idempotencyKey,
         }),
-      "تم تسجيل الاستلام",
-      onSaved
+      "تم تسجيل الصرف",
+      onSaved,
+      {
+        // err.conflict() في الخادم (apps/api/src/lib/errors.ts) لا يرسل الكمية المتاحة فعليًا ضمن
+        // جسم الخطأ (لا details إطلاقًا) — لذا الرسالة عامة عن قصد، لا نختلق رقمًا غير موجود.
+        conflictMessage: "الكمية المطلوبة أكبر من الرصيد المتاح في هذا الموقع.",
+        conflictField: "quantity",
+      }
     );
   }
 
@@ -85,11 +82,11 @@ export function PurchaseReceiptDialog({ open, onClose, onSaved, locations, items
     <Modal
       open={open}
       onClose={onClose}
-      title="استلام مشتريات جديد"
+      title="صرف جديد"
       footer={
         <>
           <Button variant="primary" disabled={!valid || m.busy} onClick={submit}>
-            {m.busy ? "جارٍ الحفظ…" : "تسجيل الاستلام"}
+            {m.busy ? "جارٍ الحفظ…" : "تسجيل الصرف"}
           </Button>
           <Button onClick={onClose}>إلغاء</Button>
         </>
@@ -112,15 +109,7 @@ export function PurchaseReceiptDialog({ open, onClose, onSaved, locations, items
           ))}
         </Select>
       </FormField>
-      <FormField label="المورّد" error={m.fieldErrors.supplier_id}>
-        <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-          <option value="">اختر المورّد…</option>
-          {suppliers.map((s) => (
-            <option key={s.id} value={s.id}>{s.name_ar}</option>
-          ))}
-        </Select>
-      </FormField>
-      <FormField label="الكمية" error={m.fieldErrors.quantity} hint="بوحدة الاستلام أدناه (أو الوحدة الأساسية إن لم تُحدَّد)">
+      <FormField label="الكمية" error={m.fieldErrors.quantity} hint="بوحدة الصرف أدناه (أو الوحدة الأساسية إن لم تُحدَّد)">
         <NumberInput value={quantity} onChange={(e) => setQuantity(e.target.value)} min="0" step="any" dir="ltr" />
       </FormField>
       <FormField label="الوحدة" error={m.fieldErrors.unit_id} hint="اختياري — الوحدة الأساسية للصنف افتراضيًا">
@@ -131,11 +120,8 @@ export function PurchaseReceiptDialog({ open, onClose, onSaved, locations, items
           ))}
         </Select>
       </FormField>
-      <FormField label="تكلفة الوحدة" error={m.fieldErrors.unit_cost} hint="بعملة الحساب">
-        <NumberInput value={unitCost} onChange={(e) => setUnitCost(e.target.value)} min="0" step="any" dir="ltr" />
-      </FormField>
-      <FormField label="مرجع الاستلام" error={m.fieldErrors.receipt_reference} hint="رقم فاتورة المورّد أو مرجع مشابه — حتى 160 حرفًا">
-        <TextInput value={receiptReference} onChange={(e) => setReceiptReference(e.target.value)} maxLength={160} />
+      <FormField label="السبب" error={m.fieldErrors.reason} hint="مطلوب — سبب الصرف، حتى 500 حرف">
+        <TextInput value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
       </FormField>
     </Modal>
   );

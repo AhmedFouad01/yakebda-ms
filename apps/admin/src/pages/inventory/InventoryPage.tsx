@@ -31,6 +31,7 @@ import {
 import { PurchaseReceiptDialog } from "./components/PurchaseReceiptDialog";
 import { IssueMovementDialog } from "./components/IssueMovementDialog";
 import { WasteMovementDialog } from "./components/WasteMovementDialog";
+import { AdjustmentMovementDialog } from "./components/AdjustmentMovementDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -106,6 +107,7 @@ export function InventoryPage() {
           ["receipts", "استلام مشتريات"],
           ["issue", "صرف"],
           ["waste", "هدر"],
+          ["adjustment", "تسوية"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -159,6 +161,15 @@ export function InventoryPage() {
       )}
       {refState === "ready" && tab === "waste" && (
         <WasteTab
+          locations={locations}
+          items={items}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "adjustment" && (
+        <AdjustmentTab
           locations={locations}
           items={items}
           units={units}
@@ -447,6 +458,50 @@ function WasteTab({
         </p>
       )}
       <WasteMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B4: adjustment (POST /inventory/movements, movement_type=adjustment only) ——— */
+
+function AdjustmentTab({
+  locations,
+  items,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ تسوية جديدة</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل تسويات رصيد — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل التسويات؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها التسوية، نوعها «تسوية»).
+        </p>
+      )}
+      <AdjustmentMovementDialog
         open={open}
         locations={locations}
         items={items}

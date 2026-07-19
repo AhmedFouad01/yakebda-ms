@@ -62,7 +62,7 @@ export function createInventorySupplier(body: { name_ar: string; phone?: string 
   return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
 }
 
-/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste) ——— */
+/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste, B4: adjustment) ——— */
 
 export function createInventoryPurchaseReceipt(body: {
   location_id: string;
@@ -100,6 +100,21 @@ export function createInventoryWaste(body: {
   idempotency_key: string;
 }) {
   return api<{ data: StockMovement }>("/inventory/waste", { method: "POST", body });
+}
+
+export function createInventoryAdjustment(body: {
+  location_id: string;
+  item_id: string;
+  quantity: string; // إشارة موقّعة (+/-) — العميل يحدد الاتجاه، الخادم لا يحسب فرقًا
+  unit_id?: string;
+  unit_cost?: string;
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/movements", {
+    method: "POST",
+    body: { ...body, movement_type: "adjustment", source_type: "inventory_adjustment" },
+  });
 }
 
 /** 409 = الخادم منع الرصيد من أن يصبح سالبًا؛ الرسالة العامة من الخادم غير سياقية، فنستبدلها بالطلب. */

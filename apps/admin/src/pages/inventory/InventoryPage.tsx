@@ -30,6 +30,7 @@ import {
 } from "./components/MasterDataDialogs";
 import { PurchaseReceiptDialog } from "./components/PurchaseReceiptDialog";
 import { IssueMovementDialog } from "./components/IssueMovementDialog";
+import { WasteMovementDialog } from "./components/WasteMovementDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -104,6 +105,7 @@ export function InventoryPage() {
           ["movements", "الحركات"],
           ["receipts", "استلام مشتريات"],
           ["issue", "صرف"],
+          ["waste", "هدر"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -148,6 +150,15 @@ export function InventoryPage() {
       )}
       {refState === "ready" && tab === "issue" && (
         <IssueTab
+          locations={locations}
+          items={items}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "waste" && (
+        <WasteTab
           locations={locations}
           items={items}
           units={units}
@@ -390,6 +401,52 @@ function IssueTab({
         </p>
       )}
       <IssueMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B3: waste (POST /inventory/waste only) ——— */
+/* لا موافقة/حد أقصى على الهدر حاليًا (يعكس الـ backend كما هو) — رقابة الهالك
+   (approval/limit) تحسين مستقبلي يحتاج تعديل خادم؛ خارج نطاق B3. */
+
+function WasteTab({
+  locations,
+  items,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ هدر جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل عمليات هدر — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل عمليات الهدر؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها الهدر، نوعها «هدر»).
+        </p>
+      )}
+      <WasteMovementDialog
         open={open}
         locations={locations}
         items={items}

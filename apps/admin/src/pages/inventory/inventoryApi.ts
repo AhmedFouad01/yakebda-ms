@@ -62,7 +62,7 @@ export function createInventorySupplier(body: { name_ar: string; phone?: string 
   return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
 }
 
-/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue) ——— */
+/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste) ——— */
 
 export function createInventoryPurchaseReceipt(body: {
   location_id: string;
@@ -89,6 +89,17 @@ export function createInventoryIssue(body: {
     method: "POST",
     body: { ...body, movement_type: "issue", source_type: "inventory_issue" },
   });
+}
+
+export function createInventoryWaste(body: {
+  location_id: string;
+  item_id: string;
+  quantity: string;
+  unit_id?: string;
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/waste", { method: "POST", body });
 }
 
 /** 409 = الخادم منع الرصيد من أن يصبح سالبًا؛ الرسالة العامة من الخادم غير سياقية، فنستبدلها بالطلب. */

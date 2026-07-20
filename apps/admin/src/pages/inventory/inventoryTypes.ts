@@ -114,3 +114,11 @@ export interface StockMovement {
   transfer_group_id: string | null;
   idempotent_replay: boolean;
 }
+
+/** Response shape of POST /inventory/transfers (transferStock) — two linked movements, not one row. */
+export interface StockTransferResult {
+  transfer_group_id: string;
+  out: StockMovement;
+  in: StockMovement;
+  idempotent_replay: boolean;
+}

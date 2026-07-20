@@ -32,6 +32,7 @@ import { PurchaseReceiptDialog } from "./components/PurchaseReceiptDialog";
 import { IssueMovementDialog } from "./components/IssueMovementDialog";
 import { WasteMovementDialog } from "./components/WasteMovementDialog";
 import { AdjustmentMovementDialog } from "./components/AdjustmentMovementDialog";
+import { TransferMovementDialog } from "./components/TransferMovementDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -108,6 +109,7 @@ export function InventoryPage() {
           ["issue", "صرف"],
           ["waste", "هدر"],
           ["adjustment", "تسوية"],
+          ["transfer", "تحويل"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -173,6 +175,15 @@ export function InventoryPage() {
           locations={locations}
           items={items}
           units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "transfer" && (
+        <TransferTab
+          locations={locations}
+          items={items}
+          unitsById={unitsById}
           canManage={canManage}
           onSaved={() => setOverviewReloadSignal((n) => n + 1)}
         />
@@ -506,6 +517,50 @@ function AdjustmentTab({
         locations={locations}
         items={items}
         units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B5: transfer (POST /inventory/transfers only) ——— */
+
+function TransferTab({
+  locations,
+  items,
+  unitsById,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  unitsById: Map<string, InventoryUnit>;
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ تحويل جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل تحويلات مخزون — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل التحويلات؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها التحويل، نوعاها «تحويل صادر» و«تحويل وارد»).
+        </p>
+      )}
+      <TransferMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        unitsById={unitsById}
         onClose={() => setOpen(false)}
         onSaved={() => { setOpen(false); onSaved(); }}
       />

@@ -8,6 +8,7 @@ import type {
   InventoryUnit,
   InventoryUnitConversion,
   StockMovement,
+  StockTransferResult,
 } from "./inventoryTypes";
 
 /**
@@ -62,7 +63,7 @@ export function createInventorySupplier(body: { name_ar: string; phone?: string 
   return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
 }
 
-/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste, B4: adjustment) ——— */
+/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste, B4: adjustment, B5: transfer) ——— */
 
 export function createInventoryPurchaseReceipt(body: {
   location_id: string;
@@ -115,6 +116,17 @@ export function createInventoryAdjustment(body: {
     method: "POST",
     body: { ...body, movement_type: "adjustment", source_type: "inventory_adjustment" },
   });
+}
+
+export function createInventoryTransfer(body: {
+  source_location_id: string;
+  destination_location_id: string;
+  item_id: string;
+  quantity: string; // بالوحدة الأساسية للصنف دائمًا — لا unit_id يُرسل (B5: لا محدد وحدة في الواجهة، والعقد لا يقبل unit_cost أصلًا)
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockTransferResult }>("/inventory/transfers", { method: "POST", body });
 }
 
 /** 409 = الخادم منع الرصيد من أن يصبح سالبًا؛ الرسالة العامة من الخادم غير سياقية، فنستبدلها بالطلب. */

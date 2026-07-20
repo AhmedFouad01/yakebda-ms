@@ -92,3 +92,56 @@ export interface InventoryMovementRow {
   created_by: string | null;
   created_at: string;
 }
+
+/** Response shape of write endpoints backed by createStockMovement (e.g. POST /inventory/purchase-receipts). */
+export interface StockMovement {
+  id: string;
+  account_id: string;
+  branch_id: string;
+  location_id: string;
+  item_id: string;
+  supplier_id: string | null;
+  movement_type: string;
+  quantity_base: string;
+  unit_cost: string;
+  total_value: string;
+  source_type: string;
+  source_id: string | null;
+  idempotency_key: string;
+  reason: string | null;
+  created_by: string | null;
+  reversal_of_movement_id: string | null;
+  transfer_group_id: string | null;
+  idempotent_replay: boolean;
+}
+
+/** Response shape of POST /inventory/transfers (transferStock) — two linked movements, not one row. */
+export interface StockTransferResult {
+  transfer_group_id: string;
+  out: StockMovement;
+  in: StockMovement;
+  idempotent_replay: boolean;
+}
+
+/**
+ * Response shape of POST /inventory/stock-counts (recordStockCount) — a count
+ * AUDIT row, not a movement. expected/difference are computed server-side from
+ * the live movement sum at execution time; movement_id is null when the count
+ * matched the system balance exactly (no adjustment movement created).
+ */
+export interface StockCountRecord {
+  id: string;
+  account_id: string;
+  branch_id: string;
+  location_id: string;
+  item_id: string;
+  expected_quantity: string;
+  counted_quantity: string;
+  difference_quantity: string;
+  idempotency_key: string;
+  reason: string;
+  movement_id: string | null;
+  created_by: string | null;
+  created_at?: string;
+  idempotent_replay: boolean;
+}

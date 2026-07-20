@@ -7,6 +7,9 @@ import type {
   InventorySupplier,
   InventoryUnit,
   InventoryUnitConversion,
+  StockCountRecord,
+  StockMovement,
+  StockTransferResult,
 } from "./inventoryTypes";
 
 /**
@@ -59,6 +62,89 @@ export function createInventoryItem(body: { name_ar: string; sku?: string; base_
 
 export function createInventorySupplier(body: { name_ar: string; phone?: string }) {
   return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
+}
+
+/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste, B4: adjustment, B5: transfer, B6: stock count) ——— */
+
+export function createInventoryPurchaseReceipt(body: {
+  location_id: string;
+  item_id: string;
+  supplier_id: string;
+  quantity: string;
+  unit_id?: string;
+  unit_cost: string;
+  receipt_reference: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/purchase-receipts", { method: "POST", body });
+}
+
+export function createInventoryIssue(body: {
+  location_id: string;
+  item_id: string;
+  quantity: string;
+  unit_id?: string;
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/movements", {
+    method: "POST",
+    body: { ...body, movement_type: "issue", source_type: "inventory_issue" },
+  });
+}
+
+export function createInventoryWaste(body: {
+  location_id: string;
+  item_id: string;
+  quantity: string;
+  unit_id?: string;
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/waste", { method: "POST", body });
+}
+
+export function createInventoryAdjustment(body: {
+  location_id: string;
+  item_id: string;
+  quantity: string; // إشارة موقّعة (+/-) — العميل يحدد الاتجاه، الخادم لا يحسب فرقًا
+  unit_id?: string;
+  unit_cost?: string;
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockMovement }>("/inventory/movements", {
+    method: "POST",
+    body: { ...body, movement_type: "adjustment", source_type: "inventory_adjustment" },
+  });
+}
+
+export function createInventoryTransfer(body: {
+  source_location_id: string;
+  destination_location_id: string;
+  item_id: string;
+  quantity: string; // بالوحدة الأساسية للصنف دائمًا — لا unit_id يُرسل (B5: لا محدد وحدة في الواجهة، والعقد لا يقبل unit_cost أصلًا)
+  reason: string;
+  idempotency_key: string;
+}) {
+  return api<{ data: StockTransferResult }>("/inventory/transfers", { method: "POST", body });
+}
+
+export function recordInventoryStockCount(body: {
+  location_id: string;
+  item_id: string;
+  counted_quantity: string; // بالوحدة الأساسية للصنف دائمًا — عقد الجرد لا يقبل unit_id أصلًا (B6)
+  reason: string;
+  idempotency_key: string;
+}) {
+  // صنف واحد لكل طلب — لا يوجد endpoint جلسة/قائمة؛ ورقة العد في الواجهة
+  // هي N نداءات مستقلة، كلٌّ بمعاملته الخاصة على الخادم (لا ذرّية عبر الأصناف).
+  return api<{ data: StockCountRecord }>("/inventory/stock-counts", { method: "POST", body });
+}
+
+/** 409 = الخادم منع الرصيد من أن يصبح سالبًا؛ الرسالة العامة من الخادم غير سياقية، فنستبدلها بالطلب. */
+export function isInsufficientStockError(err: unknown): boolean {
+  return (err as { status?: number })?.status === 409;
 }
 
 /** يستخرج أخطاء الحقول من ApiFail.details (zod flatten أو خرائط الحقول من الخادم). */

@@ -28,6 +28,12 @@ import {
   SupplierCreateDialog,
   UnitCreateDialog,
 } from "./components/MasterDataDialogs";
+import { PurchaseReceiptDialog } from "./components/PurchaseReceiptDialog";
+import { IssueMovementDialog } from "./components/IssueMovementDialog";
+import { WasteMovementDialog } from "./components/WasteMovementDialog";
+import { AdjustmentMovementDialog } from "./components/AdjustmentMovementDialog";
+import { TransferMovementDialog } from "./components/TransferMovementDialog";
+import { StockCountDialog } from "./components/StockCountDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -53,6 +59,9 @@ export function InventoryPage() {
   const [branchNames, setBranchNames] = useState<Map<string, string>>(new Map());
   // اختيار الموقع يبقى حيًّا طوال بقاء الصفحة (S1.4)
   const [locationId, setLocationId] = useState("");
+  // يُزاد بعد كل عملية كتابة ناجحة (B1: استلام) لفرض إعادة تحميل الأرصدة من الخادم
+  // فورًا في تبويب "نظرة عامة" — لا حساب رصيد في React، فقط طلب جديد لـ GET /inventory/levels.
+  const [overviewReloadSignal, setOverviewReloadSignal] = useState(0);
 
   const loadRefs = useCallback(async () => {
     setRefState("loading");
@@ -97,6 +106,12 @@ export function InventoryPage() {
         tabs={[
           ["overview", "نظرة عامة"],
           ["movements", "الحركات"],
+          ["receipts", "استلام مشتريات"],
+          ["issue", "صرف"],
+          ["waste", "هدر"],
+          ["adjustment", "تسوية"],
+          ["transfer", "تحويل"],
+          ["count", "جرد"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -115,6 +130,7 @@ export function InventoryPage() {
           locationId={locationId}
           onLocationChange={setLocationId}
           unitsById={unitsById}
+          reloadSignal={overviewReloadSignal}
         />
       )}
       {refState === "ready" && tab === "movements" && (
@@ -126,6 +142,61 @@ export function InventoryPage() {
           itemsById={itemsById}
           locationsById={locationsById}
           items={items}
+        />
+      )}
+      {refState === "ready" && tab === "receipts" && (
+        <PurchaseReceiptsTab
+          locations={locations}
+          items={items}
+          suppliers={suppliers}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "issue" && (
+        <IssueTab
+          locations={locations}
+          items={items}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "waste" && (
+        <WasteTab
+          locations={locations}
+          items={items}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "adjustment" && (
+        <AdjustmentTab
+          locations={locations}
+          items={items}
+          units={units}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "transfer" && (
+        <TransferTab
+          locations={locations}
+          items={items}
+          unitsById={unitsById}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "count" && (
+        <StockCountTab
+          locations={locations}
+          branchNames={branchNames}
+          unitsById={unitsById}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
         />
       )}
       {refState === "ready" && tab === "items" && (
@@ -283,18 +354,290 @@ function SuppliersTab({ suppliers, canManage, onChanged }: { suppliers: Inventor
   );
 }
 
+/* ——— Sprint 3 — B1: purchase receipts (POST /inventory/purchase-receipts only) ——— */
+
+function PurchaseReceiptsTab({
+  locations,
+  items,
+  suppliers,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  suppliers: InventorySupplier[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ استلام جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل استلامات — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل استلامات المشتريات؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها الاستلامات، نوعها «استلام»).
+        </p>
+      )}
+      <PurchaseReceiptDialog
+        open={open}
+        locations={locations}
+        items={items}
+        suppliers={suppliers}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B2: issue (POST /inventory/movements, movement_type=issue only) ——— */
+
+function IssueTab({
+  locations,
+  items,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ صرف جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل عمليات صرف — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل عمليات الصرف؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها الصرف، نوعها «صرف»).
+        </p>
+      )}
+      <IssueMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B3: waste (POST /inventory/waste only) ——— */
+/* لا موافقة/حد أقصى على الهدر حاليًا (يعكس الـ backend كما هو) — رقابة الهالك
+   (approval/limit) تحسين مستقبلي يحتاج تعديل خادم؛ خارج نطاق B3. */
+
+function WasteTab({
+  locations,
+  items,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ هدر جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل عمليات هدر — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل عمليات الهدر؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها الهدر، نوعها «هدر»).
+        </p>
+      )}
+      <WasteMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B4: adjustment (POST /inventory/movements, movement_type=adjustment only) ——— */
+
+function AdjustmentTab({
+  locations,
+  items,
+  units,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  units: InventoryUnit[];
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ تسوية جديدة</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل تسويات رصيد — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل التسويات؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها التسوية، نوعها «تسوية»).
+        </p>
+      )}
+      <AdjustmentMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        units={units}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B5: transfer (POST /inventory/transfers only) ——— */
+
+function TransferTab({
+  locations,
+  items,
+  unitsById,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  items: InventoryItem[];
+  unitsById: Map<string, InventoryUnit>;
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ تحويل جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل تحويلات مخزون — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسارًا مخصصًا لسجل التحويلات؛ راجع تبويب «الحركات» لعرض الحركات المسجّلة
+          (بما فيها التحويل، نوعاها «تحويل صادر» و«تحويل وارد»).
+        </p>
+      )}
+      <TransferMovementDialog
+        open={open}
+        locations={locations}
+        items={items}
+        unitsById={unitsById}
+        onClose={() => setOpen(false)}
+        onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B6: stock count (POST /inventory/stock-counts only) ——— */
+
+function StockCountTab({
+  locations,
+  branchNames,
+  unitsById,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  branchNames: Map<string, string>;
+  unitsById: Map<string, InventoryUnit>;
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ جرد جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل جرد مخزني — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسار قراءة لسجل الجرد؛ راجع تبويب «الحركات» لعرض تسويات الجرد المسجّلة
+          (نوعها «تسوية جرد»). العد المطابق بلا فرق لا ينشئ حركة أصلًا.
+        </p>
+      )}
+      {/* الحوار يبقى مفتوحًا بعد التنفيذ ليعرض نتائج الخادم — onSaved يحدّث الأرصدة فقط ولا يغلق */}
+      <StockCountDialog
+        open={open}
+        locations={locations}
+        branchNames={branchNames}
+        unitsById={unitsById}
+        onClose={() => setOpen(false)}
+        onSaved={onSaved}
+      />
+    </div>
+  );
+}
+
 function OverviewTab({
   locations,
   branchNames,
   locationId,
   onLocationChange,
   unitsById,
+  reloadSignal,
 }: {
   locations: InventoryLocation[];
   branchNames: Map<string, string>;
   locationId: string;
   onLocationChange: (id: string) => void;
   unitsById: Map<string, InventoryUnit>;
+  reloadSignal: number;
 }) {
   const [state, setState] = useState<LoadState>("loading");
   const [error, setError] = useState("");
@@ -316,7 +659,8 @@ function OverviewTab({
 
   useEffect(() => {
     load();
-  }, [load]);
+    // reloadSignal: يفرض إعادة الجلب فور نجاح عملية كتابة من تبويب آخر (مثل استلام مشتريات)
+  }, [load, reloadSignal]);
 
   // فلترة عرضية فقط على صفوف أعادها الخادم كاملة ضمن نطاق المستخدم
   const visible = useMemo(() => {

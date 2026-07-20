@@ -207,14 +207,14 @@ export function DialogLayer({
   );
 }
 
-export function Modal({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode }) {
+export function Modal({ open, onClose, title, children, footer, wide }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   const titleId = useId();
   if (!open) return null;
   return (
     <DialogLayer
       open={open}
       onClose={onClose}
-      className="uif-modal"
+      className={`uif-modal${wide ? " wide" : ""}`}
       ariaLabel={title ? undefined : "نافذة حوار"}
       ariaLabelledBy={title ? titleId : undefined}
     >

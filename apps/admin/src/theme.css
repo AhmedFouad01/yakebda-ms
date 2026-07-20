@@ -689,6 +689,7 @@ button.primary, .btn, .seg button.active { background: var(--yk-yellow); border-
   border-block-start-style: solid;
 }
 .uif-modal { z-index: var(--z-modal-panel); width: min(460px, 94vw); max-height: calc(100dvh - var(--appbar-h) - (2 * var(--sp-4))); display: flex; flex-direction: column; background: var(--yk-panel); color: var(--yk-text); border: 1px solid var(--yk-line); border-radius: 14px; overflow: hidden; }
+.uif-modal.wide { width: min(880px, 96vw); }
 .uif-modal-body { padding: var(--sp-4); overflow-y: auto; }
 .uif-confirm-msg { margin: 0 0 var(--sp-4); font-size: 14px; line-height: 1.7; }
 

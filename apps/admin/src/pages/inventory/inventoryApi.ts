@@ -7,6 +7,7 @@ import type {
   InventorySupplier,
   InventoryUnit,
   InventoryUnitConversion,
+  StockCountRecord,
   StockMovement,
   StockTransferResult,
 } from "./inventoryTypes";
@@ -63,7 +64,7 @@ export function createInventorySupplier(body: { name_ar: string; phone?: string 
   return api<{ data: InventorySupplier }>("/inventory/suppliers", { method: "POST", body });
 }
 
-/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste, B4: adjustment, B5: transfer) ——— */
+/* ——— Sprint 3 — inventory operations (B1: purchase receipts, B2: issue, B3: waste, B4: adjustment, B5: transfer, B6: stock count) ——— */
 
 export function createInventoryPurchaseReceipt(body: {
   location_id: string;
@@ -127,6 +128,18 @@ export function createInventoryTransfer(body: {
   idempotency_key: string;
 }) {
   return api<{ data: StockTransferResult }>("/inventory/transfers", { method: "POST", body });
+}
+
+export function recordInventoryStockCount(body: {
+  location_id: string;
+  item_id: string;
+  counted_quantity: string; // بالوحدة الأساسية للصنف دائمًا — عقد الجرد لا يقبل unit_id أصلًا (B6)
+  reason: string;
+  idempotency_key: string;
+}) {
+  // صنف واحد لكل طلب — لا يوجد endpoint جلسة/قائمة؛ ورقة العد في الواجهة
+  // هي N نداءات مستقلة، كلٌّ بمعاملته الخاصة على الخادم (لا ذرّية عبر الأصناف).
+  return api<{ data: StockCountRecord }>("/inventory/stock-counts", { method: "POST", body });
 }
 
 /** 409 = الخادم منع الرصيد من أن يصبح سالبًا؛ الرسالة العامة من الخادم غير سياقية، فنستبدلها بالطلب. */

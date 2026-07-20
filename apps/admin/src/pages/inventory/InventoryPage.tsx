@@ -33,6 +33,7 @@ import { IssueMovementDialog } from "./components/IssueMovementDialog";
 import { WasteMovementDialog } from "./components/WasteMovementDialog";
 import { AdjustmentMovementDialog } from "./components/AdjustmentMovementDialog";
 import { TransferMovementDialog } from "./components/TransferMovementDialog";
+import { StockCountDialog } from "./components/StockCountDialog";
 
 /**
  * Sprint 1 — Inventory Admin read-only foundation.
@@ -110,6 +111,7 @@ export function InventoryPage() {
           ["waste", "هدر"],
           ["adjustment", "تسوية"],
           ["transfer", "تحويل"],
+          ["count", "جرد"],
           ["items", "الأصناف"],
           ["units", "الوحدات"],
           ["suppliers", "الموردون"],
@@ -183,6 +185,15 @@ export function InventoryPage() {
         <TransferTab
           locations={locations}
           items={items}
+          unitsById={unitsById}
+          canManage={canManage}
+          onSaved={() => setOverviewReloadSignal((n) => n + 1)}
+        />
+      )}
+      {refState === "ready" && tab === "count" && (
+        <StockCountTab
+          locations={locations}
+          branchNames={branchNames}
           unitsById={unitsById}
           canManage={canManage}
           onSaved={() => setOverviewReloadSignal((n) => n + 1)}
@@ -563,6 +574,51 @@ function TransferTab({
         unitsById={unitsById}
         onClose={() => setOpen(false)}
         onSaved={() => { setOpen(false); onSaved(); }}
+      />
+    </div>
+  );
+}
+
+/* ——— Sprint 3 — B6: stock count (POST /inventory/stock-counts only) ——— */
+
+function StockCountTab({
+  locations,
+  branchNames,
+  unitsById,
+  canManage,
+  onSaved,
+}: {
+  locations: InventoryLocation[];
+  branchNames: Map<string, string>;
+  unitsById: Map<string, InventoryUnit>;
+  canManage: boolean;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="stack">
+      {canManage && (
+        <div className="inv-actions">
+          <Button variant="primary" onClick={() => setOpen(true)}>+ جرد جديد</Button>
+        </div>
+      )}
+      {!canManage && (
+        <EmptyState message="لا صلاحية لتسجيل جرد مخزني — راجع الأرصدة والحركات من التبويبات الأخرى" />
+      )}
+      {canManage && (
+        <p className="muted inv-gap-note">
+          لا يوفر العقد الحالي مسار قراءة لسجل الجرد؛ راجع تبويب «الحركات» لعرض تسويات الجرد المسجّلة
+          (نوعها «تسوية جرد»). العد المطابق بلا فرق لا ينشئ حركة أصلًا.
+        </p>
+      )}
+      {/* الحوار يبقى مفتوحًا بعد التنفيذ ليعرض نتائج الخادم — onSaved يحدّث الأرصدة فقط ولا يغلق */}
+      <StockCountDialog
+        open={open}
+        locations={locations}
+        branchNames={branchNames}
+        unitsById={unitsById}
+        onClose={() => setOpen(false)}
+        onSaved={onSaved}
       />
     </div>
   );

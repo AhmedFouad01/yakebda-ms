@@ -122,3 +122,26 @@ export interface StockTransferResult {
   in: StockMovement;
   idempotent_replay: boolean;
 }
+
+/**
+ * Response shape of POST /inventory/stock-counts (recordStockCount) — a count
+ * AUDIT row, not a movement. expected/difference are computed server-side from
+ * the live movement sum at execution time; movement_id is null when the count
+ * matched the system balance exactly (no adjustment movement created).
+ */
+export interface StockCountRecord {
+  id: string;
+  account_id: string;
+  branch_id: string;
+  location_id: string;
+  item_id: string;
+  expected_quantity: string;
+  counted_quantity: string;
+  difference_quantity: string;
+  idempotency_key: string;
+  reason: string;
+  movement_id: string | null;
+  created_by: string | null;
+  created_at?: string;
+  idempotent_replay: boolean;
+}

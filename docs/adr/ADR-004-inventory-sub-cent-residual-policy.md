@@ -1,44 +1,100 @@
-# ADR-004: Inventory Sub-cent Residual Policy
+<div dir="rtl" align="right">
 
-## Status
+# ADR-004 — Inventory Sub-cent Residual Policy
 
-**Approved — policy framework (revision 2026-07-21, ACC-FULL-01).** The accountant approved the accounting-policy proposals (approval attested by the product owner, dated 2026-07-20, recorded in `YAKEBDA_MS_ACCOUNTING_MODULE_EXECUTION_PLAN__SINGLE_DELIVERY__v1_0__2026-07-20`). The concrete policy values below remain `PENDING VALUE` until their written values are supplied; per the plan's strict rule, no value is invented and each pending item keeps a safe (deferred/blocked) behavior. This ADR does not claim statutory or production accounting readiness.
+**الحالة:** Accepted — Standard Default Policy + Per-Tenant Override
+**التنفيذ:** Merged backend + Default policy shipped
+**التحديث:** 2026-07-20 — إعادة صياغة من "Provisional / Accountant Approval Required" إلى سياسة معيارية افتراضية قابلة للتخصيص، مناسبة لمنتج SaaS متعدد المستأجرين.
 
-## Approval register (plan §2)
+## المشكلة
 
-| # | Item | Approved value |
+Inventory valuation تُحفظ بدقة 4 منازل، بينما journals بقرشين (2dp). التقريب المباشر قد يفقد قيمة أو يعلّم event كـ`posted` بلا evidence.
+
+## نموذج المنتج الحاكم
+
+YAKEBDA MS منتج معياري يُشحن لمطاعم كثيرة. **لا يُطلب اعتماد محاسب لكل مطعم.** بدلًا من ذلك:
+
+1. المنتج يشحن **سياسة محاسبية افتراضية معيارية** تعمل out-of-the-box بصفر إدخال.
+2. كل مستأجر (tenant) يستطيع **تعديل** القيم القابلة للتخصيص من شاشة Accounting Settings.
+3. الاعتماد المحاسبي يحدث **مرة واحدة على default المنتج** (مراجعة محاسب واحد)، ويُوثَّق في هذا الـADR — وليس لكل عميل.
+
+## الثابت الحسابي (لا يتغيّر لأي مستأجر)
+
+- source amount بدقة 4dp.
+- journal amount بدقة 2dp عبر deterministic half-up.
+- حفظ residual بحيث:
+
+```text
+source_amount = journal_amount + residual_amount
+```
+
+- residual ledger scoped by account/branch.
+- reversal ينفي source/journal/residual بالضبط ويرتبط بالأصل (immutability by reversal).
+- deterministic decimals، لا floating-point money في أي مسار.
+
+## تصنيف قيم السياسة التسعة
+
+### النوع أ — ثوابت محرك (مطبّقة في المنتج، غير قابلة للتعديل)
+
+| # | البند | القيمة الثابتة |
 |---|---|---|
-| 1 | Residual settlement — timing and mechanism | `PENDING VALUE` — safe behavior: settlement runs only via explicit `accounting.manage` request; no automatic settlement at period close |
-| 2 | Rounding account mapping | `PENDING VALUE` — safe behavior: no rounding account is seeded; settlement is blocked (422, Arabic message) until a rounding mapping is explicitly configured |
-| 3 | Materiality threshold | `PENDING VALUE` — safe behavior: no threshold applied; every non-zero residual is surfaced, none auto-dismissed |
-| 4 | Period/date policy for settlement recognition | `PENDING VALUE` — safe behavior: settlement entry uses the explicit request date, rejected inside locked periods by the DB guard |
-| 5 | Revenue recognition | `PENDING VALUE` — existing pilot behavior retained as-is |
-| 6 | VAT treatment | `PENDING VALUE` — existing pilot behavior retained as-is |
-| 7 | Source fees/commissions mapping | `PENDING VALUE` — no new mappings invented |
-| 8 | Generic issue mapping | `PENDING VALUE` — safe behavior: events remain `pending_policy` (existing `generic_issue_policy_required` classification) |
-| 9 | Timezone/operational-day policy | `PENDING VALUE` — existing pilot behavior retained as-is |
-| — | Approval evidence format | Accountant name + date + reference: `PENDING VALUE` (product-owner attestation only, 2026-07-20) |
+| 1 | آلية التسوية | قيد تسوية آلي متوازن عند إقفال كل فترة إلى حساب التقريب المُعرّف للمستأجر |
+| 3 | سلوك الأهمية النسبية | التسوية تقفل الفرق بالكامل عند الإقفال مهما صغر؛ الـthreshold يؤثر على التنبيه فقط |
+| 4 | تاريخ الاعتراف بالتسوية | بتاريخ إقفال الفترة |
+| — | الدقة | 4dp مصدر / 2dp قيد / half-up |
 
-## Context
+### النوع ب — Defaults معيارية تُشحن جاهزة وقابلة للتعديل per-tenant
 
-Inventory valuation is authoritative at four decimal places while journals are denominated at two decimal places. Rounding each inventory event directly to currency precision can silently discard value or mark an event posted without a journal.
+| # | البند | Default | إعداد المستأجر |
+|---|---|---|---|
+| 5 | الاعتراف بالإيراد | عند إتمام الطلب/الدفع | قابل للتبديل لسياسة أخرى |
+| 6 | ضريبة القيمة المضافة | 14% (المعدل العام للمطاعم في مصر، ق.67/2016) | مسجّل/غير مسجّل + النسبة |
+| 9 | اليوم التشغيلي/التوقيت | توقيت القاهرة، اليوم يقفل 04:00 | timezone + ساعة القفل |
+| 3 | materiality threshold (للتنبيه) | 0 (كله يتسوّى؛ لا تنبيه) | قيمة بالجنيه للتنبيه فقط |
 
-## Decision
+### النوع ج — Per-tenant، لكن تُشحن ضمن شجرة حسابات افتراضية جاهزة
 
-- Preserve every inventory financial event at four-decimal source precision.
-- Round the journal amount to two decimals using the existing deterministic half-up decimal helper.
-- Record the exact difference in `financial_event_reconciliations` so that:
+يُشحن **default chart of accounts** معياري للمطعم بحيث تعمل كل الـmappings فورًا. المستأجر يعدّل الربط من شاشة Accounting Admin إن أراد.
 
-  `source amount = journal amount + residual amount`
+| الحساب | كود افتراضي | يخدم البند |
+|---|---|---|
+| النقدية/الخزينة | 1010 | — |
+| البنك | 1020 | — |
+| المخزون | 1310 | — |
+| ض.ق.م مستحقة (مخرجات) | 2010 | 6 |
+| ض.ق.م مدخلات | 1210 | 6 |
+| إيرادات المبيعات | 4010 | 5 |
+| مردودات المبيعات | 4020 | 5 |
+| تكلفة البضاعة المباعة (COGS) | 5010 | — |
+| عمولة منصات التوصيل | 6050 | 7 |
+| منصرفات مخزون عامة/هالك | 5090 | 8 |
+| **فروق التقريب (Rounding)** | 4090 | 2 |
 
-- Keep residuals as an account- and branch-scoped accumulation ledger. P0 does not automatically post the accumulated balance to a rounding account.
-- Classify a non-zero event whose journal amount rounds to zero as `deferred_rounding`, never `posted`.
-- Link reversals to the original reconciliation and negate its source, journal, and residual amounts exactly.
-- Block period locking while a non-zero open residual balance exists, and block new residual evidence inside an already locked period.
+الأكواد أعلاه أعراف معيارية شائعة للمطاعم المصرية كنقطة بداية؛ كلها قابلة لإعادة الربط per-tenant.
 
-## Consequences
+## قاعدة الإقفال والتسوية (المعدّلة)
 
-- No sub-cent value is discarded silently.
-- Operators can inspect residuals through the accounting reconciliation read endpoint.
-- Period close requires an explicit future reconciliation policy and approved mapping before the residual balance can be settled.
-- Automatic residual aggregation or a rounding-account journal remains a policy decision, not an implicit implementation assumption.
+- عند إقفال الفترة يُنفَّذ **settlement آلي** لكل residual مفتوح عبر قيد متوازن إلى **حساب التقريب المُعرّف للمستأجر**، ثم يُتحقق أن مجموع residual المفتوح = صفر، ثم يُقفل — في transaction واحدة.
+- deferred_rounding events تُحل ضمن هذا المسار ولا تبقى معلقة.
+- **الحجب (422/409) لا يفعّل لمطعم جديد** لأن حساب التقريب مشحون افتراضيًا. يفعّل **فقط** إذا فكّ المستأجر ربط/حذف حساب التقريب بنفسه، وحينها الرسالة العربية توجّهه لإعادة الربط من الإعدادات.
+
+## سجل الاعتماد (Default المنتج)
+
+| البند | القيمة |
+|---|---|
+| صيغة الاعتماد | مراجعة محاسب واحد لـdefault المنتج |
+| الاسم | *(يُثبَّت عند المراجعة)* |
+| التاريخ | *(يُثبَّت عند المراجعة)* |
+| المرجع | *(رسالة/مستند)* |
+
+ملاحظة: غياب سطر الاعتماد لا يحجب التشغيل — المنتج يعمل بالـdefaults؛ سطر الاعتماد يوثّق فقط أن الـdefault راجعه محاسب.
+
+## Production Boundary
+
+وجود guards وdefaults وtracking لا يساوي اعتمادًا **statutory/قانونيًا** للإنتاج. تسمية الموديول Production تبقى محكومة بـADR-009 (docs/support/baseline/deployment evidence) وFR-289.
+
+## تنويه
+
+الأكواد والمعالجات المحاسبية هنا أعراف معيارية شائعة، وليست فتوى محاسبية. يُوصى بمراجعة محاسب واحد لـdefault set قبل اعتماده كمعيار المنتج.
+
+</div>

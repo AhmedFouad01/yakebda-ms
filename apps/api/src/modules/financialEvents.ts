@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Knex } from "knex";
 import { z } from "zod";
+import { writeAudit } from "../lib/audit";
 import { err } from "../lib/errors";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
@@ -174,6 +175,48 @@ export function financialEventRoutes(db: Knex): Router {
         claimed_by: null,
         claimed_at: null,
         updated_at: db.fn.now(),
+      });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        branchId: event.branch_id,
+        userId: req.user!.id,
+        action: "accounting.event.retry",
+        entityType: "financial_event",
+        entityId: event.id,
+        meta: { previous_status: event.status },
+        ip: req.ip,
+      });
+      res.json({ data: await db("financial_events").where({ id: event.id }).first() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/financial-events/:id/mark-dead", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      const body = z.object({ reason: z.string().trim().min(3).max(500) }).safeParse(req.body ?? {});
+      if (!body.success) throw err.validation(body.error.flatten());
+      const event = await db("financial_events").where({ id: req.params.id, account_id: req.user!.accountId }).first();
+      if (!event) throw err.notFound();
+      if (event.branch_id && !canAccessBranch(req.user!, event.branch_id)) throw err.forbidden();
+      if (!new Set(["pending", "failed"]).has(event.status)) throw err.conflict();
+      await db("financial_events").where({ id: event.id }).update({
+        status: "dead",
+        last_error: body.data.reason.slice(0, 500),
+        next_attempt_at: null,
+        claimed_by: null,
+        claimed_at: null,
+        updated_at: db.fn.now(),
+      });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        branchId: event.branch_id,
+        userId: req.user!.id,
+        action: "accounting.event.mark_dead",
+        entityType: "financial_event",
+        entityId: event.id,
+        meta: { previous_status: event.status, reason: body.data.reason },
+        ip: req.ip,
       });
       res.json({ data: await db("financial_events").where({ id: event.id }).first() });
     } catch (error) {

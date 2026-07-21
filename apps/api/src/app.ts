@@ -80,6 +80,24 @@ const INVENTORY_CONSTRAINT_MESSAGES: Record<string, { field: string; message: st
   inventory_unit_conversions_distinct_units: { field: "to_unit_id", message: "لا يمكن تسجيل تحويل من وحدة إلى نفسها." },
 };
 
+const ACCOUNTING_CONSTRAINT_MESSAGES: Record<string, { status: 409 | 422; field: string; message: string }> = {
+  accounting_period_open_residuals: {
+    status: 409,
+    field: "period",
+    message: "لا يمكن قفل الفترة وبها فروق تقريب مفتوحة غير مسوّاة.",
+  },
+  journal_period_locked: {
+    status: 409,
+    field: "entry_date",
+    message: "الفترة المحاسبية مقفلة — لا يمكن الترحيل أو تسجيل فروق داخلها.",
+  },
+  journal_entry_unbalanced: {
+    status: 422,
+    field: "lines",
+    message: "القيد المحاسبي غير متوازن — مجموع المدين يجب أن يساوي مجموع الدائن.",
+  },
+};
+
 function isOrderIntegrityError(error: DatabaseError): boolean {
   if (error.constraint && ORDER_INTEGRITY_CONSTRAINTS.has(error.constraint)) return true;
   return /Selected variant does not belong|same modifier cannot|Selected modifier does not belong|Required modifier selections are missing|Too many modifiers were selected/i.test(
@@ -147,8 +165,18 @@ export function createApiErrorHandler(logger: StructuredLogSink) {
       return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
     }
 
-    if (dbError.code === "23514" && dbError.constraint === "accounting_period_open_residuals") {
-      return res.status(409).json({ code: "conflict", message: ar.errors.conflict });
+    const accountingHit = dbError.constraint ? ACCOUNTING_CONSTRAINT_MESSAGES[dbError.constraint] : undefined;
+    if (accountingHit && dbError.code === "23514") {
+      return res.status(accountingHit.status).json({
+        code: accountingHit.status === 409 ? "conflict" : "validation",
+        message: accountingHit.message,
+        details: { [accountingHit.field]: accountingHit.message },
+      });
+    }
+
+    if (dbError.code === "55000" && /immutable/i.test(dbError.message ?? "")) {
+      const message = "القيود المرحّلة غير قابلة للتعديل أو الحذف — التصحيح يكون بقيد عكسي فقط.";
+      return res.status(409).json({ code: "conflict", message, details: { journal: message } });
     }
 
     logger.write({

@@ -155,6 +155,9 @@ beforeAll(async () => {
 
   manualEntryJuneMidId = await insertBalancedEntry(accountId, "2026-06-15", "قيد يدوي 1");
   manualEntryJuneLateId = await insertBalancedEntry(accountId, "2026-06-20", "قيد يدوي 2");
+  // Same-date sibling: proves the cursor tie-breaker survives DATE columns
+  // being parsed to local-midnight JS Dates (timezone day-shift regression).
+  await insertBalancedEntry(accountId, "2026-06-15", "قيد يدوي 3 بنفس التاريخ");
 
   junePeriodId = newId();
   await db("accounting_periods").insert({

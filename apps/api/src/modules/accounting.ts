@@ -25,7 +25,14 @@ const journalsCursor: CursorDefinition<EntryDateCursorValues> = {
 };
 
 function cursorEntryDate(value: string | Date): string {
-  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+  // node-postgres parses DATE columns to a JS Date at *local* midnight, so
+  // toISOString() would shift the day for any timezone ahead of UTC.
+  if (value instanceof Date) {
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${value.getFullYear()}-${month}-${day}`;
+  }
+  return String(value).slice(0, 10);
 }
 
 function applyEntryDateCursor(qb: Knex.QueryBuilder, cursor: EntryDateCursorValues | null): void {

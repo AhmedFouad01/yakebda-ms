@@ -470,6 +470,9 @@ export async function reverseJournalEntry(
   return db.transaction(async (trx) => {
     const original = await trx("journal_entries").where({ id: input.entryId, account_id: input.accountId }).first();
     if (!original) throw err.notFound();
+    if (original.reversal_of_entry_id) {
+      throw err.validation({ reversal_of_entry_id: "لا يمكن عكس قيد عكسي — القيد الأصلي هو محل التصحيح." });
+    }
     const reversalDate = input.entryDate ?? new Date().toISOString().slice(0, 10);
     const lockedPeriod = await trx("accounting_periods")
       .where({ account_id: input.accountId, status: "locked" })

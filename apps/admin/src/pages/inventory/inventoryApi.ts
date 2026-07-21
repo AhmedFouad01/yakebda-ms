@@ -192,15 +192,6 @@ export function fmtDateTime(iso: string | null | undefined): string {
   return d.toLocaleString("ar-EG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-/** Actual movement_type values emitted by inventoryService/inventoryConsumption. */
-export const MOVEMENT_TYPE_AR: Record<string, string> = {
-  receipt: "استلام",
-  issue: "صرف",
-  adjustment: "تسوية",
-  waste: "هدر",
-  transfer_out: "تحويل صادر",
-  transfer_in: "تحويل وارد",
-  count_adjustment: "تسوية جرد",
-  consumption: "استهلاك مبيعات",
-  reversal: "حركة عكسية",
-};
+// UX-LANG-01: movement_type labels now live in lib/labels.ts (movementTypeLabel)
+// so every module renders the same Arabic wording and unknown values never
+// fall through to a raw code.

@@ -294,31 +294,63 @@ describe("journal reversal guards", () => {
   });
 });
 
-describe("DB trigger rejections surface as Arabic API errors", () => {
-  it("surfaces the open-residual period guard as a 409 with an Arabic message, not a 500", async () => {
+describe("residual guard and settlement errors surface as Arabic API errors", () => {
+  it("keeps the DB trigger as arbiter and returns Arabic errors through the close path", async () => {
     await createSubCentReceipt("0.004", "acc-manage-residual-1");
     await processPending();
     const openResidual = await db("financial_event_reconciliations")
       .where({ account_id: accountId, status: "open" })
       .first();
     expect(openResidual).toBeTruthy();
-    const raw = openResidual.entry_date as string | Date;
-    const entryDate = raw instanceof Date
-      ? `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, "0")}-${String(raw.getDate()).padStart(2, "0")}`
-      : String(raw).slice(0, 10);
+    const entryDate = String(openResidual.entry_date).slice(0, 10);
 
-    const lock = await request(app)
+    // Defense-in-depth: a raw lock UPDATE that bypasses the API settlement
+    // path is still rejected by the accounting_period_open_residuals trigger.
+    const rawPeriodId = newId();
+    await db("accounting_periods").insert({
+      id: rawPeriodId,
+      account_id: accountId,
+      starts_on: entryDate,
+      ends_on: entryDate,
+      status: "open",
+    });
+    await expect(
+      db("accounting_periods").where({ id: rawPeriodId }).update({ status: "locked" })
+    ).rejects.toMatchObject({ constraint: "accounting_period_open_residuals" });
+
+    // Through the API (type A): when settlement cannot run the close fails
+    // with an Arabic 422 and nothing locks; with the mapping restored the
+    // close settles automatically and locks.
+    await db("accounting_mappings").where({ account_id: accountId, event_type: "residual.settlement" }).delete();
+    const blocked = await request(app)
       .post("/api/v1/accounting/periods/lock")
       .set(auth(ownerToken))
       .send({ starts_on: entryDate, ends_on: entryDate });
-    expect(lock.status).toBe(409);
-    expect(lock.body.code).toBe("conflict");
-    expect(String(lock.body.message)).toContain("فروق");
-    expect(lock.body.request_id).toBeUndefined();
+    expect(blocked.status).toBe(422);
+    expect(JSON.stringify(blocked.body)).toContain("التقريب");
+    expect(blocked.body.request_id).toBeUndefined();
+    const notLocked = await db("accounting_periods").where({ id: rawPeriodId }).first();
+    expect(notLocked.status).toBe("open");
 
-    const period = await db("accounting_periods")
-      .where({ account_id: accountId, starts_on: entryDate, ends_on: entryDate })
-      .first();
-    expect(period?.status ?? "open").not.toBe("locked");
+    const inventoryId = (await db("accounting_accounts").where({ account_id: accountId, system_key: "inventory" }).first()).id;
+    const roundingId = (await db("accounting_accounts").where({ account_id: accountId, system_key: "rounding" }).first()).id;
+    await db("accounting_mappings").insert({
+      id: newId(),
+      account_id: accountId,
+      event_type: "residual.settlement",
+      dimension_key: "default",
+      debit_account_id: inventoryId,
+      credit_account_id: roundingId,
+      vat_account_id: null,
+    });
+    const locked = await request(app)
+      .post("/api/v1/accounting/periods/lock")
+      .set(auth(ownerToken))
+      .send({ starts_on: entryDate, ends_on: entryDate });
+    expect(locked.status).toBe(201);
+    expect(locked.body.settlement.settled_count).toBeGreaterThan(0);
+    expect(
+      await db("financial_event_reconciliations").where({ account_id: accountId, status: "open" })
+    ).toHaveLength(0);
   });
 });

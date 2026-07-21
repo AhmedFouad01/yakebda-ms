@@ -6,7 +6,7 @@ import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
-import { postClaimedFinancialEvent, reverseJournalEntry } from "./accountingLedger";
+import { postClaimedFinancialEvent, reverseJournalEntry, settleOpenResiduals } from "./accountingLedger";
 import { claimFinancialEvents } from "./financialOutbox";
 
 const dateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -377,25 +377,160 @@ export function accountingRoutes(db: Knex): Router {
 
   router.get("/trial-balance", requirePermission("accounting.view"), async (req, res, next) => {
     try {
-      const parsed = z.object({ branch_id: z.string().uuid().optional(), through: dateInput.optional() }).safeParse(req.query);
+      const parsed = z.object({
+        branch_id: z.string().uuid().optional(),
+        period_id: z.string().uuid().optional(),
+        date_from: dateInput.optional(),
+        through: dateInput.optional(),
+      }).safeParse(req.query);
       if (!parsed.success) throw err.validation(parsed.error.flatten());
       const branchId = parsed.data.branch_id ?? req.user!.branchId ?? undefined;
       if (branchId && !canAccessBranch(req.user!, branchId)) throw err.forbidden();
+      let dateFrom = parsed.data.date_from;
+      let dateTo = parsed.data.through;
+      let period: { id: string; starts_on: string; ends_on: string; status: string } | undefined;
+      if (parsed.data.period_id) {
+        period = await db("accounting_periods")
+          .where({ id: parsed.data.period_id, account_id: req.user!.accountId })
+          .first();
+        if (!period) throw err.notFound();
+        dateFrom = period.starts_on;
+        dateTo = period.ends_on;
+      }
+      const lineScope = (query: Knex.QueryBuilder) => {
+        if (branchId) query.where((scope) => scope.where("line.branch_id", branchId).orWhereNull("line.id"));
+        if (dateFrom) query.where((scope) => scope.where("entry.entry_date", ">=", dateFrom!).orWhereNull("entry.id"));
+        if (dateTo) query.where((scope) => scope.where("entry.entry_date", "<=", dateTo!).orWhereNull("entry.id"));
+      };
       const rows = await db("accounting_accounts as account")
         .leftJoin("journal_lines as line", function joinLines() {
           this.on("line.accounting_account_id", "=", "account.id").andOn("line.account_id", "=", "account.account_id");
         })
         .leftJoin("journal_entries as entry", "entry.id", "line.entry_id")
         .where({ "account.account_id": req.user!.accountId, "account.is_active": true })
-        .modify((query) => {
-          if (branchId) query.where((scope) => scope.where("line.branch_id", branchId).orWhereNull("line.id"));
-          if (parsed.data.through) query.where((scope) => scope.where("entry.entry_date", "<=", parsed.data.through!).orWhereNull("entry.id"));
-        })
+        .modify(lineScope)
         .groupBy("account.id", "account.code", "account.name_ar", "account.account_type")
         .select("account.id", "account.code", "account.name_ar", "account.account_type")
-        .sum({ debit: "line.debit", credit: "line.credit" })
+        .select(db.raw("coalesce(sum(line.debit), 0)::numeric(18,2)::text as debit"))
+        .select(db.raw("coalesce(sum(line.credit), 0)::numeric(18,2)::text as credit"))
         .orderBy("account.code");
-      res.json({ data: rows });
+      // Totals are computed by the server (2dp, exact numeric) — the client
+      // never re-derives them. debit must equal credit by DB balance guards.
+      const totals = await db("journal_lines as line")
+        .join("journal_entries as entry", "entry.id", "line.entry_id")
+        .where({ "line.account_id": req.user!.accountId })
+        .modify((query) => {
+          if (branchId) query.where("line.branch_id", branchId);
+          if (dateFrom) query.where("entry.entry_date", ">=", dateFrom);
+          if (dateTo) query.where("entry.entry_date", "<=", dateTo);
+        })
+        .select(db.raw("coalesce(sum(line.debit), 0)::numeric(18,2)::text as debit"))
+        .select(db.raw("coalesce(sum(line.credit), 0)::numeric(18,2)::text as credit"))
+        .first();
+      const residual = await db("financial_event_reconciliations")
+        .where({ account_id: req.user!.accountId, status: "open" })
+        .modify((query) => {
+          if (branchId) query.where("branch_id", branchId);
+          if (dateFrom) query.where("entry_date", ">=", dateFrom);
+          if (dateTo) query.where("entry_date", "<=", dateTo);
+        })
+        .select(db.raw("coalesce(sum(residual_amount), 0)::numeric(24,4)::text as open_total"))
+        .first();
+      res.json({
+        data: rows,
+        totals: { debit: totals!.debit, credit: totals!.credit },
+        balanced: totals!.debit === totals!.credit,
+        residual_balance: residual!.open_total,
+        period: period ?? null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/reconciliation/residuals", requirePermission("accounting.view"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        status: z.enum(["open", "settled", "reversed"]).default("open"),
+        branch_id: z.string().uuid().optional(),
+        date_from: dateInput.optional(),
+        date_to: dateInput.optional(),
+        limit: z.coerce.number().int().min(1).max(500).default(200),
+      }).safeParse(req.query);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const branchId = parsed.data.branch_id ?? req.user!.branchId ?? undefined;
+      if (branchId && !canAccessBranch(req.user!, branchId)) throw err.forbidden();
+      const scoped = (qb: Knex.QueryBuilder) => {
+        if (branchId) qb.where("branch_id", branchId);
+        if (parsed.data.date_from) qb.where("entry_date", ">=", parsed.data.date_from);
+        if (parsed.data.date_to) qb.where("entry_date", "<=", parsed.data.date_to);
+      };
+      const items = await db("financial_event_reconciliations")
+        .where({ account_id: req.user!.accountId, status: parsed.data.status })
+        .modify(scoped)
+        .orderBy([{ column: "entry_date", order: "desc" }, { column: "created_at", order: "desc" }, { column: "id", order: "desc" }])
+        .limit(parsed.data.limit);
+      const summary = await db("financial_event_reconciliations")
+        .where({ account_id: req.user!.accountId, status: "open" })
+        .modify(scoped)
+        .groupBy("branch_id")
+        .select("branch_id")
+        .count({ open_count: "*" })
+        .select(db.raw("sum(residual_amount)::numeric(24,4)::text as open_total"));
+      const total = await db("financial_event_reconciliations")
+        .where({ account_id: req.user!.accountId, status: "open" })
+        .modify(scoped)
+        .select(db.raw("coalesce(sum(residual_amount), 0)::numeric(24,4)::text as total_open"))
+        .first();
+      res.json({ data: { items, summary, total_open: total!.total_open } });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/reconciliation/settle", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      const body = z.object({
+        branch_id: z.string().uuid().optional(),
+        entry_date: dateInput.optional(),
+        date_from: dateInput.optional(),
+        date_to: dateInput.optional(),
+        idempotency_key: z.string().trim().min(1).max(180).optional(),
+      }).safeParse(req.body ?? {});
+      if (!body.success) throw err.validation(body.error.flatten());
+      if (body.data.branch_id && !canAccessBranch(req.user!, body.data.branch_id)) throw err.forbidden();
+      if (!body.data.branch_id && req.user!.branchId) throw err.forbidden();
+      const entryDate = body.data.entry_date ?? new Date().toISOString().slice(0, 10);
+      const result = await db.transaction(async (trx) => {
+        const settlement = await settleOpenResiduals(trx, {
+          accountId: req.user!.accountId,
+          createdBy: req.user!.id,
+          entryDate,
+          branchId: body.data.branch_id ?? null,
+          from: body.data.date_from,
+          to: body.data.date_to,
+          idempotencyKey: body.data.idempotency_key,
+          reference: { trigger: "manual" },
+        });
+        await writeAudit(trx, {
+          accountId: req.user!.accountId,
+          branchId: body.data.branch_id ?? null,
+          userId: req.user!.id,
+          action: "accounting.reconciliation.settle",
+          entityType: "financial_event_reconciliation",
+          meta: {
+            entry_date: entryDate,
+            settled_count: settlement.settled_count,
+            total_residual: settlement.total_residual,
+            journal_entries: settlement.journal_entries,
+            absorbed_branches: settlement.absorbed_branches,
+          },
+          ip: req.ip,
+        });
+        return settlement;
+      });
+      // 201 only when this call actually settled rows; replays and no-ops are 200.
+      res.status(result.settled_count ? 201 : 200).json({ data: result });
     } catch (error) {
       next(error);
     }
@@ -452,15 +587,48 @@ export function accountingRoutes(db: Knex): Router {
       if (req.user!.branchId && !req.user!.permissions.includes("branches.manage")) throw err.forbidden();
       const parsed = z.object({ starts_on: dateInput, ends_on: dateInput }).safeParse(req.body);
       if (!parsed.success || parsed.data.starts_on > parsed.data.ends_on) throw err.validation(parsed.success ? { dates: "invalid range" } : parsed.error.flatten());
-      const existing = await db("accounting_periods").where({ account_id: req.user!.accountId, starts_on: parsed.data.starts_on, ends_on: parsed.data.ends_on }).first();
-      const id = existing?.id ?? newId();
-      if (existing) {
-        await db("accounting_periods").where({ id }).update({ status: "locked", locked_by: req.user!.id, locked_at: db.fn.now(), updated_at: db.fn.now() });
-      } else {
-        await db("accounting_periods").insert({ id, account_id: req.user!.accountId, ...parsed.data, status: "locked", locked_by: req.user!.id, locked_at: db.fn.now() });
-      }
-      await writeAudit(db, { accountId: req.user!.accountId, userId: req.user!.id, action: "accounting.period.lock", entityType: "accounting_period", entityId: id, meta: parsed.data, ip: req.ip });
-      res.status(201).json({ data: await db("accounting_periods").where({ id }).first() });
+      // ADR-004 type-A close: settlement -> zero-check -> lock in ONE
+      // transaction. The settlement entry is recognized at the close date
+      // (ends_on). If settlement fails, the lock rolls back entirely; the DB
+      // residual guard on the period row remains the final arbiter.
+      const result = await db.transaction(async (trx) => {
+        const settlement = await settleOpenResiduals(trx, {
+          accountId: req.user!.accountId,
+          createdBy: req.user!.id,
+          entryDate: parsed.data.ends_on,
+          from: parsed.data.starts_on,
+          to: parsed.data.ends_on,
+          reference: { trigger: "period_lock", starts_on: parsed.data.starts_on, ends_on: parsed.data.ends_on },
+        });
+        const existing = await trx("accounting_periods").where({ account_id: req.user!.accountId, starts_on: parsed.data.starts_on, ends_on: parsed.data.ends_on }).first();
+        const id = existing?.id ?? newId();
+        if (existing) {
+          await trx("accounting_periods").where({ id }).update({ status: "locked", locked_by: req.user!.id, locked_at: trx.fn.now(), updated_at: trx.fn.now() });
+        } else {
+          await trx("accounting_periods").insert({ id, account_id: req.user!.accountId, ...parsed.data, status: "locked", locked_by: req.user!.id, locked_at: trx.fn.now() });
+        }
+        await writeAudit(trx, {
+          accountId: req.user!.accountId,
+          userId: req.user!.id,
+          action: "accounting.period.lock",
+          entityType: "accounting_period",
+          entityId: id,
+          meta: {
+            ...parsed.data,
+            settlement: {
+              settled_count: settlement.settled_count,
+              total_residual: settlement.total_residual,
+              journal_entries: settlement.journal_entries,
+            },
+          },
+          ip: req.ip,
+        });
+        return { id, settlement };
+      });
+      res.status(201).json({
+        data: await db("accounting_periods").where({ id: result.id }).first(),
+        settlement: result.settlement,
+      });
     } catch (error) {
       next(error);
     }

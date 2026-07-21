@@ -486,6 +486,180 @@ export async function postClaimedFinancialEvent(
   }
 }
 
+interface OpenReconciliationRow {
+  id: string;
+  account_id: string;
+  branch_id: string | null;
+  status: string;
+  entry_date: string;
+  residual_amount: string;
+  financial_event_id: string | null;
+}
+
+export interface SettlementResult {
+  settled_count: number;
+  total_residual: string; // 4dp signed sum that was closed
+  journal_entries: Array<{ id: string; branch_id: string | null; amount: string }>;
+  absorbed_branches: Array<string | null>; // groups whose 4dp sum rounded to 0.00 (no journal)
+}
+
+/**
+ * ADR-004 type-A settlement engine: closes every open residual in scope with
+ * one balanced journal per branch through the tenant's residual.settlement
+ * mapping (positive sum: debit mapping.debit / credit mapping.credit —
+ * i.e. inventory -> rounding 4090; negative sum mirrors the sides). Rows are
+ * marked settled and linked to their settlement journal; deferred_rounding
+ * events whose evidence is now settled become reconciled. Runs inside the
+ * caller's transaction so period lock can be settlement -> zero-check -> lock
+ * atomically. Sub-half-cent group sums are absorbed (settled without journal),
+ * matching the deferred_rounding precedent.
+ */
+export async function settleOpenResiduals(
+  trx: Knex.Transaction,
+  input: {
+    accountId: string;
+    createdBy: string;
+    entryDate: string;
+    branchId?: string | null;
+    from?: string;
+    to?: string;
+    idempotencyKey?: string;
+    reference?: Record<string, unknown>;
+  }
+): Promise<SettlementResult> {
+  // Serialize settlements per tenant so idempotency replay checks are reliable.
+  await trx.raw("select pg_advisory_xact_lock(hashtextextended(?, 0))", [
+    `residual-settlement:${input.accountId}`,
+  ]);
+
+  if (input.idempotencyKey) {
+    const replayed = await trx("journal_entries")
+      .where({ account_id: input.accountId, event_type: "residual.settlement" })
+      .whereRaw("meta->>'idempotency_key' = ?", [input.idempotencyKey])
+      .select("id", "branch_id", "meta");
+    if (replayed.length) {
+      return {
+        settled_count: 0,
+        total_residual: "0.0000",
+        journal_entries: replayed.map((row) => ({
+          id: row.id,
+          branch_id: row.branch_id,
+          amount: String((typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta).journal_amount ?? "0.00"),
+        })),
+        absorbed_branches: [],
+      };
+    }
+  }
+
+  const rows: OpenReconciliationRow[] = await trx("financial_event_reconciliations")
+    .where({ account_id: input.accountId, status: "open" })
+    .modify((qb) => {
+      if (input.branchId !== undefined && input.branchId !== null) qb.where("branch_id", input.branchId);
+      if (input.from) qb.where("entry_date", ">=", input.from);
+      if (input.to) qb.where("entry_date", "<=", input.to);
+    })
+    .forUpdate();
+  if (!rows.length) {
+    return { settled_count: 0, total_residual: "0.0000", journal_entries: [], absorbed_branches: [] };
+  }
+
+  const mapping = await trx<MappingRow>("accounting_mappings")
+    .where({ account_id: input.accountId, event_type: "residual.settlement", dimension_key: "default" })
+    .first();
+  if (!mapping) {
+    throw err.validation({
+      rounding_mapping: "قاعدة تسوية فروق التقريب غير مربوطة — أعد ربط حساب التقريب من شاشة الحسابات ثم أعد المحاولة.",
+    });
+  }
+
+  const groups = new Map<string | null, typeof rows>();
+  for (const row of rows) {
+    const key = row.branch_id ?? null;
+    const bucket = groups.get(key) ?? [];
+    bucket.push(row);
+    groups.set(key, bucket);
+  }
+
+  let grandTotal4 = 0n;
+  const journalEntries: SettlementResult["journal_entries"] = [];
+  const absorbed: Array<string | null> = [];
+
+  for (const [branchId, groupRows] of groups) {
+    const total4 = groupRows.reduce((sum, row) => sum + parseDecimal(String(row.residual_amount), 4), 0n);
+    grandTotal4 += total4;
+    const journalMinor = toMinorUnits(formatDecimal(total4, 4));
+    let entryId: string | null = null;
+    if (journalMinor !== 0n) {
+      entryId = newId();
+      const amount = fromMinorUnits(absolute(journalMinor));
+      const positive = journalMinor > 0n;
+      await trx("journal_entries").insert({
+        id: entryId,
+        account_id: input.accountId,
+        branch_id: branchId,
+        event_type: "residual.settlement",
+        source_type: "residual_settlement",
+        source_id: entryId,
+        entry_date: input.entryDate,
+        description: "قيد تسوية فروق التقريب",
+        meta: JSON.stringify({
+          idempotency_key: input.idempotencyKey ?? null,
+          settled_count: groupRows.length,
+          residual_total: formatDecimal(total4, 4),
+          journal_amount: amount,
+          direction: positive ? "positive" : "negative",
+          ...(input.reference ?? {}),
+        }),
+        created_by: input.createdBy,
+      });
+      await trx("journal_lines").insert([
+        {
+          id: newId(),
+          account_id: input.accountId,
+          entry_id: entryId,
+          accounting_account_id: positive ? mapping.debit_account_id : mapping.credit_account_id,
+          branch_id: branchId,
+          component: "settlement:debit",
+          debit: amount,
+          credit: 0,
+        },
+        {
+          id: newId(),
+          account_id: input.accountId,
+          entry_id: entryId,
+          accounting_account_id: positive ? mapping.credit_account_id : mapping.debit_account_id,
+          branch_id: branchId,
+          component: "settlement:credit",
+          debit: 0,
+          credit: amount,
+        },
+      ]);
+      journalEntries.push({ id: entryId, branch_id: branchId, amount });
+    } else {
+      absorbed.push(branchId);
+    }
+    await trx("financial_event_reconciliations")
+      .whereIn("id", groupRows.map((row) => row.id))
+      .update({ status: "settled", settlement_journal_id: entryId });
+    const deferredEventIds = groupRows
+      .map((row) => row.financial_event_id)
+      .filter((id): id is string => Boolean(id));
+    if (deferredEventIds.length) {
+      await trx("financial_events")
+        .whereIn("id", deferredEventIds)
+        .where({ status: "deferred_rounding" })
+        .update({ status: "reconciled", updated_at: trx.fn.now() });
+    }
+  }
+
+  return {
+    settled_count: rows.length,
+    total_residual: formatDecimal(grandTotal4, 4),
+    journal_entries: journalEntries,
+    absorbed_branches: absorbed,
+  };
+}
+
 export async function reverseJournalEntry(
   db: Knex,
   input: { accountId: string; entryId: string; reason: string; createdBy: string; entryDate?: string }
@@ -505,6 +679,39 @@ export async function reverseJournalEntry(
     if (lockedPeriod) throw err.conflict();
     const existing = await trx("journal_entries").where({ reversal_of_entry_id: original.id }).first();
     if (existing) return existing.id;
+    if (original.event_type === "residual.settlement") {
+      // Reversing a settlement logically reopens its residuals. That is only
+      // legal while every reopened row still lies in an OPEN period —
+      // otherwise a locked period would retroactively contain open residuals.
+      const settledRows = await trx("financial_event_reconciliations")
+        .where({ account_id: input.accountId, settlement_journal_id: original.id, status: "settled" })
+        .forUpdate();
+      const lockedEvidence = settledRows.length
+        ? await trx("accounting_periods")
+            .where({ account_id: input.accountId, status: "locked" })
+            .where((qb) => {
+              for (const row of settledRows) {
+                qb.orWhere((period) =>
+                  period.where("starts_on", "<=", row.entry_date).andWhere("ends_on", ">=", row.entry_date)
+                );
+              }
+            })
+            .first()
+        : undefined;
+      if (lockedEvidence) throw err.conflict();
+      await trx("financial_event_reconciliations")
+        .whereIn("id", settledRows.map((row) => row.id))
+        .update({ status: "open", settlement_journal_id: null });
+      const reopenedEventIds = settledRows
+        .map((row) => row.financial_event_id)
+        .filter((id): id is string => Boolean(id));
+      if (reopenedEventIds.length) {
+        await trx("financial_events")
+          .whereIn("id", reopenedEventIds)
+          .where({ status: "reconciled" })
+          .update({ status: "deferred_rounding", updated_at: trx.fn.now() });
+      }
+    }
     const lines = await trx("journal_lines").where({ entry_id: original.id }).orderBy("id");
     const reversalId = newId();
     await trx("journal_entries").insert({

@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { t, fmtTime } from "../lib/t";
 import { useList } from "./hooks";
 import { Button, Select } from "../components/ui/primitives";
+import { printStatusLabel } from "../lib/labels";
 
 export function PrintJobs() {
   const { data, error, reload } = useList("/print-jobs");
@@ -49,7 +50,7 @@ export function PrintJobs() {
             {data.map((j: any) => (
               <tr key={j.id}>
                 <td>{j.type === "receipt" ? "إيصال عميل" : j.type === "kitchen_ticket" ? "تذكرة مطبخ" : "تجريبية"}</td>
-                <td><span className={`stub ${j.status}`}>{t.printJobs.statuses[j.status] ?? j.status}</span></td>
+                <td><span className={`stub ${j.status}`}>{printStatusLabel(j.status)}</span></td>
                 <td>{j.attempts}</td>
                 <td>{fmtTime(j.created_at)}</td>
               </tr>

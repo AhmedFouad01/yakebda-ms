@@ -160,10 +160,15 @@ describe("Sprint 2 — master data tabs and permission gating", () => {
     });
   });
 
-  it("contains no stock-operation forms anywhere (S2 exclusion)", async () => {
+  it("exposes the Sprint 3 stock-operation tabs (supersedes the S2 exclusion)", async () => {
+    // The S2 exclusion ("no stock-operation forms anywhere") became obsolete
+    // when PR #48 shipped the Sprint 3 operations; this asserts the shipped
+    // reality instead: every operation is a tab, not an inline form.
     primeApi();
     render(<InventoryPage />);
     await waitFor(() => expect(screen.getByRole("tab", { name: "الوحدات" })).toBeTruthy());
-    expect(screen.queryByText(/استلام مشتريات|صرف مخزون|تسوية|هدر|تحويل مخزني|جرد/)).toBeNull();
+    for (const name of ["استلام مشتريات", "صرف", "هدر", "تسوية", "تحويل", "جرد"]) {
+      expect(screen.getByRole("tab", { name })).toBeTruthy();
+    }
   });
 });

@@ -5,21 +5,16 @@ import { useList } from "./hooks";
 import { Drawer, toast } from "../components/ui/overlays";
 import { Badge, Button, Checkbox, PageHeader, Tabs, FormField, TextInput, Select, ToggleSwitch, EmptyState } from "../components/ui/primitives";
 import { useMe } from "../lib/me";
+import { permissionGroupLabel } from "../lib/labels";
 
 interface Role { id: string; key: string; name_ar: string; is_system?: boolean; permissions: string[] }
 interface Permission { key: string; name_ar: string; group: string }
 interface User { id: string; name: string; email?: string | null; branch_id?: string | null; is_active: boolean; created_at: string; updated_at?: string; roles: Array<{ key: string; name_ar: string }> }
 interface Branch { id: string; name: string }
 
-const PERM_GROUP_AR: Record<string, string> = {
-  dashboard: "لوحة التحكم", pos: "نقطة البيع", orders: "الطلبات", menu: "المنيو", kitchen: "المطبخ",
-  customers: "العملاء", delivery: "التوصيل", shifts: "الورديات", reports: "التقارير", settings: "الإعدادات",
-  users: "المستخدمون", roles: "الأدوار", devices: "الأجهزة", printing: "الطباعة", audit: "سجل العمليات",
-  hardware: "الهاردوير", api: "عملاء API", integrations: "التكاملات",
-};
 
 function permissionDescription(permission: Permission): string {
-  return `تمنح «${permission.name_ar}» ضمن قسم ${PERM_GROUP_AR[permission.group] ?? permission.group}.`;
+  return `تمنح «${permission.name_ar}» ضمن قسم ${permissionGroupLabel(permission.group)}.`;
 }
 
 export function Users() {
@@ -211,16 +206,16 @@ function RolesTab({ canManage }: { canManage: boolean }) {
                 return (
                   <div key={group} className="rbac-group">
                     <div className="rbac-group-head">
-                      <span>{PERM_GROUP_AR[group] ?? group}</span>
+                      <span>{permissionGroupLabel(group)}</span>
                       {canManage && <Button variant="secondary" className="rbac-group-toggle" onClick={() => toggleGroup(keys, !allOn)}>{allOn ? "إلغاء الكل" : "تحديد الكل"}</Button>}
                     </div>
                     <div className="rbac-perms">
                       {list.map((p) => (
                         <div key={p.key} className={`rbac-perm${draft.has(p.key) ? " on" : ""}${!canManage ? " ro" : ""}`}>
                           <div className="rbac-perm-copy">
+                            {/* UX-LANG-01: مفتاح الصلاحية التقني لا يُعرض — الاسم والوصف بالعربية يكفيان. */}
                             <strong>{p.name_ar}</strong>
                             <span>{permissionDescription(p)}</span>
-                            <code dir="ltr">{p.key}</code>
                           </div>
                           <ToggleSwitch checked={draft.has(p.key)} ariaLabel={`صلاحية ${p.name_ar}`} onChange={() => toggle(p.key)} disabled={!canManage} />
                         </div>

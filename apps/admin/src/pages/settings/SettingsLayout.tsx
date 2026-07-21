@@ -179,7 +179,7 @@ export function SettingsLayout() {
               )}
 
               {section === "printing" && (
-                <SectionCard title="الطباعة والأجهزة" hint="الطابعات الفعلية تُدار من صفحة الهاردوير">
+                <SectionCard title="الطباعة والأجهزة" hint="الطابعات الفعلية تُدار من صفحة الأجهزة الطرفية">
                   <RowToggle ctx={ctx} k="receipt_printing_enabled" label="طابعة الإيصالات" />
                   <RowToggle ctx={ctx} k="kitchen_printer_enabled" label="طابعة المطبخ" />
                   <RowSelect ctx={ctx} k="paper_width_mm" label="عرض الورق" numeric options={[[58, "58mm"], [80, "80mm"]]} />

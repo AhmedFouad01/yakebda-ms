@@ -334,6 +334,20 @@ describe("accounting settings", () => {
     expect(audit.entity_type).toBe("accounting_settings");
   });
 
+  it("upserts account-level settings without creating duplicate rows on repeated saves", async () => {
+    // Regression: Postgres treats NULL branch_id as distinct in the settings
+    // unique index, so onConflict().merge() would insert a new row each save.
+    await request(app).put("/api/v1/accounting/settings").set(auth(ownerToken)).send({ vat_rate: 11 });
+    await request(app).put("/api/v1/accounting/settings").set(auth(ownerToken)).send({ vat_rate: 12 });
+    await request(app).put("/api/v1/accounting/settings").set(auth(ownerToken)).send({ vat_rate: 13 });
+    const rows = await db("settings").where({ account_id: accountId, key: "vat_percentage" }).whereNull("branch_id");
+    expect(rows).toHaveLength(1);
+    const latest = await request(app).get("/api/v1/accounting/settings").set(auth(ownerToken));
+    expect(latest.body.data.vat_rate).toBe(13);
+    // Restore the account-level rate the following test inherits.
+    await request(app).put("/api/v1/accounting/settings").set(auth(ownerToken)).send({ vat_rate: 10 });
+  });
+
   it("applies branch overrides without touching account-level values", async () => {
     const put = await request(app)
       .put(`/api/v1/accounting/settings?branch_id=${branch2Id}`)

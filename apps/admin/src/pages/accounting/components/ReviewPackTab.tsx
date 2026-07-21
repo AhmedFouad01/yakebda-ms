@@ -42,17 +42,27 @@ export function ReviewPackTab() {
     setState("loading");
     setError("");
     try {
-      const [settingsRes, summaryRes, periodsRes, settlementsRes, residualsRes] = await Promise.all([
+      const [settingsRes, summaryRes, periodsRes, settlementsRes, reversalsRes, residualsRes] = await Promise.all([
         fetchAccountingSettings(),
         fetchEventsSummary(),
         fetchPeriods(),
         fetchJournals({ event_type: "residual.settlement", limit: "50" }),
+        fetchJournals({ event_type: "journal.reversal", source_type: "journal_entry", limit: "50" }),
         fetchResiduals({ status: "open" }),
       ]);
       setSettings(settingsRes.data);
       setSummary(summaryRes.data);
       setPeriods(periodsRes.data);
-      setSettlements(settlementsRes.data);
+      // Settlements + the reversals that undo a settlement (correlated by the
+      // settlement entry ids), newest first — so "settlements and reversals"
+      // is faithful, not settlements only.
+      const settlementIds = new Set(settlementsRes.data.map((entry) => entry.id));
+      const settlementReversals = reversalsRes.data.filter((entry) => settlementIds.has(entry.source_id));
+      setSettlements(
+        [...settlementsRes.data, ...settlementReversals].sort((a, b) =>
+          a.entry_date < b.entry_date ? 1 : a.entry_date > b.entry_date ? -1 : 0
+        )
+      );
       setTotalOpenResidual(residualsRes.data.total_open);
       setState("ready");
     } catch (e: any) {

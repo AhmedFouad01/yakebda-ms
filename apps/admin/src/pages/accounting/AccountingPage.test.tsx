@@ -154,6 +154,9 @@ function primeApi(overrides: {
       };
     }
     if (path.startsWith("/accounting/settings")) {
+      if (opts?.method === "PUT") {
+        return { data: { ...(opts.body as Record<string, unknown>), revenue_recognition: "on_payment", timezone: "Africa/Cairo", day_close_hour: 4 }, message: "تم الحفظ بنجاح." };
+      }
       return {
         data: {
           vat_registered: false,
@@ -390,6 +393,32 @@ describe("CP6 — exceptions queue", () => {
     await waitFor(() => expect(screen.getAllByText("فتح قواعد الترحيل").length).toBe(2));
     expect(screen.getByText("فتح تسوية الفروق")).toBeTruthy();
     expect(screen.getAllByText("عرض").length).toBeGreaterThan(0);
+  });
+});
+
+describe("CP7 — accounting settings screen", () => {
+  it("shows editable type-B values, read-only type-A constants, and saves via PUT", async () => {
+    primeApi();
+    render(<AccountingPage />);
+    fireEvent.click(await screen.findByText("الإعدادات", { selector: "[role=tab]" }));
+    await waitFor(() => expect(screen.getByText(/القيم القابلة للتعديل/)).toBeTruthy());
+    expect(screen.getByText(/ثوابت المحرك/)).toBeTruthy();
+    expect(screen.getByText("حفظ الإعدادات")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("حفظ الإعدادات"));
+    await waitFor(() => {
+      const puts = apiMock.mock.calls.filter(([p, o]) => String(p).includes("/accounting/settings") && (o as { method?: string })?.method === "PUT");
+      expect(puts.length).toBe(1);
+    });
+  });
+
+  it("hides the save button and disables fields for view-only users", async () => {
+    canMock.mockImplementation((p: string) => p === "accounting.view");
+    primeApi();
+    render(<AccountingPage />);
+    fireEvent.click(await screen.findByText("الإعدادات", { selector: "[role=tab]" }));
+    await waitFor(() => expect(screen.getByText(/القيم القابلة للتعديل/)).toBeTruthy());
+    expect(screen.queryByText("حفظ الإعدادات")).toBeNull();
   });
 });
 

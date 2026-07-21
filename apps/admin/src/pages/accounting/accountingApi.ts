@@ -180,8 +180,25 @@ export function downloadCsv(filename: string, headers: string[], rows: string[][
   URL.revokeObjectURL(url);
 }
 
-export function fetchAccountingSettings() {
-  return api<{ data: AccountingSettings }>("/accounting/settings");
+export function fetchAccountingSettings(branchId?: string) {
+  return api<{ data: AccountingSettings }>(`/accounting/settings${query({ branch_id: branchId })}`);
+}
+
+export function updateAccountingSettings(
+  body: Partial<{
+    vat_registered: boolean;
+    vat_rate: number;
+    revenue_recognition: string;
+    timezone: string;
+    day_close_hour: number;
+    materiality_threshold: string;
+  }>,
+  branchId?: string
+) {
+  return api<{ data: AccountingSettings }>(`/accounting/settings${query({ branch_id: branchId })}`, {
+    method: "PUT",
+    body,
+  });
 }
 
 export function fetchPeriods() {

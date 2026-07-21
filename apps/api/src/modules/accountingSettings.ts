@@ -127,30 +127,38 @@ export function accountingSettingsRoutes(db: Knex): Router {
       const provided = Object.entries(body.data).filter(([, value]) => value !== undefined) as Array<
         [AccountingSettingField, unknown]
       >;
-      for (const [field, value] of provided) {
-        await db("settings")
-          .insert({
+      // NULL-safe upsert: Postgres treats NULL branch_id as distinct in the
+      // settings unique index, so onConflict().merge() never fires for
+      // account-level rows and would insert duplicates on every save. Delete
+      // the matching scope (branch or account-level) then insert one row.
+      const branchId = q.data.branch_id ?? null;
+      await db.transaction(async (trx) => {
+        for (const [field, value] of provided) {
+          await trx("settings")
+            .where({ account_id: req.user!.accountId, key: STORAGE_KEYS[field] })
+            .modify((qb) => (branchId ? qb.where("branch_id", branchId) : qb.whereNull("branch_id")))
+            .delete();
+          await trx("settings").insert({
             id: newId(),
             account_id: req.user!.accountId,
-            branch_id: q.data.branch_id ?? null,
+            branch_id: branchId,
             key: STORAGE_KEYS[field],
             value: JSON.stringify(value),
-          })
-          .onConflict(["account_id", "branch_id", "key"])
-          .merge({ value: JSON.stringify(value), updated_at: db.fn.now() });
-      }
+          });
+        }
+      });
       await writeAudit(db, {
         accountId: req.user!.accountId,
-        branchId: q.data.branch_id ?? null,
+        branchId,
         userId: req.user!.id,
         action: "accounting.settings.update",
         entityType: "accounting_settings",
         entityId: req.user!.accountId,
-        meta: { branch_id: q.data.branch_id ?? null, keys: provided.map(([field]) => field) },
+        meta: { branch_id: branchId, keys: provided.map(([field]) => field) },
         ip: req.ip,
       });
       res.json({
-        data: await getAccountingSettings(db, req.user!.accountId, q.data.branch_id ?? null),
+        data: await getAccountingSettings(db, req.user!.accountId, branchId),
         message: ar.messages.updated,
       });
     } catch (error) {

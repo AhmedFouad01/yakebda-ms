@@ -53,6 +53,7 @@ import { SettlementTab } from "./components/SettlementTab";
 import { TrialBalanceTab } from "./components/TrialBalanceTab";
 import { ExceptionsTab } from "./components/ExceptionsTab";
 import { ReviewPackTab } from "./components/ReviewPackTab";
+import { SettingsTab } from "./components/SettingsTab";
 
 /**
  * ACC-FULL-01 CP5 — accounting admin foundation.
@@ -103,6 +104,7 @@ export function AccountingPage() {
           ["settlement", "تسوية الفروق"],
           ["trial", "ميزان المراجعة"],
           ["exceptions", "الاستثناءات"],
+          ["settings", "الإعدادات"],
           ["review", "حزمة المراجعة"],
         ]}
         active={tab}
@@ -142,6 +144,7 @@ export function AccountingPage() {
       )}
       {tab === "trial" && <TrialBalanceTab branches={branches} />}
       {tab === "exceptions" && <ExceptionsTab onOpenEvent={openEvent} onGoTo={setTab} />}
+      {tab === "settings" && <SettingsTab branches={branches} canManage={canManage} />}
       {tab === "review" && <ReviewPackTab />}
     </div>
   );

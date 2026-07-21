@@ -9654,3 +9654,12 @@ button.danger,
 .uif-drawer .posx-history-item-copy small {
   color: var(--text-secondary);
 }
+
+/* ——— ACC-FULL-01 CP5 — Accounting admin (semantic tokens only) ——— */
+.acc-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+.acc-kv dt { color: var(--text-secondary); font-size: 12px; }
+.acc-kv dd { margin: 0; }
+.acc-num { direction: ltr; text-align: end; }
+.acc-payload { max-height: 320px; overflow: auto; background: var(--surface-2); border: 1px solid var(--yk-line); border-radius: 8px; padding: 10px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.acc-truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-totals-row td { font-weight: 800; border-top: 2px solid var(--yk-line); }

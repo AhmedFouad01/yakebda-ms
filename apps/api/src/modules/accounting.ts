@@ -362,10 +362,17 @@ export function accountingRoutes(db: Knex): Router {
             .select("id", "status", "event_type", "source_type", "source_id", "last_error", "created_at")
             .first()
         : null;
+      // Server-computed totals: the client renders balance, it never sums it.
+      const totals = await db("journal_lines")
+        .where({ entry_id: entry.id, account_id: req.user!.accountId })
+        .select(db.raw("coalesce(sum(debit), 0)::numeric(18,2)::text as debit"))
+        .select(db.raw("coalesce(sum(credit), 0)::numeric(18,2)::text as credit"))
+        .first();
       res.json({
         data: {
           ...entry,
           lines: byEntry.get(entry.id) ?? [],
+          totals: { debit: totals!.debit, credit: totals!.credit },
           reversed_by: reversedBy ?? null,
           financial_event: financialEvent ?? null,
         },
@@ -577,6 +584,26 @@ export function accountingRoutes(db: Knex): Router {
       }
       await writeAudit(db, { accountId: req.user!.accountId, branchId: req.user!.branchId, userId: req.user!.id, action: "accounting.events.process", entityType: "financial_event", meta: { claimed: claimed.length }, ip: req.ip });
       res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/periods", requirePermission("accounting.view"), async (req, res, next) => {
+    try {
+      const parsed = z.object({
+        status: z.enum(["open", "locked"]).optional(),
+        limit: z.coerce.number().int().min(1).max(200).default(50),
+      }).safeParse(req.query);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const rows = await db("accounting_periods")
+        .where({ account_id: req.user!.accountId })
+        .modify((qb) => {
+          if (parsed.data.status) qb.where("status", parsed.data.status);
+        })
+        .orderBy([{ column: "starts_on", order: "desc" }, { column: "ends_on", order: "desc" }])
+        .limit(parsed.data.limit);
+      res.json({ data: rows });
     } catch (error) {
       next(error);
     }

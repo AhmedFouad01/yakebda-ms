@@ -25,6 +25,7 @@ export const t = {
     hardware: "الهاردوير",
     printJobs: "طابور الطباعة",
     inventory: "المخزون",
+    accounting: "الحسابات",
     apiClients: "عملاء API",
     audit: "سجل العمليات",
     logout: "خروج",

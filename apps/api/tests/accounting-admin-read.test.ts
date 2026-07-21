@@ -417,6 +417,52 @@ describe("journals list", () => {
   });
 });
 
+describe("financial events summary", () => {
+  it("returns per-status counts scoped to the tenant", async () => {
+    const response = await request(app).get("/api/v1/accounting/financial-events/summary").set(auth(viewerToken));
+    expect(response.status).toBe(200);
+    const byStatus = new Map<string, number>(
+      response.body.data.map((row: { status: string; count: string | number }) => [row.status, Number(row.count)])
+    );
+    expect(byStatus.get("failed")).toBe(1);
+    expect(byStatus.get("dead")).toBe(1);
+    expect(byStatus.get("deferred_rounding")).toBe(1);
+    expect(byStatus.get("pending")).toBe(1);
+
+    const forbidden = await request(app).get("/api/v1/accounting/financial-events/summary").set(auth(noPermToken));
+    expect(forbidden.status).toBe(403);
+
+    const branchScoped = await request(app)
+      .get("/api/v1/accounting/financial-events/summary")
+      .set(auth(branchViewerToken));
+    expect(branchScoped.status).toBe(200);
+    const scoped = new Map<string, number>(
+      branchScoped.body.data.map((row: { status: string; count: string | number }) => [row.status, Number(row.count)])
+    );
+    expect(scoped.get("dead")).toBe(1); // branch2 fixture only
+    expect(scoped.has("failed")).toBe(false);
+  });
+});
+
+describe("periods list", () => {
+  it("lists tenant periods with status filter", async () => {
+    const response = await request(app).get("/api/v1/accounting/periods").set(auth(viewerToken));
+    expect(response.status).toBe(200);
+    const ids = response.body.data.map((row: { id: string }) => row.id);
+    expect(ids).toContain(junePeriodId);
+    const june = response.body.data.find((row: { id: string }) => row.id === junePeriodId);
+    expect(june.status).toBe("open");
+    expect(june.starts_on).toBe("2026-06-01");
+
+    const lockedOnly = await request(app).get("/api/v1/accounting/periods?status=locked").set(auth(viewerToken));
+    expect(lockedOnly.status).toBe(200);
+    expect(lockedOnly.body.data.map((row: { id: string }) => row.id)).not.toContain(junePeriodId);
+
+    const forbidden = await request(app).get("/api/v1/accounting/periods").set(auth(noPermToken));
+    expect(forbidden.status).toBe(403);
+  });
+});
+
 describe("journal detail", () => {
   it("returns lines, reversal linkage, and financial event lineage", async () => {
     const beforeReversal = await request(app)
@@ -424,6 +470,7 @@ describe("journal detail", () => {
       .set(auth(ownerToken));
     expect(beforeReversal.status).toBe(200);
     expect(beforeReversal.body.data.lines).toHaveLength(2);
+    expect(beforeReversal.body.data.totals).toEqual({ debit: "10.00", credit: "10.00" });
     expect(beforeReversal.body.data.reversed_by).toBeNull();
     expect(beforeReversal.body.data.financial_event).toBeNull();
 

@@ -135,6 +135,27 @@ export function financialEventRoutes(db: Knex): Router {
     }
   });
 
+  // Literal route registered before /financial-events/:id (project rule).
+  router.get("/financial-events/summary", requirePermission("accounting.view"), async (req, res, next) => {
+    try {
+      const parsed = z.object({ branch_id: z.string().uuid().optional() }).safeParse(req.query);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const branchId = parsed.data.branch_id ?? req.user!.branchId ?? undefined;
+      if (branchId && !canAccessBranch(req.user!, branchId)) throw err.forbidden();
+      const rows = await db("financial_events")
+        .where({ account_id: req.user!.accountId })
+        .modify((qb) => {
+          if (branchId) qb.where("branch_id", branchId);
+        })
+        .groupBy("status")
+        .select("status")
+        .count({ count: "*" });
+      res.json({ data: rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/financial-events/:id", requirePermission("accounting.view"), async (req, res, next) => {
     try {
       if (!z.string().uuid().safeParse(req.params.id).success) throw err.notFound();

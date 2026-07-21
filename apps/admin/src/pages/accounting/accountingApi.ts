@@ -1,6 +1,8 @@
 import type { PaginationResponse } from "@ykms/contracts";
 import { api } from "../../lib/api";
 import type {
+  AccountingAccount,
+  AccountingMapping,
   AccountingPeriod,
   AccountingSettings,
   EventSummaryRow,
@@ -9,6 +11,8 @@ import type {
   JournalEntryDetail,
   JournalEntryRow,
   ResidualsResponse,
+  SettlementResult,
+  TrialBalanceResponse,
 } from "./accountingTypes";
 
 /** ACC-FULL-01 CP5 — thin fetchers over the real contracts only. */
@@ -80,8 +84,100 @@ export function reverseJournal(id: string, reason: string) {
   });
 }
 
-export function fetchResiduals() {
-  return api<{ data: ResidualsResponse }>("/accounting/reconciliation/residuals");
+export interface ResidualFilters {
+  status?: string;
+  branch_id?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export function fetchResiduals(filters: ResidualFilters = {}) {
+  return api<{ data: ResidualsResponse }>(`/accounting/reconciliation/residuals${query({ ...filters })}`);
+}
+
+export function fetchAccounts(includeInactive = false) {
+  return api<{ data: AccountingAccount[] }>(
+    `/accounting/accounts${includeInactive ? "?include_inactive=true" : ""}`
+  );
+}
+
+export function createAccount(body: { code: string; name_ar: string; account_type: string }) {
+  return api<{ data: AccountingAccount }>("/accounting/accounts", { method: "POST", body });
+}
+
+export function updateAccount(id: string, body: { name_ar?: string; is_active?: boolean }) {
+  return api<{ data: AccountingAccount }>(`/accounting/accounts/${id}`, { method: "PATCH", body });
+}
+
+export function fetchMappings() {
+  return api<{ data: AccountingMapping[] }>("/accounting/mappings");
+}
+
+export function createMapping(body: {
+  event_type: string;
+  dimension_key: string;
+  debit_account_id: string;
+  credit_account_id: string;
+  vat_account_id?: string | null;
+}) {
+  return api<{ data: AccountingMapping }>("/accounting/mappings", { method: "POST", body });
+}
+
+export function updateMapping(
+  id: string,
+  body: { debit_account_id?: string; credit_account_id?: string; vat_account_id?: string | null }
+) {
+  return api<{ data: AccountingMapping }>(`/accounting/mappings/${id}`, { method: "PUT", body });
+}
+
+export function lockPeriod(body: { starts_on: string; ends_on: string }) {
+  return api<{ data: AccountingPeriod; settlement: SettlementResult }>("/accounting/periods/lock", {
+    method: "POST",
+    body,
+  });
+}
+
+export function openPeriod(id: string) {
+  return api<{ data: AccountingPeriod }>(`/accounting/periods/${id}/open`, { method: "POST" });
+}
+
+export function settleResiduals(body: {
+  branch_id?: string;
+  entry_date?: string;
+  date_from?: string;
+  date_to?: string;
+  idempotency_key?: string;
+}) {
+  return api<{ data: SettlementResult }>("/accounting/reconciliation/settle", { method: "POST", body });
+}
+
+export interface TrialBalanceFilters {
+  branch_id?: string;
+  period_id?: string;
+  date_from?: string;
+  through?: string;
+}
+
+export function fetchTrialBalance(filters: TrialBalanceFilters = {}) {
+  return api<TrialBalanceResponse>(`/accounting/trial-balance${query({ ...filters })}`);
+}
+
+/**
+ * تصدير CSV من نفس سلاسل الخادم حرفيًا — بلا أي إعادة حساب.
+ * BOM لدعم العربية في Excel.
+ */
+export function downloadCsv(filename: string, headers: string[], rows: string[][]): void {
+  const escape = (cell: string) => (/[",\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell);
+  const csv = "﻿" + [headers, ...rows].map((row) => row.map(escape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function fetchAccountingSettings() {

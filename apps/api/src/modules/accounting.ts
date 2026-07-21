@@ -661,6 +661,36 @@ export function accountingRoutes(db: Knex): Router {
     }
   });
 
+  router.post("/periods/:id/open", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      if (req.user!.branchId && !req.user!.permissions.includes("branches.manage")) throw err.forbidden();
+      if (!z.string().uuid().safeParse(req.params.id).success) throw err.notFound();
+      const period = await db("accounting_periods")
+        .where({ id: req.params.id, account_id: req.user!.accountId })
+        .first();
+      if (!period) throw err.notFound();
+      if (period.status !== "locked") throw err.conflict();
+      await db("accounting_periods").where({ id: period.id }).update({
+        status: "open",
+        locked_by: null,
+        locked_at: null,
+        updated_at: db.fn.now(),
+      });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        userId: req.user!.id,
+        action: "accounting.period.open",
+        entityType: "accounting_period",
+        entityId: period.id,
+        meta: { starts_on: period.starts_on, ends_on: period.ends_on },
+        ip: req.ip,
+      });
+      res.json({ data: await db("accounting_periods").where({ id: period.id }).first() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/journals/:id/reverse", requirePermission("accounting.manage"), async (req, res, next) => {
     try {
       const parsed = z.object({ reason: z.string().trim().min(3).max(500), entry_date: dateInput.optional() }).safeParse(req.body);

@@ -160,3 +160,61 @@ export interface BranchRef {
   id: string;
   name: string;
 }
+
+export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
+
+export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
+  asset: "أصل",
+  liability: "التزام",
+  equity: "حقوق ملكية",
+  revenue: "إيراد",
+  expense: "مصروف",
+};
+
+export interface AccountingAccount {
+  id: string;
+  code: string;
+  system_key: string | null;
+  name_ar: string;
+  account_type: AccountType;
+  is_active: boolean;
+}
+
+export interface AccountingMapping {
+  id: string;
+  event_type: string;
+  dimension_key: string;
+  debit_account_id: string;
+  credit_account_id: string;
+  vat_account_id: string | null;
+  debit_account_code: string;
+  debit_account_name_ar: string;
+  credit_account_code: string;
+  credit_account_name_ar: string;
+  vat_account_code: string | null;
+  vat_account_name_ar: string | null;
+}
+
+export interface SettlementResult {
+  settled_count: number;
+  total_residual: string;
+  journal_entries: Array<{ id: string; branch_id: string | null; amount: string }>;
+  absorbed_branches: Array<string | null>;
+}
+
+export interface TrialBalanceRow {
+  id: string;
+  code: string;
+  name_ar: string;
+  account_type: AccountType;
+  debit: string;
+  credit: string;
+}
+
+export interface TrialBalanceResponse {
+  data: TrialBalanceRow[];
+  totals: { debit: string; credit: string };
+  balanced: boolean;
+  residual_balance: string;
+  period: AccountingPeriod | null;
+}

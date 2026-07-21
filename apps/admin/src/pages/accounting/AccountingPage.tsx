@@ -47,6 +47,12 @@ import {
   type JournalEntryRow,
   type ResidualsResponse,
 } from "./accountingTypes";
+import { ChartMappingsTab } from "./components/ChartMappingsTab";
+import { PeriodsTab } from "./components/PeriodsTab";
+import { SettlementTab } from "./components/SettlementTab";
+import { TrialBalanceTab } from "./components/TrialBalanceTab";
+import { ExceptionsTab } from "./components/ExceptionsTab";
+import { ReviewPackTab } from "./components/ReviewPackTab";
 
 /**
  * ACC-FULL-01 CP5 — accounting admin foundation.
@@ -92,6 +98,12 @@ export function AccountingPage() {
           ["dashboard", "لوحة الحالة"],
           ["events", "الأحداث المالية"],
           ["journals", "القيود"],
+          ["chart", "الشجرة والربط"],
+          ["periods", "الفترات"],
+          ["settlement", "تسوية الفروق"],
+          ["trial", "ميزان المراجعة"],
+          ["exceptions", "الاستثناءات"],
+          ["review", "حزمة المراجعة"],
         ]}
         active={tab}
         onChange={setTab}
@@ -118,6 +130,19 @@ export function AccountingPage() {
           onExternalOpenHandled={() => setJournalToOpen(null)}
         />
       )}
+      {tab === "chart" && <ChartMappingsTab canManage={canManage} />}
+      {tab === "periods" && <PeriodsTab canManage={canManage} />}
+      {tab === "settlement" && (
+        <SettlementTab
+          branches={branches}
+          branchNames={branchNames}
+          canManage={canManage}
+          onOpenJournal={openJournal}
+        />
+      )}
+      {tab === "trial" && <TrialBalanceTab branches={branches} />}
+      {tab === "exceptions" && <ExceptionsTab onOpenEvent={openEvent} onGoTo={setTab} />}
+      {tab === "review" && <ReviewPackTab />}
     </div>
   );
 }

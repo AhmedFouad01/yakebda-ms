@@ -352,6 +352,45 @@ describe("per-branch settlement grouping", () => {
   });
 });
 
+describe("period reopen", () => {
+  it("reopens a locked period with audit, guarding status transitions and permissions", async () => {
+    const lock = await request(app).post("/api/v1/accounting/periods/lock").set(auth(ownerToken)).send({
+      starts_on: "2026-01-01",
+      ends_on: "2026-01-31",
+    });
+    expect(lock.status).toBe(201);
+    const periodId = lock.body.data.id;
+
+    const forbidden = await request(app)
+      .post(`/api/v1/accounting/periods/${periodId}/open`)
+      .set(auth(viewerToken));
+    expect(forbidden.status).toBe(403);
+
+    const opened = await request(app)
+      .post(`/api/v1/accounting/periods/${periodId}/open`)
+      .set(auth(ownerToken));
+    expect(opened.status).toBe(200);
+    expect(opened.body.data.status).toBe("open");
+    expect(opened.body.data.locked_at).toBeNull();
+
+    const audit = await db("audit_logs")
+      .where({ account_id: accountId, action: "accounting.period.open", entity_id: periodId })
+      .first();
+    expect(audit).toBeTruthy();
+    expect(audit.entity_type).toBe("accounting_period");
+
+    const alreadyOpen = await request(app)
+      .post(`/api/v1/accounting/periods/${periodId}/open`)
+      .set(auth(ownerToken));
+    expect(alreadyOpen.status).toBe(409);
+
+    const unknown = await request(app)
+      .post(`/api/v1/accounting/periods/${newId()}/open`)
+      .set(auth(ownerToken));
+    expect(unknown.status).toBe(404);
+  });
+});
+
 describe("trial balance filters", () => {
   it("filters by period_id and echoes the period", async () => {
     const periodId = newId();

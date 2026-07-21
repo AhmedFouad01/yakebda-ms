@@ -6,6 +6,7 @@ import { Receipt, FullOrder } from "../components/Receipt";
 import { OrderDetail } from "../components/OrderDetail";
 import { DialogLayer } from "../components/ui/overlays";
 import { useMe } from "../lib/me";
+import { orderStatusLabel, orderTypeLabel } from "../lib/labels";
 
 type OrderRow = OrderListSummary;
 
@@ -93,8 +94,8 @@ export function Orders() {
             {rows.map((o) => (
               <tr key={o.id}>
                 <td>#{o.order_prefix ?? ""}{o.order_no}</td>
-                <td>{t.orders.types[o.order_type]}</td>
-                <td><span className={`stub st-${o.status}`}>{t.orders.statuses[o.status]}</span></td>
+                <td>{orderTypeLabel(o.order_type)}</td>
+                <td><span className={`stub st-${o.status}`}>{orderStatusLabel(o.status)}</span></td>
                 <td>{Number(o.total).toFixed(2)} {t.reports.egp}</td>
                 <td>{new Date(o.created_at).toLocaleString("ar-EG")}</td>
                 <td className="table-actions-cell">

@@ -2,6 +2,7 @@ import { PosCartLine } from "../../components/pos/PosCartLine";
 import { t } from "../../lib/t";
 import type { PosController } from "./usePosController";
 import { money, paymentLabels, unitPrice } from "./utils";
+import { orderTypeLabel } from "../../lib/labels";
 
 export function PosCart({ controller }: { controller: PosController }) {
   const {
@@ -52,7 +53,7 @@ export function PosCart({ controller }: { controller: PosController }) {
                     setDeliveryFee(0);
                   }}
                 >
-                  {t.orders.types[type]}
+                  {orderTypeLabel(type)}
                 </button>
               ))}
             </div>

@@ -5,6 +5,7 @@ import { t } from "../lib/t";
 import { Drawer, toast } from "../components/ui/overlays";
 import { PageHeader, FormField, TextInput, TextArea, Select, ToggleSwitch, Tabs, SectionCard, EmptyState } from "../components/ui/primitives";
 import { useMe } from "../lib/me";
+import { orderStatusLabel, orderTypeLabel } from "../lib/labels";
 
 type Customer = CustomerListItem;
 type CustomerForm = Omit<
@@ -346,8 +347,8 @@ function CustomerProfile({ id, canManage, onClose, onEdit }: { id: string; canMa
                   {orders.map((o) => (
                     <tr key={o.id}>
                       <td className="mono">{o.order_prefix ?? ""}{o.order_no}</td>
-                      <td>{t.orders.types[o.order_type] ?? o.order_type}</td>
-                      <td><span className={`stub st-${o.status}`}>{t.orders.statuses[o.status] ?? o.status}</span></td>
+                      <td>{orderTypeLabel(o.order_type)}</td>
+                      <td><span className={`stub st-${o.status}`}>{orderStatusLabel(o.status)}</span></td>
                       <td className="mono">{Number(o.total).toFixed(2)}</td>
                       <td className="muted">{dateAr(o.created_at)}</td>
                     </tr>
@@ -384,7 +385,7 @@ function CustomerProfile({ id, canManage, onClose, onEdit }: { id: string; canMa
                 <Row label="أول طلب" value={dateAr(a.first_order_at)} />
                 <Row label="آخر طلب" value={dateAr(a.last_order_at)} />
                 <Row label="الصنف المفضّل" value={a.favourite_product} />
-                <Row label="نوع الطلب الأكثر" value={a.preferred_order_type_actual ? (t.orders.types[a.preferred_order_type_actual] ?? a.preferred_order_type_actual) : NA} />
+                <Row label="نوع الطلب الأكثر" value={a.preferred_order_type_actual ? (orderTypeLabel(a.preferred_order_type_actual)) : NA} />
               </SectionCard>
               {a.recent_items.length > 0 && (
                 <SectionCard title="آخر الأصناف المطلوبة">

@@ -2,6 +2,7 @@ import { resolveAssetUrl } from "../lib/api";
 import { t } from "../lib/t";
 import { StatusChip } from "./ui/primitives";
 import { FullOrder } from "./Receipt";
+import { orderStatusLabel, orderTypeLabel, paymentMethodLabel } from "../lib/labels";
 
 const NA = "غير متاح";
 
@@ -53,7 +54,6 @@ function Section({ title, children, className = "" }: { title: string; children:
   );
 }
 
-const PAY_LABEL: Record<string, string> = { cash: "نقدي", card: "بطاقة", wallet: "محفظة", unpaid: "آجل" };
 
 export function OrderDetail({ order }: { order: FullOrder }) {
   const paid = order.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
@@ -62,7 +62,7 @@ export function OrderDetail({ order }: { order: FullOrder }) {
   const paymentTone: StatusTone = paid <= 0 ? "danger" : paid < total ? "warning" : "success";
   const paymentStatus = paid <= 0 ? "غير مدفوع" : paid < total ? "مدفوع جزئيًا" : "مدفوع بالكامل";
   const paymentMethods = order.payments.length
-    ? Array.from(new Set(order.payments.map((payment) => PAY_LABEL[payment.method] ?? payment.method))).join("، ")
+    ? Array.from(new Set(order.payments.map((payment) => paymentMethodLabel(payment.method)))).join("، ")
     : "—";
 
   const timeline = [
@@ -89,7 +89,7 @@ export function OrderDetail({ order }: { order: FullOrder }) {
         <SummaryItem label="حالة الدفع" value={<StatusChip tone={paymentTone}>{paymentStatus}</StatusChip>} />
         <SummaryItem label="المدفوع" value={money(paid)} />
         <SummaryItem label="طريقة الدفع" value={paymentMethods} />
-        <SummaryItem label="نوع الطلب" value={t.orders.types[order.order_type] ?? order.order_type} />
+        <SummaryItem label="نوع الطلب" value={orderTypeLabel(order.order_type)} />
         <SummaryItem label="المصدر" value={order.source_name ?? "طلب سابق — المصدر غير مسجل"} />
         {order.branch_name && <SummaryItem label="الفرع" value={order.branch_name} />}
         {order.cashier_name && <SummaryItem label="الكاشير" value={order.cashier_name} />}
@@ -98,10 +98,9 @@ export function OrderDetail({ order }: { order: FullOrder }) {
       <div className="od-grid">
         <Section title="بيانات الطلب">
           <Row label="رقم الطلب" value={`${order.order_prefix ?? ""}${order.order_no}`} mono />
-          <Row label="الحالة" value={<StatusChip tone={orderStatusTone(order.status)}>{t.orders.statuses[order.status] ?? order.status}</StatusChip>} />
+          <Row label="الحالة" value={<StatusChip tone={orderStatusTone(order.status)}>{orderStatusLabel(order.status)}</StatusChip>} />
           <Row label="تاريخ الإنشاء" value={exact(order.created_at)} />
           <Row label="مصدر الطلب" value={order.source_name ?? "طلب سابق — المصدر غير مسجل"} />
-          <Row label="المعرّف (UUID)" value={<span className="od-uuid">{order.id}</span>} mono />
           {order.table_name_ar && <Row label="الطاولة" value={order.table_name_ar} />}
           {order.order_type === "delivery" && <Row label="السائق" value={order.driver_name} />}
         </Section>

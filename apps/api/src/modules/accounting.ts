@@ -61,16 +61,231 @@ async function loadJournalLines(db: Knex, accountId: string, entryIds: string[])
   return byEntry;
 }
 
+// Every account referenced by a mapping must exist in the tenant and be
+// active — a mapping to a disabled account would fail at posting time.
+async function assertActiveAccounts(
+  db: Knex,
+  accountId: string,
+  refs: Record<string, string | null | undefined>
+): Promise<void> {
+  for (const [field, id] of Object.entries(refs)) {
+    if (id === undefined || id === null) continue;
+    const account = await db("accounting_accounts").where({ id, account_id: accountId }).first();
+    if (!account) throw err.validation({ [field]: "الحساب غير موجود في شجرة الحسابات." });
+    if (!account.is_active) throw err.validation({ [field]: "الحساب غير نشط — فعّله أولًا أو اختر حسابًا آخر." });
+  }
+}
+
 export function accountingRoutes(db: Knex): Router {
   const router = Router();
   router.use(requireUser(db));
 
   router.get("/accounts", requirePermission("accounting.view"), async (req, res, next) => {
     try {
+      const parsed = z.object({ include_inactive: z.enum(["true", "false"]).optional() }).safeParse(req.query);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
       const rows = await db("accounting_accounts")
-        .where({ account_id: req.user!.accountId, is_active: true })
+        .where({ account_id: req.user!.accountId })
+        .modify((query) => {
+          if (parsed.data.include_inactive !== "true") query.where("is_active", true);
+        })
         .orderBy("code");
       res.json({ data: rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/accounts", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      const body = z.object({
+        code: z.string().trim().min(1).max(30),
+        name_ar: z.string().trim().min(1).max(160),
+        account_type: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
+      }).safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      const duplicate = await db("accounting_accounts")
+        .where({ account_id: req.user!.accountId, code: body.data.code })
+        .first();
+      if (duplicate) throw err.conflict();
+      const id = newId();
+      await db("accounting_accounts").insert({ id, account_id: req.user!.accountId, ...body.data });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        userId: req.user!.id,
+        action: "accounting.account.create",
+        entityType: "accounting_account",
+        entityId: id,
+        meta: body.data,
+        ip: req.ip,
+      });
+      res.status(201).json({ data: await db("accounting_accounts").where({ id }).first() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch("/accounts/:id", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      if (!z.string().uuid().safeParse(req.params.id).success) throw err.notFound();
+      const body = z.object({
+        name_ar: z.string().trim().min(1).max(160).optional(),
+        is_active: z.boolean().optional(),
+      }).refine((value) => value.name_ar !== undefined || value.is_active !== undefined, { message: "empty" })
+        .safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      const account = await db("accounting_accounts")
+        .where({ id: req.params.id, account_id: req.user!.accountId })
+        .first();
+      if (!account) throw err.notFound();
+      if (body.data.is_active === false) {
+        const mapped = await db("accounting_mappings")
+          .where({ account_id: req.user!.accountId })
+          .where((qb) =>
+            qb
+              .where("debit_account_id", account.id)
+              .orWhere("credit_account_id", account.id)
+              .orWhere("vat_account_id", account.id)
+          )
+          .first();
+        if (mapped) {
+          throw err.validation({ is_active: "الحساب مرتبط بقاعدة ترحيل — أعد ربط القاعدة إلى حساب آخر قبل التعطيل." });
+        }
+      }
+      await db("accounting_accounts").where({ id: account.id }).update({ ...body.data, updated_at: db.fn.now() });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        userId: req.user!.id,
+        action: "accounting.account.update",
+        entityType: "accounting_account",
+        entityId: account.id,
+        meta: {
+          before: { name_ar: account.name_ar, is_active: account.is_active },
+          after: body.data,
+        },
+        ip: req.ip,
+      });
+      res.json({ data: await db("accounting_accounts").where({ id: account.id }).first() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/mappings", requirePermission("accounting.view"), async (req, res, next) => {
+    try {
+      const parsed = z.object({ event_type: z.string().trim().min(1).max(80).optional() }).safeParse(req.query);
+      if (!parsed.success) throw err.validation(parsed.error.flatten());
+      const rows = await db("accounting_mappings as mapping")
+        .join("accounting_accounts as debit", "debit.id", "mapping.debit_account_id")
+        .join("accounting_accounts as credit", "credit.id", "mapping.credit_account_id")
+        .leftJoin("accounting_accounts as vat", "vat.id", "mapping.vat_account_id")
+        .where({ "mapping.account_id": req.user!.accountId })
+        .modify((query) => {
+          if (parsed.data.event_type) query.where("mapping.event_type", parsed.data.event_type);
+        })
+        .select(
+          "mapping.*",
+          "debit.code as debit_account_code",
+          "debit.name_ar as debit_account_name_ar",
+          "credit.code as credit_account_code",
+          "credit.name_ar as credit_account_name_ar",
+          "vat.code as vat_account_code",
+          "vat.name_ar as vat_account_name_ar"
+        )
+        .orderBy([{ column: "mapping.event_type", order: "asc" }, { column: "mapping.dimension_key", order: "asc" }]);
+      res.json({ data: rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/mappings", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      const body = z.object({
+        event_type: z.string().trim().min(1).max(80),
+        dimension_key: z.string().trim().min(1).max(80).default("default"),
+        debit_account_id: z.string().uuid(),
+        credit_account_id: z.string().uuid(),
+        vat_account_id: z.string().uuid().nullable().optional(),
+      }).safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      await assertActiveAccounts(db, req.user!.accountId, {
+        debit_account_id: body.data.debit_account_id,
+        credit_account_id: body.data.credit_account_id,
+        vat_account_id: body.data.vat_account_id ?? null,
+      });
+      const duplicate = await db("accounting_mappings")
+        .where({
+          account_id: req.user!.accountId,
+          event_type: body.data.event_type,
+          dimension_key: body.data.dimension_key,
+        })
+        .first();
+      if (duplicate) throw err.conflict();
+      const id = newId();
+      await db("accounting_mappings").insert({
+        id,
+        account_id: req.user!.accountId,
+        event_type: body.data.event_type,
+        dimension_key: body.data.dimension_key,
+        debit_account_id: body.data.debit_account_id,
+        credit_account_id: body.data.credit_account_id,
+        vat_account_id: body.data.vat_account_id ?? null,
+      });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        userId: req.user!.id,
+        action: "accounting.mapping.create",
+        entityType: "accounting_mapping",
+        entityId: id,
+        meta: body.data,
+        ip: req.ip,
+      });
+      res.status(201).json({ data: await db("accounting_mappings").where({ id }).first() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put("/mappings/:id", requirePermission("accounting.manage"), async (req, res, next) => {
+    try {
+      if (!z.string().uuid().safeParse(req.params.id).success) throw err.notFound();
+      const body = z.object({
+        debit_account_id: z.string().uuid().optional(),
+        credit_account_id: z.string().uuid().optional(),
+        vat_account_id: z.string().uuid().nullable().optional(),
+      }).refine(
+        (value) => value.debit_account_id !== undefined || value.credit_account_id !== undefined || value.vat_account_id !== undefined,
+        { message: "empty" }
+      ).safeParse(req.body);
+      if (!body.success) throw err.validation(body.error.flatten());
+      const mapping = await db("accounting_mappings")
+        .where({ id: req.params.id, account_id: req.user!.accountId })
+        .first();
+      if (!mapping) throw err.notFound();
+      await assertActiveAccounts(db, req.user!.accountId, {
+        debit_account_id: body.data.debit_account_id,
+        credit_account_id: body.data.credit_account_id,
+        vat_account_id: body.data.vat_account_id,
+      });
+      await db("accounting_mappings").where({ id: mapping.id }).update({ ...body.data, updated_at: db.fn.now() });
+      await writeAudit(db, {
+        accountId: req.user!.accountId,
+        userId: req.user!.id,
+        action: "accounting.mapping.update",
+        entityType: "accounting_mapping",
+        entityId: mapping.id,
+        meta: {
+          before: {
+            debit_account_id: mapping.debit_account_id,
+            credit_account_id: mapping.credit_account_id,
+            vat_account_id: mapping.vat_account_id,
+          },
+          after: body.data,
+        },
+        ip: req.ip,
+      });
+      res.json({ data: await db("accounting_mappings").where({ id: mapping.id }).first() });
     } catch (error) {
       next(error);
     }

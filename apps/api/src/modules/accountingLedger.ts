@@ -10,18 +10,41 @@ import {
 import { formatDecimal, parseDecimal } from "../lib/inventoryMath";
 import { failFinancialEvent } from "./financialOutbox";
 
+// ADR-004 standard default chart. Codes for the ADR-listed accounts are fixed
+// by the ADR; clearing/variance accounts keep serving the pilot mappings under
+// codes outside the ADR set. All remappable per-tenant.
 const SYSTEM_ACCOUNTS = [
-  ["1000", "cash", "النقدية", "asset"],
-  ["1010", "card_clearing", "تسويات البطاقات", "asset"],
-  ["1020", "wallet_clearing", "تسويات المحافظ", "asset"],
-  ["1100", "inventory", "المخزون", "asset"],
+  ["1010", "cash", "النقدية/الخزينة", "asset"],
+  ["1020", "bank", "البنك", "asset"],
+  ["1050", "card_clearing", "تسويات البطاقات", "asset"],
+  ["1060", "wallet_clearing", "تسويات المحافظ", "asset"],
+  ["1210", "vat_input", "ض.ق.م مدخلات", "asset"],
+  ["1310", "inventory", "المخزون", "asset"],
+  ["2010", "vat_payable", "ض.ق.م مستحقة (مخرجات)", "liability"],
   ["2100", "accounts_payable", "الموردون", "liability"],
-  ["2200", "vat_payable", "ضريبة القيمة المضافة", "liability"],
-  ["3000", "sales_revenue", "إيرادات المبيعات", "revenue"],
-  ["4000", "cogs", "تكلفة البضاعة المباعة", "expense"],
-  ["5000", "waste_expense", "مصروف الهالك", "expense"],
+  ["4010", "sales_revenue", "إيرادات المبيعات", "revenue"],
+  ["4020", "sales_returns", "مردودات المبيعات", "revenue"],
+  ["4090", "rounding", "فروق التقريب (Rounding)", "revenue"],
+  ["5010", "cogs", "تكلفة البضاعة المباعة (COGS)", "expense"],
+  ["5090", "waste_expense", "منصرفات مخزون عامة/هالك", "expense"],
   ["5100", "inventory_variance", "فروق المخزون", "expense"],
   ["5200", "cash_variance", "فروق وحركات النقدية", "expense"],
+  ["6050", "delivery_commission", "عمولة منصات التوصيل", "expense"],
+] as const;
+
+// Pilot (migration 025) codes → ADR-004 codes. Ordered so clearing accounts
+// evacuate 1010/1020 before cash/bank claim them; each move is a guarded no-op
+// once applied. Names are refreshed only together with the code move, so a
+// tenant's manual rename of an already-migrated account is never overwritten.
+export const LEGACY_CODE_MOVES: ReadonlyArray<readonly [systemKey: string, fromCode: string, toCode: string]> = [
+  ["card_clearing", "1010", "1050"],
+  ["wallet_clearing", "1020", "1060"],
+  ["cash", "1000", "1010"],
+  ["inventory", "1100", "1310"],
+  ["vat_payable", "2200", "2010"],
+  ["sales_revenue", "3000", "4010"],
+  ["cogs", "4000", "5010"],
+  ["waste_expense", "5000", "5090"],
 ] as const;
 
 interface FinancialEventRow {
@@ -512,14 +535,30 @@ export async function reverseJournalEntry(
 }
 
 export async function ensureAccountingDefaults(db: Knex, accountId: string): Promise<void> {
+  // Phase A — realign legacy pilot codes to the ADR-004 chart (idempotent:
+  // each UPDATE matches only while the account still holds its legacy code).
+  // A move is skipped when a tenant's custom account already occupies the
+  // target code — degrading gracefully instead of violating the unique index.
+  for (const [systemKey, fromCode, toCode] of LEGACY_CODE_MOVES) {
+    const target = SYSTEM_ACCOUNTS.find((entry) => entry[1] === systemKey);
+    const occupied = await db("accounting_accounts").where({ account_id: accountId, code: toCode }).first();
+    if (occupied) continue;
+    await db("accounting_accounts")
+      .where({ account_id: accountId, system_key: systemKey, code: fromCode })
+      .update({ code: toCode, name_ar: target![2], updated_at: db.fn.now() });
+  }
+
+  // Phase B — seed any missing standard accounts.
   const ids: Record<string, string> = {};
   for (const [code, systemKey, nameAr, accountType] of SYSTEM_ACCOUNTS) {
     await db("accounting_accounts")
       .insert({ id: newId(), account_id: accountId, code, system_key: systemKey, name_ar: nameAr, account_type: accountType })
       .onConflict(["account_id", "code"])
       .ignore();
-    ids[systemKey] = (await db("accounting_accounts").where({ account_id: accountId, system_key: systemKey }).first()).id;
+    const row = await db("accounting_accounts").where({ account_id: accountId, system_key: systemKey }).first();
+    if (row) ids[systemKey] = row.id;
   }
+
   const mappings = [
     ["payment.captured", "cash", ids.cash, ids.sales_revenue, ids.vat_payable],
     ["payment.captured", "card", ids.card_clearing, ids.sales_revenue, ids.vat_payable],
@@ -534,8 +573,13 @@ export async function ensureAccountingDefaults(db: Knex, accountId: string): Pro
     ["inventory.waste", "default", ids.waste_expense, ids.inventory, null],
     ["inventory.adjustment", "positive", ids.inventory, ids.inventory_variance, null],
     ["inventory.adjustment", "negative", ids.inventory_variance, ids.inventory, null],
+    // Residual settlement (ADR-004): canonical direction for a positive open
+    // residual (source > journal) — debit inventory, credit rounding. The
+    // settlement poster (CP4) mirrors the sides for a negative balance.
+    ["residual.settlement", "default", ids.inventory, ids.rounding, null],
   ];
   for (const [eventType, dimensionKey, debitId, creditId, vatId] of mappings) {
+    if (!debitId || !creditId) continue;
     await db("accounting_mappings")
       .insert({ id: newId(), account_id: accountId, event_type: eventType, dimension_key: dimensionKey, debit_account_id: debitId, credit_account_id: creditId, vat_account_id: vatId })
       .onConflict(["account_id", "event_type", "dimension_key"])

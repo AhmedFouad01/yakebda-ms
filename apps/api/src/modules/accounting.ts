@@ -5,10 +5,54 @@ import { writeAudit } from "../lib/audit";
 import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
+import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
 import { postClaimedFinancialEvent, reverseJournalEntry } from "./accountingLedger";
 import { claimFinancialEvents } from "./financialOutbox";
 
 const dateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+const entryDateCursorValues = z.object({
+  entry_date: dateInput,
+  id: z.string().uuid(),
+}).strict();
+
+type EntryDateCursorValues = z.infer<typeof entryDateCursorValues>;
+
+const journalsCursor: CursorDefinition<EntryDateCursorValues> = {
+  endpoint: "accounting.journals",
+  sort: "entry_date_desc_id_desc",
+  values: entryDateCursorValues,
+};
+
+function cursorEntryDate(value: string | Date): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
+function applyEntryDateCursor(qb: Knex.QueryBuilder, cursor: EntryDateCursorValues | null): void {
+  if (!cursor) return;
+  qb.where((page) => {
+    page
+      .where("entry_date", "<", cursor.entry_date)
+      .orWhere((tie) => tie.where("entry_date", cursor.entry_date).andWhere("id", "<", cursor.id));
+  });
+}
+
+async function loadJournalLines(db: Knex, accountId: string, entryIds: string[]) {
+  if (!entryIds.length) return new Map<string, unknown[]>();
+  const lines = await db("journal_lines as line")
+    .join("accounting_accounts as account", "account.id", "line.accounting_account_id")
+    .where({ "line.account_id": accountId })
+    .whereIn("line.entry_id", entryIds)
+    .select("line.*", "account.code as account_code", "account.name_ar as account_name_ar")
+    .orderBy([{ column: "line.entry_id", order: "asc" }, { column: "line.id", order: "asc" }]);
+  const byEntry = new Map<string, unknown[]>();
+  for (const line of lines) {
+    const bucket = byEntry.get(line.entry_id) ?? [];
+    bucket.push(line);
+    byEntry.set(line.entry_id, bucket);
+  }
+  return byEntry;
+}
 
 export function accountingRoutes(db: Knex): Router {
   const router = Router();
@@ -27,33 +71,83 @@ export function accountingRoutes(db: Knex): Router {
 
   router.get("/journals", requirePermission("accounting.view"), async (req, res, next) => {
     try {
-      const parsed = z.object({ branch_id: z.string().uuid().optional(), limit: z.coerce.number().int().min(1).max(200).default(100) }).safeParse(req.query);
+      const parsed = z.object({
+        branch_id: z.string().uuid().optional(),
+        event_type: z.string().trim().min(1).max(80).optional(),
+        source_type: z.string().trim().min(1).max(60).optional(),
+        period_id: z.string().uuid().optional(),
+        date_from: dateInput.optional(),
+        date_to: dateInput.optional(),
+        cursor: z.string().optional(),
+        limit: z.string().optional(),
+      }).safeParse(req.query);
       if (!parsed.success) throw err.validation(parsed.error.flatten());
       const branchId = parsed.data.branch_id ?? req.user!.branchId ?? undefined;
       if (branchId && !canAccessBranch(req.user!, branchId)) throw err.forbidden();
-      const entries = await db("journal_entries")
+      let period: { starts_on: string | Date; ends_on: string | Date } | undefined;
+      if (parsed.data.period_id) {
+        period = await db("accounting_periods")
+          .where({ id: parsed.data.period_id, account_id: req.user!.accountId })
+          .first();
+        if (!period) throw err.notFound();
+      }
+      const page = parseCursorPage(req.query, journalsCursor);
+      const rows = await db("journal_entries")
         .where({ account_id: req.user!.accountId })
         .modify((query) => {
           if (branchId) query.where("branch_id", branchId);
+          if (parsed.data.event_type) query.where("event_type", parsed.data.event_type);
+          if (parsed.data.source_type) query.where("source_type", parsed.data.source_type);
+          if (parsed.data.date_from) query.where("entry_date", ">=", parsed.data.date_from);
+          if (parsed.data.date_to) query.where("entry_date", "<=", parsed.data.date_to);
+          if (period) {
+            query.where("entry_date", ">=", period.starts_on).where("entry_date", "<=", period.ends_on);
+          }
+          applyEntryDateCursor(query, page.cursor);
         })
         .orderBy([{ column: "entry_date", order: "desc" }, { column: "id", order: "desc" }])
-        .limit(parsed.data.limit);
-      const entryIds = entries.map((entry: { id: string }) => entry.id);
-      const lines = entryIds.length
-        ? await db("journal_lines as line")
-            .join("accounting_accounts as account", "account.id", "line.accounting_account_id")
-            .where({ "line.account_id": req.user!.accountId })
-            .whereIn("line.entry_id", entryIds)
-            .select("line.*", "account.code as account_code", "account.name_ar as account_name_ar")
-            .orderBy([{ column: "line.entry_id", order: "asc" }, { column: "line.id", order: "asc" }])
-        : [];
-      const byEntry = new Map<string, unknown[]>();
-      for (const line of lines) {
-        const bucket = byEntry.get(line.entry_id) ?? [];
-        bucket.push(line);
-        byEntry.set(line.entry_id, bucket);
-      }
-      res.json({ data: entries.map((entry: { id: string }) => ({ ...entry, lines: byEntry.get(entry.id) ?? [] })) });
+        .limit(page.limit + 1);
+      const result = createCursorPage(rows, page.limit, journalsCursor, (row: { id: string; entry_date: string | Date }) => ({
+        entry_date: cursorEntryDate(row.entry_date),
+        id: row.id,
+      }));
+      const byEntry = await loadJournalLines(db, req.user!.accountId, result.data.map((entry: { id: string }) => entry.id));
+      res.json({
+        ...result,
+        data: result.data.map((entry: { id: string }) => ({ ...entry, lines: byEntry.get(entry.id) ?? [] })),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/journals/:id", requirePermission("accounting.view"), async (req, res, next) => {
+    try {
+      if (!z.string().uuid().safeParse(req.params.id).success) throw err.notFound();
+      const entry = await db("journal_entries")
+        .where({ id: req.params.id, account_id: req.user!.accountId })
+        .first();
+      if (!entry) throw err.notFound();
+      if (entry.branch_id && !canAccessBranch(req.user!, entry.branch_id)) throw err.forbidden();
+      const byEntry = await loadJournalLines(db, req.user!.accountId, [entry.id]);
+      const reversedBy = await db("journal_entries")
+        .where({ reversal_of_entry_id: entry.id, account_id: req.user!.accountId })
+        .select("id", "entry_date", "description", "created_by")
+        .first();
+      const financialEvent = entry.financial_event_id
+        ? await db("financial_events")
+            .where({ id: entry.financial_event_id, account_id: req.user!.accountId })
+            .select("id", "status", "event_type", "source_type", "source_id", "last_error", "created_at")
+            .first()
+        : null;
+      res.json({
+        data: {
+          ...entry,
+          lines: byEntry.get(entry.id) ?? [],
+          reversed_by: reversedBy ?? null,
+          financial_event: financialEvent ?? null,
+        },
+      });
     } catch (error) {
       next(error);
     }

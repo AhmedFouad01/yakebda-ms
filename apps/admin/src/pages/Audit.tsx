@@ -1,4 +1,5 @@
 import { t, fmtTime } from "../lib/t";
+import { auditActionLabel, entityTypeLabel } from "../lib/labels";
 import { useList } from "./hooks";
 
 export function Audit() {
@@ -10,12 +11,13 @@ export function Audit() {
       <div className="panel">
         <table>
           <thead>
-            <tr><th>{t.audit.action}</th><th>{t.audit.user}</th><th>{t.audit.branch}</th><th>{t.audit.device}</th><th>{t.audit.time}</th></tr>
+            <tr><th>{t.audit.action}</th><th>{t.audit.entity}</th><th>{t.audit.user}</th><th>{t.audit.branch}</th><th>{t.audit.device}</th><th>{t.audit.time}</th></tr>
           </thead>
           <tbody>
             {data.map((a: any) => (
               <tr key={a.id}>
-                <td dir="ltr" style={{ textAlign: "right" }}>{a.action}</td>
+                <td>{auditActionLabel(a.action)}</td>
+                <td>{a.entity_type ? entityTypeLabel(a.entity_type) : "—"}</td>
                 <td>{a.user_name ?? "—"}</td>
                 <td>{a.branch_name ?? "—"}</td>
                 <td>{a.device_name ?? "—"}</td>

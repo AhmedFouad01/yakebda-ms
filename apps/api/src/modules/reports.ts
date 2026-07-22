@@ -277,7 +277,7 @@ export function reportRoutes(db: Knex): Router {
         .orderBy("day", "asc");
 
       const data: SalesTrendReportData = {
-        rows: rows.map((row): SalesByDayRow => ({
+        rows: rows.map((row: Record<string, unknown>): SalesByDayRow => ({
           day: String(row.day),
           total: aggregateNumber(row.total),
         })),
@@ -315,7 +315,7 @@ export function reportRoutes(db: Knex): Router {
         .orderBy("total", "desc");
 
       const data: SalesByBranchReportData = {
-        rows: rows.map((row): SalesByBranchRow => ({
+        rows: rows.map((row: Record<string, unknown>): SalesByBranchRow => ({
           branch_id: String(row.branch_id),
           branch: String(row.branch),
           total: aggregateNumber(row.total),
@@ -360,7 +360,7 @@ export function reportRoutes(db: Knex): Router {
         .orderBy("total", "desc");
 
       const data: SalesBySourceReportData = {
-        rows: rows.map((row): SalesBySourceRow => ({
+        rows: rows.map((row: Record<string, unknown>): SalesBySourceRow => ({
           source_id: row.source_id ? String(row.source_id) : null,
           source: String(row.source),
           total: aggregateNumber(row.total),
@@ -400,7 +400,7 @@ export function reportRoutes(db: Knex): Router {
         .orderBy("qty", "desc")
         .limit(10);
 
-      const data: TopProductReportRow[] = rows.map((row) => ({
+      const data: TopProductReportRow[] = rows.map((row: Record<string, unknown>) => ({
         product_id: String(row.product_id),
         name_ar: String(row.name_ar),
         qty: aggregateNumber(row.qty),
@@ -438,7 +438,7 @@ export function reportRoutes(db: Knex): Router {
         .groupBy("p.method")
         .orderBy("total", "desc");
 
-      const data: PaymentMethodReportRow[] = rows.map((row) => ({
+      const data: PaymentMethodReportRow[] = rows.map((row: Record<string, unknown>) => ({
         method: String(row.method),
         total: aggregateNumber(row.total),
         count: aggregateNumber(row.count),

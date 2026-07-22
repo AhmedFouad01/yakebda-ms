@@ -1,19 +1,24 @@
-import type { ReportDefinition } from "@ykms/contracts";
+import type { ReportDefinition, ReportFilterDefinition } from "@ykms/contracts";
 
-const DAYS_FILTER = {
+/**
+ * Typed against the shared contract rather than `as const`: a const assertion
+ * makes `allowed_values` readonly, which the wire contract does not accept.
+ * Each definition below spreads these, so callers get their own object.
+ */
+const DAYS_FILTER: ReportFilterDefinition = {
   key: "days",
   kind: "period_days",
   label_ar: "الفترة",
   required: true,
   allowed_values: [7, 30, 90],
-} as const;
+};
 
-const BRANCH_FILTER = {
+const BRANCH_FILTER: ReportFilterDefinition = {
   key: "branch_id",
   kind: "branch",
   label_ar: "الفرع",
   required: false,
-} as const;
+};
 
 export const REPORT_CATALOG: ReportDefinition[] = [
   {

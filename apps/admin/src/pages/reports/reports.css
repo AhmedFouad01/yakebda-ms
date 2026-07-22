@@ -1,0 +1,228 @@
+.rpt-page {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--sp-5, 20px);
+}
+
+.rpt-filterbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(220px, 1fr) auto;
+  gap: var(--sp-4, 16px);
+  align-items: end;
+}
+
+.rpt-filterbar .uif-field {
+  margin: 0;
+}
+
+.rpt-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4, 16px);
+}
+
+.rpt-section-head h2,
+.rpt-section-head p,
+.rpt-catalog-card h3,
+.rpt-catalog-card p {
+  margin: 0;
+}
+
+.rpt-section-head h2 {
+  font-size: 1.15rem;
+}
+
+.rpt-section-head p,
+.rpt-catalog-card p {
+  color: var(--text-secondary);
+}
+
+.rpt-section-head p {
+  margin-block-start: var(--sp-1, 4px);
+}
+
+.rpt-catalog {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--sp-3, 12px);
+}
+
+.rpt-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3, 12px);
+}
+
+.rpt-catalog-card {
+  min-inline-size: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--sp-2, 8px);
+  padding: var(--sp-4, 16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.rpt-catalog-card .uif-badge {
+  justify-self: start;
+  inline-size: auto;
+}
+
+.rpt-catalog-card h3 {
+  font-size: 1rem;
+}
+
+.rpt-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--sp-3, 12px);
+}
+
+.rpt-summary-grid .card {
+  min-inline-size: 0;
+}
+
+.rpt-summary-grid .num {
+  overflow-wrap: anywhere;
+}
+
+.rpt-grid {
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4, 16px);
+  align-items: start;
+}
+
+.rpt-grid .uif-card {
+  min-inline-size: 0;
+}
+
+.rpt-chart {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--sp-3, 12px);
+}
+
+.rpt-chart-canvas {
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: 280px;
+  min-block-size: 220px;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+}
+
+.rpt-chart-warning {
+  margin: 0;
+  padding: var(--sp-2, 8px) var(--sp-3, 12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.rpt-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rpt-chart-data {
+  border-block-start: 1px solid var(--border-subtle);
+  padding-block-start: var(--sp-2, 8px);
+}
+
+.rpt-chart-data summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.rpt-chart-data summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm, 6px);
+}
+
+.rpt-table-wrap {
+  min-inline-size: 0;
+  overflow-x: auto;
+}
+
+.rpt-table-wrap table {
+  min-inline-size: 480px;
+}
+
+.rpt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-2, 8px) var(--sp-4, 16px);
+  padding: var(--sp-3, 12px) var(--sp-4, 16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1280px) {
+  .rpt-catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .rpt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .rpt-filterbar {
+    grid-template-columns: 1fr;
+  }
+
+  .rpt-filterbar .uif-btn {
+    inline-size: 100%;
+  }
+
+  .rpt-section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rpt-catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rpt-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rpt-chart-canvas {
+    block-size: 240px;
+    min-block-size: 200px;
+  }
+}
+
+@media (max-width: 440px) {
+  .rpt-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rpt-chart-canvas {
+    block-size: 220px;
+  }
+}

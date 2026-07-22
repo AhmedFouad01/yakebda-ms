@@ -4377,6 +4377,11 @@ input[type="checkbox"] {
   --theme-overlay: rgba(12, 18, 15, 0.5);
   --theme-scroll-track: #e1e6e3;
   --theme-scroll-thumb: #87948e;
+  /* Reporting charts — grid/axis are theme-specific neutrals; the data series
+     themselves derive from --brand in the mapping block so a Theme Editor
+     change to the brand follows through to the charts automatically. */
+  --theme-chart-grid: #d5ddd8;
+  --theme-chart-axis: #4f5d57;
 }
 
 :root[data-theme="dark"] {
@@ -4407,10 +4412,21 @@ input[type="checkbox"] {
   --theme-overlay: rgba(0, 0, 0, 0.68);
   --theme-scroll-track: #11181c;
   --theme-scroll-thumb: #65747b;
+  /* Reporting charts — grid/axis lifted for the dark surface; series derive
+     from --brand in the mapping block. */
+  --theme-chart-grid: #3a464d;
+  --theme-chart-axis: #c5cfcb;
 }
 
 :root,
 .app2-pos {
+  /* Series follow the brand token: series-1 is the brand amber itself, series-2
+     a brand-derived amber pulled toward the neutral text colour so the two
+     series stay distinguishable. Both track any --brand change automatically. */
+  --chart-series-1: var(--brand);
+  --chart-series-2: color-mix(in srgb, var(--brand) 60%, var(--text-secondary));
+  --chart-grid: var(--theme-chart-grid);
+  --chart-axis: var(--theme-chart-axis);
   --surface-page: var(--theme-page);
   --surface-1: var(--theme-surface);
   --surface-2: var(--theme-surface-2);

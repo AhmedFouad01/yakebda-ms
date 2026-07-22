@@ -20,6 +20,7 @@ import { InventoryPage } from "./pages/inventory/InventoryPage";
 import { Reports } from "./pages/Reports";
 import { SettingsPage } from "./pages/Settings";
 import { NotFound } from "./pages/NotFound";
+import { SccDiagnostics } from "./pages/SccDiagnostics";
 import { useMe } from "./lib/me";
 import { ReactNode } from "react";
 
@@ -63,6 +64,7 @@ export function App() {
           <Route path="/print-jobs" element={<PrintJobs />} />
           <Route path="/api-clients" element={<ApiClients />} />
           <Route path="/audit" element={<Audit />} />
+          <Route path="/scc" element={<Guard perm="settings.manage"><SccDiagnostics /></Guard>} />
           <Route path="/tables" element={<Navigate to="/pos" replace />} />
           <Route path="*" element={<NotFound />} />
         </Route>

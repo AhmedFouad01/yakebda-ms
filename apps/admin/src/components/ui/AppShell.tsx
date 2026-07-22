@@ -34,6 +34,7 @@ export const NAV_LINKS: Array<{ to: string; label: () => string; perms: string[]
   { to: "/reports", label: () => t.nav.reports, perms: ["reports.view"] },
   { to: "/api-clients", label: () => t.nav.apiClients, perms: ["api_clients.manage"] },
   { to: "/audit", label: () => t.nav.audit, perms: ["audit.view"] },
+  { to: "/scc", label: () => t.nav.scc, perms: ["settings.manage"] },
   { to: "/settings", label: () => t.nav.settings, perms: null },
 ];
 

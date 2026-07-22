@@ -2099,14 +2099,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
   --danger: #b3261e;
   --info: #176b87;
 
-  /* Reporting charts — blue/cyan series per the approved reporting prototype.
-     Deliberately independent of --brand (amber) so data series stay readable
-     against brand-coloured chrome. */
-  --chart-series-1: #1d4ed8;
-  --chart-series-2: #0e7490;
-  --chart-grid: #d5ddd8;
-  --chart-axis: #4f5d57;
-
   /* Compatibility aliases while legacy pages migrate to semantic names. */
   --paper: var(--surface-page);
   --card: var(--surface-1);
@@ -2151,12 +2143,6 @@ button.sm:hover { border-color: var(--yk-yellow); }
   --warning: #f2c14e;
   --danger: #ff8a7a;
   --info: #72cbe6;
-
-  /* Reporting charts — lifted for contrast on the dark surface. */
-  --chart-series-1: #60a5fa;
-  --chart-series-2: #22d3ee;
-  --chart-grid: #3a464d;
-  --chart-axis: #c5cfcb;
 
   --yk-black: var(--surface-page);
   --yk-black-2: var(--surface-1);
@@ -4391,6 +4377,13 @@ input[type="checkbox"] {
   --theme-overlay: rgba(12, 18, 15, 0.5);
   --theme-scroll-track: #e1e6e3;
   --theme-scroll-thumb: #87948e;
+  /* Reporting charts — blue/cyan series per the approved reporting prototype.
+     Kept independent of --brand (amber) so data reads clearly against
+     brand-coloured chrome. */
+  --theme-chart-series-1: #1d4ed8;
+  --theme-chart-series-2: #0e7490;
+  --theme-chart-grid: #d5ddd8;
+  --theme-chart-axis: #4f5d57;
 }
 
 :root[data-theme="dark"] {
@@ -4421,10 +4414,19 @@ input[type="checkbox"] {
   --theme-overlay: rgba(0, 0, 0, 0.68);
   --theme-scroll-track: #11181c;
   --theme-scroll-thumb: #65747b;
+  /* Reporting charts — lifted for contrast on the dark surface. */
+  --theme-chart-series-1: #60a5fa;
+  --theme-chart-series-2: #22d3ee;
+  --theme-chart-grid: #3a464d;
+  --theme-chart-axis: #c5cfcb;
 }
 
 :root,
 .app2-pos {
+  --chart-series-1: var(--theme-chart-series-1);
+  --chart-series-2: var(--theme-chart-series-2);
+  --chart-grid: var(--theme-chart-grid);
+  --chart-axis: var(--theme-chart-axis);
   --surface-page: var(--theme-page);
   --surface-1: var(--theme-surface);
   --surface-2: var(--theme-surface-2);

@@ -10,6 +10,11 @@
   "scripts": {
     "contracts:build": "npm --workspace @ykms/contracts run build",
     "contracts:test": "npm --workspace @ykms/contracts run test",
+    "scc:sdk:build": "npm --workspace @scc/client-sdk run build",
+    "scc:sdk:test": "npm --workspace @scc/client-sdk run test",
+    "scc:backup": "tsx scripts/scc-pilot-backup.ts",
+    "scc:backup:restore-test": "tsx scripts/scc-pilot-restore-test.ts",
+    "scc:e2e": "tsx scripts/scc-pilot-e2e.ts",
     "api:dev": "npm --workspace @ykms/api run dev",
     "api:migrate": "npm --workspace @ykms/api run migrate",
     "api:seed": "npm --workspace @ykms/api run seed",
@@ -18,7 +23,7 @@
     "admin:build": "npm --workspace @ykms/admin run build",
     "admin:test": "npm --workspace @ykms/admin run test",
     "ui:colors:check": "node scripts/check-theme-contract.mjs",
-    "check": "npm run contracts:build && npm run contracts:test && npm run ui:colors:check && npm run api:test && npm run admin:test && npm run admin:build",
+    "check": "npm run contracts:build && npm run contracts:test && npm run scc:sdk:build && npm run scc:sdk:test && npm run ui:colors:check && npm run api:test && npm run admin:test && npm run admin:build",
     "audit:deps": "npm audit",
     "audit:deps:prod": "npm audit --omit=dev"
   }

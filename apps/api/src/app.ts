@@ -36,6 +36,8 @@ import {
   StructuredLogSink,
   unexpectedErrorFields,
 } from "./lib/observability";
+import { sccRoutes } from "./scc/routes";
+import type { SccIntegration } from "./scc/integration";
 
 type DatabaseError = Error & {
   code?: string;
@@ -90,6 +92,7 @@ function isOrderIntegrityError(error: DatabaseError): boolean {
 export interface AppOptions {
   logSink?: StructuredLogSink;
   readinessTimeoutMs?: number;
+  sccIntegration?: SccIntegration;
 }
 
 function orderIntegrityReason(error: DatabaseError): string {
@@ -240,10 +243,14 @@ export function createApp(db: Knex, options: AppOptions = {}) {
   v1.use("/inventory", inventoryRecipeRoutes(db));
   v1.use("/accounting", financialEventRoutes(db));
   v1.use("/accounting", accountingRoutes(db));
+  if (options.sccIntegration) v1.use("/scc", sccRoutes(db, options.sccIntegration));
 
   app.use((_req, res) => res.status(404).json({ code: "not_found", message: ar.errors.not_found }));
 
-  app.use(createApiErrorHandler(logger));
+  app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (options.sccIntegration && !(error instanceof ApiError)) void options.sccIntegration.reportError(error, "api");
+    return createApiErrorHandler(logger)(error, req, res, next);
+  });
 
   return app;
 }

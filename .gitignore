@@ -30,3 +30,6 @@ tmp/
 
 # YKMS-02G: runtime upload storage (local dev)
 apps/api/uploads/
+
+# SCC pilot local identity, queue, artifacts, and recovery points
+.scc-pilot/

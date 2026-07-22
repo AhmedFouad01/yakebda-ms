@@ -20,7 +20,7 @@ import {
   SectionCard,
   Select,
 } from "../components/ui/primitives";
-import { reportTranslations as t } from "./reports/reportTranslations";
+import { t } from "../lib/t";
 import { paymentMethodLabel } from "../lib/labels";
 import { ReportChart } from "./reports/components/ReportChart";
 import {

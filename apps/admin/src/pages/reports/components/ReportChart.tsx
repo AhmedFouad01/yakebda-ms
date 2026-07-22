@@ -1,7 +1,11 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ChartOptions } from "chart.js";
+import { Bar, Line } from "react-chartjs-2";
 import { formatReportMoney } from "../reportFormat";
-import { reportText } from "../reportText";
-import { loadECharts, type EChartsInstance } from "./echartsAdapter";
+import { t } from "../../../lib/t";
+import { ensureChartsRegistered } from "./chartSetup";
+
+ensureChartsRegistered();
 
 export interface ReportChartRow {
   label: string;
@@ -16,185 +20,191 @@ interface ReportChartProps {
 }
 
 interface ChartTokens {
-  brand: string;
+  series: string;
+  seriesAlt: string;
   danger: string;
-  text: string;
-  muted: string;
-  border: string;
+  grid: string;
+  axis: string;
   surface: string;
+  text: string;
+  border: string;
 }
 
-function cssToken(style: CSSStyleDeclaration, name: string, fallback: string): string {
+const FALLBACK: ChartTokens = {
+  series: "#1d4ed8",
+  seriesAlt: "#0e7490",
+  danger: "#b3261e",
+  grid: "#d5ddd8",
+  axis: "#4f5d57",
+  surface: "#ffffff",
+  text: "#1d2622",
+  border: "#c5cec9",
+};
+
+function token(style: CSSStyleDeclaration, name: string, fallback: string): string {
   return style.getPropertyValue(name).trim() || fallback;
 }
 
-function readChartTokens(element: HTMLElement): ChartTokens {
+function readChartTokens(element: HTMLElement | null): ChartTokens {
+  if (!element || typeof getComputedStyle !== "function") return FALLBACK;
   const style = getComputedStyle(element);
   return {
-    brand: cssToken(style, "--brand", "currentColor"),
-    danger: cssToken(style, "--danger", "currentColor"),
-    text: cssToken(style, "--text-primary", "currentColor"),
-    muted: cssToken(style, "--text-secondary", "currentColor"),
-    border: cssToken(style, "--border-subtle", "currentColor"),
-    surface: cssToken(style, "--surface-1", "transparent"),
+    series: token(style, "--chart-series-1", FALLBACK.series),
+    seriesAlt: token(style, "--chart-series-2", FALLBACK.seriesAlt),
+    danger: token(style, "--danger", FALLBACK.danger),
+    grid: token(style, "--chart-grid", FALLBACK.grid),
+    axis: token(style, "--chart-axis", FALLBACK.axis),
+    surface: token(style, "--surface-1", FALLBACK.surface),
+    text: token(style, "--text-primary", FALLBACK.text),
+    border: token(style, "--border-subtle", FALLBACK.border),
   };
 }
 
-function chartOption(
-  title: string,
-  rows: ReportChartRow[],
-  kind: "line" | "bar",
-  tokens: ChartTokens
-): Record<string, unknown> {
-  const data = rows.map((row) => ({
-    value: row.value,
-    itemStyle: { color: row.value < 0 ? tokens.danger : tokens.brand },
-  }));
-
-  return {
-    animation: false,
-    backgroundColor: "transparent",
-    aria: {
-      enabled: true,
-      decal: { show: false },
-      description: `${title}. ${rows.map((row) => `${row.label}: ${formatReportMoney(row.value)}`).join("، ")}`,
-    },
-    grid: {
-      top: 24,
-      right: 18,
-      bottom: rows.length > 6 ? 76 : 54,
-      left: 70,
-      containLabel: true,
-    },
-    tooltip: {
-      trigger: "axis",
-      appendToBody: true,
-      backgroundColor: tokens.surface,
-      borderColor: tokens.border,
-      textStyle: { color: tokens.text, fontFamily: "inherit" },
-      valueFormatter: (value: unknown) => formatReportMoney(Number(value)),
-    },
-    xAxis: {
-      type: "category",
-      data: rows.map((row) => row.label),
-      axisLine: { lineStyle: { color: tokens.border } },
-      axisTick: { alignWithLabel: true },
-      axisLabel: {
-        color: tokens.muted,
-        interval: 0,
-        rotate: rows.length > 6 ? 28 : 0,
-        hideOverlap: true,
-      },
-    },
-    yAxis: {
-      type: "value",
-      axisLabel: {
-        color: tokens.muted,
-        formatter: (value: number) => new Intl.NumberFormat("ar-EG", {
-          notation: "compact",
-          maximumFractionDigits: 1,
-        }).format(value),
-      },
-      splitLine: { lineStyle: { color: tokens.border, type: "dashed" } },
-    },
-    series: [{
-      name: title,
-      type: kind,
-      data,
-      smooth: false,
-      symbolSize: 8,
-      showSymbol: kind === "line",
-      lineStyle: { width: 3, color: tokens.brand },
-      itemStyle: { color: tokens.brand },
-      barMaxWidth: 52,
-      emphasis: { focus: "series" },
-    }],
-  };
+/** Soft fill under the series — accepts hex or any CSS colour the theme supplies. */
+function softFill(color: string, alpha: number): string {
+  const hex = color.trim();
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);
+  if (!match) return `color-mix(in srgb, ${hex} ${Math.round(alpha * 100)}%, transparent)`;
+  let body = match[1];
+  if (body.length === 3) body = body.split("").map((c) => c + c).join("");
+  const int = parseInt(body, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+const compact = new Intl.NumberFormat("ar-EG", { notation: "compact", maximumFractionDigits: 1 });
 
 export function ReportChart({
   title,
   rows,
   kind,
-  valueLabel = reportText.value,
+  valueLabel = t.reports.value,
 }: ReportChartProps) {
   const titleId = useId();
+  const descId = useId();
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<EChartsInstance | null>(null);
-  const [chartError, setChartError] = useState(false);
-  const validRows = rows.filter((row) => Number.isFinite(row.value));
-  const dataSignature = JSON.stringify(validRows);
+  const [tokens, setTokens] = useState<ChartTokens>(FALLBACK);
 
+  const validRows = useMemo(
+    () => rows.filter((row) => Number.isFinite(row.value)),
+    [rows]
+  );
+
+  // Re-read tokens on mount and whenever the light/dark theme flips, so the
+  // chart follows the theme the same way the rest of the UI does.
   useEffect(() => {
     const host = hostRef.current;
-    if (!host || validRows.length === 0) return;
-    let cancelled = false;
-    let resizeObserver: ResizeObserver | null = null;
-    let resizeHandler: (() => void) | null = null;
-    let themeObserver: MutationObserver | null = null;
-    setChartError(false);
+    if (!host) return;
+    const sync = () => setTokens(readChartTokens(host));
+    sync();
 
-    void loadECharts()
-      .then((echarts) => {
-        if (cancelled || !host) return;
-        const chart = echarts.init(host, null, { renderer: "svg" });
-        chartRef.current = chart;
-        const render = () => {
-          chart.setOption(chartOption(title, validRows, kind, readChartTokens(host)), {
-            notMerge: true,
-          });
-        };
-        render();
+    if (typeof MutationObserver === "undefined") return;
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
-        if (typeof ResizeObserver !== "undefined") {
-          resizeObserver = new ResizeObserver(() => chart.resize());
-          resizeObserver.observe(host);
-        } else {
-          resizeHandler = () => chart.resize();
-          window.addEventListener("resize", resizeHandler);
-        }
-
-        if (typeof MutationObserver !== "undefined") {
-          themeObserver = new MutationObserver(render);
-          themeObserver.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["class", "data-theme"],
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setChartError(true);
-      });
-
-    return () => {
-      cancelled = true;
-      resizeObserver?.disconnect();
-      themeObserver?.disconnect();
-      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
-      chartRef.current?.dispose();
-      chartRef.current = null;
+  const data = useMemo(() => {
+    const values = validRows.map((row) => row.value);
+    const base = kind === "line" ? tokens.series : tokens.seriesAlt;
+    return {
+      labels: validRows.map((row) => row.label),
+      datasets: [
+        {
+          label: title,
+          data: values,
+          borderColor: base,
+          borderWidth: 2,
+          backgroundColor:
+            kind === "line"
+              ? softFill(base, 0.14)
+              : values.map((value) => (value < 0 ? tokens.danger : softFill(base, 0.75))),
+          fill: kind === "line",
+          tension: 0,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: base,
+          borderRadius: kind === "bar" ? 6 : undefined,
+          maxBarThickness: 52,
+        },
+      ],
     };
-  }, [kind, title, dataSignature]);
+  }, [validRows, kind, title, tokens]);
+
+  const options = useMemo<ChartOptions<"line" | "bar">>(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: tokens.surface,
+        borderColor: tokens.border,
+        borderWidth: 1,
+        titleColor: tokens.text,
+        bodyColor: tokens.text,
+        displayColors: false,
+        callbacks: {
+          label: (item) => formatReportMoney(Number(item.parsed.y)),
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        border: { color: tokens.grid },
+        ticks: {
+          color: tokens.axis,
+          autoSkip: false,
+          maxRotation: validRows.length > 6 ? 28 : 0,
+        },
+      },
+      y: {
+        grid: { color: tokens.grid },
+        border: { display: false },
+        ticks: {
+          color: tokens.axis,
+          callback: (value) => compact.format(Number(value)),
+        },
+      },
+    },
+  }), [tokens, validRows.length]);
 
   if (!validRows.length) return null;
+
+  const ChartComponent = kind === "line" ? Line : Bar;
+  const describedRows = validRows
+    .map((row) => `${row.label}: ${formatReportMoney(row.value)}`)
+    .join("، ");
 
   return (
     <div className="rpt-chart" aria-labelledby={titleId}>
       <span id={titleId} className="rpt-visually-hidden">{title}</span>
+      {/* Accessible name stays the report title; the series values are exposed
+          as the description so screen readers get both, not one run-on label. */}
       <div
         ref={hostRef}
         className="rpt-chart-canvas"
         role="img"
         aria-label={title}
-      />
-      {chartError && <p className="rpt-chart-warning" role="status">{reportText.chartUnavailable}</p>}
+        aria-describedby={descId}
+      >
+        <ChartComponent data={data as never} options={options as never} />
+      </div>
+      <span id={descId} className="rpt-visually-hidden">{describedRows}</span>
 
       <details className="rpt-chart-data">
-        <summary>{reportText.showChartData}</summary>
+        <summary>{t.reports.showChartData}</summary>
         <div className="rpt-table-wrap">
           <table>
             <thead>
-              <tr><th>{reportText.item}</th><th>{valueLabel}</th></tr>
+              <tr><th>{t.reports.item}</th><th>{valueLabel}</th></tr>
             </thead>
             <tbody>
               {validRows.map((row) => (

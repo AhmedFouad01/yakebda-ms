@@ -165,14 +165,22 @@ describe("Reporting foundation", () => {
   });
 
   it("preserves the historical source snapshot after the source is renamed", async () => {
-    const row = await db("orders as o")
+    // The seed pays orders but never attaches an order source, so this test
+    // builds its own fixture instead of depending on incidental seed data.
+    const orderSource = await db("order_sources").where({ account_id: accountId }).first();
+    expect(orderSource).toBeTruthy();
+
+    const paidOrder = await db("orders as o")
       .join("payments as p", "p.order_id", "o.id")
       .where("o.account_id", accountId)
-      .whereNotNull("o.source_id")
+      .where("o.branch_id", branchId)
       .whereNot("p.method", "unpaid")
-      .select("o.id", "o.source_id")
+      .select("o.id")
       .first();
-    expect(row).toBeTruthy();
+    expect(paidOrder).toBeTruthy();
+
+    await db("orders").where({ id: paidOrder.id }).update({ source_id: orderSource.id });
+    const row = { id: paidOrder.id, source_id: orderSource.id };
 
     await db("orders").where({ id: row.id }).update({ source_name_snapshot: "اسم المصدر وقت الطلب" });
     await db("order_sources").where({ id: row.source_id }).update({ name_ar: "اسم المصدر بعد التعديل" });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/t";
+import { paymentMethodLabel } from "../lib/labels";
 
 interface Summary {
   sales_today: number;
@@ -13,12 +14,6 @@ interface Summary {
 }
 
 const money = (v: number | string) => `${Number(v).toFixed(2)} ${t.reports.egp}`;
-const PAYMENT_AR: Record<string, string> = {
-  cash: t.pos.cash,
-  card: t.pos.card,
-  wallet: t.pos.wallet,
-  unpaid: t.pos.unpaid,
-};
 
 export function Reports() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -78,7 +73,7 @@ export function Reports() {
             <thead><tr><th>{t.reports.paymentMethods}</th><th>{t.reports.count}</th><th>{t.reports.totalSales}</th></tr></thead>
             <tbody>
               {methods.map((r) => (
-                <tr key={r.method}><td>{PAYMENT_AR[r.method] ?? r.method}</td><td>{r.count}</td><td>{money(r.total)}</td></tr>
+                <tr key={r.method}><td>{paymentMethodLabel(r.method)}</td><td>{r.count}</td><td>{money(r.total)}</td></tr>
               ))}
             </tbody>
           </table>

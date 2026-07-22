@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { api } from "../lib/api";
 import { t, fmtTime } from "../lib/t";
 import { useList } from "./hooks";
+import { deviceTypeLabel } from "../lib/labels";
 
 export function Devices() {
   const { data, error, reload } = useList("/devices");
@@ -48,7 +49,7 @@ export function Devices() {
             {data.map((d: any) => (
               <tr key={d.id}>
                 <td>{d.name}</td>
-                <td>{t.devices.types[d.type] ?? d.type}</td>
+                <td>{deviceTypeLabel(d.type)}</td>
                 <td><span className={`stub ${d.status === "online" ? "on" : "off"}`}>{d.status === "online" ? "متصل" : "غير متصل"}</span></td>
                 <td>{fmtTime(d.last_seen_at)}</td>
               </tr>

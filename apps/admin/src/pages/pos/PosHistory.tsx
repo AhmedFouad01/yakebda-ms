@@ -3,6 +3,7 @@ import { t } from "../../lib/t";
 import { Drawer } from "../../components/ui/overlays";
 import type { PosController } from "./usePosController";
 import { money } from "./utils";
+import { orderTypeLabel } from "../../lib/labels";
 
 export function PosHistory({ controller }: { controller: PosController }) {
   const {
@@ -69,7 +70,7 @@ export function PosHistory({ controller }: { controller: PosController }) {
                       <span>{new Date(order.created_at).toLocaleString("ar-EG", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                     </span>
                     <span className="posx-history-meta">
-                      <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+                      <span>{orderTypeLabel(order.order_type)}</span>
                       <span>{order.item_count} قطعة</span>
                        <span>{order.source_name ?? "مصدر غير مسجل"}</span>
                       <span className={`posx-history-status pay-${order.payment_status}`}>{paymentState}</span>

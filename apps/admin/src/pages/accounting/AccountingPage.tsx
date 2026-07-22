@@ -18,6 +18,12 @@ import { ConfirmDialog, Drawer, Modal, toast } from "../../components/ui/overlay
 import { api } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import {
+  financialEventTypeLabel,
+  journalLineComponentLabel,
+  movementSourceLabel,
+  residualStatusLabel,
+} from "../../lib/labels";
+import {
   fetchAccountingSettings,
   fetchEvent,
   fetchEvents,
@@ -280,7 +286,7 @@ function DashboardTab({ branchNames }: { branchNames: Map<string, string> }) {
             {recentErrors.map((event) => (
               <tr key={event.id}>
                 <td className="mono acc-num">{fmtTimestamp(event.created_at)}</td>
-                <td className="mono">{event.event_type}</td>
+                <td>{financialEventTypeLabel(event.event_type)}</td>
                 <td>
                   <Badge tone={STATUS_TONES[event.status]}>{STATUS_LABELS[event.status]}</Badge>
                 </td>
@@ -426,8 +432,8 @@ function EventsTab({
               {rows.map((event) => (
                 <tr key={event.id}>
                   <td className="mono acc-num">{fmtTimestamp(event.created_at)}</td>
-                  <td className="mono">{event.event_type}</td>
-                  <td className="mono">{event.source_type}</td>
+                  <td>{financialEventTypeLabel(event.event_type)}</td>
+                  <td>{movementSourceLabel(event.source_type)}</td>
                   <td>{event.branch_id ? branchNames.get(event.branch_id) ?? event.branch_id : "—"}</td>
                   <td>
                     <Badge tone={STATUS_TONES[event.status]}>{STATUS_LABELS[event.status]}</Badge>
@@ -574,9 +580,12 @@ function EventDetailDrawer({
               <dt>الحالة</dt>
               <dd><Badge tone={STATUS_TONES[detail.status]}>{STATUS_LABELS[detail.status]}</Badge></dd>
               <dt>نوع الحدث</dt>
-              <dd className="mono">{detail.event_type}</dd>
+              <dd>{financialEventTypeLabel(detail.event_type)}</dd>
               <dt>المصدر</dt>
-              <dd className="mono" dir="ltr">{detail.source_type} / {detail.source_id}</dd>
+              <dd>
+                {movementSourceLabel(detail.source_type)}{" "}
+                <span className="mono" dir="ltr">{detail.source_id}</span>
+              </dd>
               <dt>الفرع</dt>
               <dd>{detail.branch_id ? branchNames.get(detail.branch_id) ?? detail.branch_id : "—"}</dd>
               <dt>المحاولات</dt>
@@ -618,7 +627,7 @@ function EventDetailDrawer({
                     {detail.reconciliation.source_amount} = {detail.reconciliation.journal_amount} + {detail.reconciliation.residual_amount}
                   </dd>
                   <dt>حالة البند</dt>
-                  <dd className="mono">{detail.reconciliation.status}</dd>
+                  <dd>{residualStatusLabel(detail.reconciliation.status)}</dd>
                 </dl>
               </div>
             )}
@@ -799,8 +808,8 @@ function JournalsTab({
                     {entry.description}
                     {entry.reversal_of_entry_id && <> <Badge tone="warning">قيد عكسي</Badge></>}
                   </td>
-                  <td className="mono">{entry.event_type}</td>
-                  <td className="mono">{entry.source_type}</td>
+                  <td>{financialEventTypeLabel(entry.event_type)}</td>
+                  <td>{movementSourceLabel(entry.source_type)}</td>
                   <td>{entry.branch_id ? branchNames.get(entry.branch_id) ?? entry.branch_id : "—"}</td>
                   <td className="mono acc-num">{entry.lines.length}</td>
                   <td>
@@ -926,9 +935,12 @@ function JournalDetailDrawer({
               <dt>الوصف</dt>
               <dd>{detail.description}</dd>
               <dt>نوع الحدث</dt>
-              <dd className="mono">{detail.event_type}</dd>
+              <dd>{financialEventTypeLabel(detail.event_type)}</dd>
               <dt>المصدر</dt>
-              <dd className="mono" dir="ltr">{detail.source_type} / {detail.source_id}</dd>
+              <dd>
+                {movementSourceLabel(detail.source_type)}{" "}
+                <span className="mono" dir="ltr">{detail.source_id}</span>
+              </dd>
               <dt>الفرع</dt>
               <dd>{detail.branch_id ? branchNames.get(detail.branch_id) ?? detail.branch_id : "—"}</dd>
               <dt>التوازن</dt>
@@ -957,7 +969,7 @@ function JournalDetailDrawer({
                       <td>
                         <span className="mono">{line.account_code}</span> — {line.account_name_ar}
                       </td>
-                      <td className="mono">{line.component}</td>
+                      <td>{journalLineComponentLabel(line.component)}</td>
                       <td className="mono acc-num">{line.debit}</td>
                       <td className="mono acc-num">{line.credit}</td>
                     </tr>
@@ -995,7 +1007,7 @@ function JournalDetailDrawer({
                     </Badge>
                   </dd>
                   <dt>النوع</dt>
-                  <dd className="mono">{detail.financial_event.event_type}</dd>
+                  <dd>{financialEventTypeLabel(detail.financial_event.event_type)}</dd>
                 </dl>
                 <div className="inv-actions">
                   <Button onClick={() => { onClose(); onOpenEvent(detail.financial_event!.id); }}>فتح الحدث</Button>

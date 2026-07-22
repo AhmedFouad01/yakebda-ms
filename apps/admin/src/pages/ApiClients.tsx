@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { api } from "../lib/api";
 import { t, fmtTime } from "../lib/t";
 import { useList } from "./hooks";
+import { clientKindLabel } from "../lib/labels";
 
 export function ApiClients() {
   const { data, error, reload } = useList("/api-clients");
@@ -57,7 +58,7 @@ export function ApiClients() {
             {data.map((c: any) => (
               <tr key={c.id}>
                 <td>{c.name}</td>
-                <td>{t.apiClients.kinds[c.kind] ?? c.kind}</td>
+                <td>{clientKindLabel(c.kind)}</td>
                 <td dir="ltr">{(c.tokens ?? []).filter((tk: any) => !tk.revoked_at).map((tk: any) => `${tk.prefix}…`).join(" ، ") || "—"}</td>
                 <td>{fmtTime(c.created_at)}</td>
                 <td><button type="button" className="btn secondary" onClick={() => issueToken(c.id, c.kind)}>{t.apiClients.newToken}</button></td>

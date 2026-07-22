@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { api } from "../lib/api";
 import { t, fmtTime } from "../lib/t";
 import { useList } from "./hooks";
+import { hardwareKindLabel } from "../lib/labels";
 
 export function Hardware() {
   const { data, error, reload } = useList("/hardware-endpoints");
@@ -69,7 +70,7 @@ export function Hardware() {
             {data.map((h: any) => (
               <tr key={h.id}>
                 <td>{h.name}</td>
-                <td>{t.hardware.kinds[h.kind] ?? h.kind}</td>
+                <td>{hardwareKindLabel(h.kind)}</td>
                 <td dir="ltr">{h.connection}</td>
                 <td>{fmtTime(h.last_seen_at)}</td>
               </tr>

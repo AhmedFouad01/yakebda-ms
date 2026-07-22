@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { t, fmtTime } from "../lib/t";
+import { auditActionLabel } from "../lib/labels";
 import { useList } from "./hooks";
 import { api } from "../lib/api";
 import { brand } from "../config/brand";
@@ -47,7 +48,7 @@ export function Dashboard() {
           <tbody>
             {audit.data.slice(0, 8).map((a: any) => (
               <tr key={a.id}>
-                <td>{a.action}</td>
+                <td>{auditActionLabel(a.action)}</td>
                 <td>{a.user_name ?? "—"}</td>
                 <td>{a.branch_name ?? "—"}</td>
                 <td>{fmtTime(a.created_at)}</td>

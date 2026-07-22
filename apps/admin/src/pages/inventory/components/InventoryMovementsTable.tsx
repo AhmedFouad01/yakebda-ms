@@ -1,5 +1,6 @@
 import { Badge } from "../../../components/ui/primitives";
-import { fmtDateTime, fmtMoney, fmtQuantity, MOVEMENT_TYPE_AR } from "../inventoryApi";
+import { movementSourceLabel, movementTypeLabel } from "../../../lib/labels";
+import { fmtDateTime, fmtMoney, fmtQuantity } from "../inventoryApi";
 import type { InventoryItem, InventoryLocation, InventoryMovementRow } from "../inventoryTypes";
 
 /**
@@ -36,14 +37,15 @@ export function InventoryMovementsTable({
             <td>{locations.get(m.location_id)?.name_ar ?? "غير متاح"}</td>
             <td>
               <Badge tone={Number(m.quantity_base) < 0 ? "danger" : "success"}>
-                {MOVEMENT_TYPE_AR[m.movement_type] ?? m.movement_type}
+                {movementTypeLabel(m.movement_type)}
               </Badge>
               {m.reversal_of_movement_id && <span className="muted inv-rev"> (عكس لحركة سابقة)</span>}
             </td>
             <td className="mono inv-num">{fmtQuantity(m.quantity_base)}</td>
             <td className="mono inv-num">{fmtMoney(m.total_value)}</td>
+            {/* نوع المصدر بالعربية؛ المرجع يبقى كما ورد لأنه بيان تشغيلي لا كود تقني. */}
             <td className="muted">
-              {m.source_type}
+              {movementSourceLabel(m.source_type)}
               {m.source_id ? <span className="mono"> #{m.source_id.slice(0, 12)}</span> : null}
             </td>
           </tr>

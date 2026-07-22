@@ -4,6 +4,7 @@ import { t } from "../lib/t";
 import { Badge, Button, StatusChip } from "../components/ui/primitives";
 import { Modal } from "../components/ui/overlays";
 import { useMe } from "../lib/me";
+import { orderTypeLabel } from "../lib/labels";
 
 interface KOrder {
   id: string;
@@ -519,7 +520,7 @@ export function Kitchen() {
                       const slaLabel = order.status === "ready" ? "تم التجهيز" : SLA_LABEL[slaState];
                       const elapsed = formatDuration(effMs);
                       const itemCount = order.items.reduce((sum, item) => sum + item.qty, 0);
-                      const orderType = t.orders.types[order.order_type] ?? order.order_type;
+                      const orderType = orderTypeLabel(order.order_type);
 
                       return (
                         <article key={order.id} className={`kds-card workflow-${order.status} sla-${slaState}`}>

@@ -4,6 +4,7 @@ import { api, apiAllPages } from "../../lib/api";
 import { toast } from "../../components/ui/overlays";
 import { Button, SectionCard, ToggleSwitch, TextInput, NumberInput, Select } from "../../components/ui/primitives";
 import { useMe } from "../../lib/me";
+import { roleLabel } from "../../lib/labels";
 
 /**
  * YKMS-02F — أقسام CRUD في الإعدادات (فروع/منيو/محطات/أوقات/مناطق/سائقون/أدوار).
@@ -314,7 +315,8 @@ export function RolesSection() {
         const isFull = role.key === "owner" || role.key === "admin";
         return (
           <div key={role.id} className="set-role">
-            <strong>{role.name_ar}</strong> <span className="muted" dir="ltr">({role.key})</span>
+            {/* UX-LANG-01: مفتاح الدور التقني لا يُعرض — الاسم العربي وحده. */}
+            <strong>{roleLabel(role.key, role.name_ar)}</strong>
             <div className="set-perms">
               {/* العدّاد نص حقيقي — لا يُصنع من CSS counters (عناصر display:none لا تُحتسب) */}
               {isFull

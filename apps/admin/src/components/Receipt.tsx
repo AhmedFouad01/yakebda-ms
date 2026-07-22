@@ -1,5 +1,6 @@
 import { brand } from "../config/brand";
 import { t } from "../lib/t";
+import { paymentMethodLabel, orderTypeLabel } from "../lib/labels";
 
 export interface FullOrder {
   id: string;
@@ -53,12 +54,6 @@ export interface FullOrder {
 }
 
 const money = (v: string | number) => `${Number(v).toFixed(2)} ${t.reports.egp}`;
-const PAYMENT_AR: Record<string, string> = {
-  cash: t.pos.cash,
-  card: t.pos.card,
-  wallet: t.pos.wallet,
-  unpaid: t.pos.unpaid,
-};
 
 /** معاينة إيصال — نفس بنية الإيصال المطبوع عبر الجسر. */
 export function Receipt({ order }: { order: FullOrder }) {
@@ -74,7 +69,7 @@ export function Receipt({ order }: { order: FullOrder }) {
         <span>
           {t.receipt.orderNo} {order.order_prefix ?? ""}{order.order_no}
         </span>
-        <span>{t.orders.types[order.order_type] ?? order.order_type}</span>
+        <span>{orderTypeLabel(order.order_type)}</span>
       </div>
       {order.source_name && <div className="receipt-line">المصدر: {order.source_name}</div>}
       {order.table_name_ar && <div className="receipt-line">{t.pos.table}: {order.table_name_ar}</div>}
@@ -148,7 +143,7 @@ export function Receipt({ order }: { order: FullOrder }) {
         <div key={p.id} className="receipt-row">
           <span>{t.receipt.payment}</span>
           <span>
-            {PAYMENT_AR[p.method] ?? p.method} — {money(p.amount)}
+            {paymentMethodLabel(p.method)} — {money(p.amount)}
           </span>
         </div>
       ))}

@@ -253,14 +253,42 @@ describe("P0 sub-cent inventory reconciliation", () => {
     expect(await db("financial_event_reconciliations").where({ financial_event_id: evidence.event.id })).toHaveLength(1);
   });
 
-  it("blocks period close while a non-zero residual balance remains open", async () => {
+  it("closes a period with open residuals only through automatic settlement (ADR-004 type A)", async () => {
     const today = new Date().toISOString().slice(0, 10);
-    const response = await request(app)
+    const openBefore = await db("financial_event_reconciliations").where({ account_id: accountId, status: "open" });
+    expect(openBefore.length).toBeGreaterThan(0);
+
+    // When settlement cannot run (rounding mapping unmapped) the close is
+    // refused atomically: no locked period, residuals untouched.
+    await db("accounting_mappings").where({ account_id: accountId, event_type: "residual.settlement" }).delete();
+    const blocked = await request(app)
       .post("/api/v1/accounting/periods/lock")
       .set(auth())
       .send({ starts_on: today, ends_on: today });
-    expect(response.status).toBe(409);
+    expect(blocked.status).toBe(422);
     expect(await db("accounting_periods").where({ account_id: accountId, starts_on: today, ends_on: today, status: "locked" })).toHaveLength(0);
+    expect((await db("financial_event_reconciliations").where({ account_id: accountId, status: "open" })).length).toBe(openBefore.length);
+
+    // With the mapping restored, close = settlement -> zero-check -> lock.
+    const inventoryId = (await db("accounting_accounts").where({ account_id: accountId, system_key: "inventory" }).first()).id;
+    const roundingId = (await db("accounting_accounts").where({ account_id: accountId, system_key: "rounding" }).first()).id;
+    await db("accounting_mappings").insert({
+      id: newId(),
+      account_id: accountId,
+      event_type: "residual.settlement",
+      dimension_key: "default",
+      debit_account_id: inventoryId,
+      credit_account_id: roundingId,
+      vat_account_id: null,
+    });
+    const locked = await request(app)
+      .post("/api/v1/accounting/periods/lock")
+      .set(auth())
+      .send({ starts_on: today, ends_on: today });
+    expect(locked.status).toBe(201);
+    expect(locked.body.settlement.settled_count).toBe(openBefore.length);
+    expect(await db("financial_event_reconciliations").where({ account_id: accountId, status: "open" })).toHaveLength(0);
+    expect(await db("accounting_periods").where({ account_id: accountId, starts_on: today, ends_on: today, status: "locked" })).toHaveLength(1);
   });
 
   it("blocks new residual evidence from being inserted into a locked period", async () => {

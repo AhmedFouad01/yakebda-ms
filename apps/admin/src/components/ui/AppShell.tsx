@@ -26,6 +26,7 @@ export const NAV_LINKS: Array<{ to: string; label: () => string; perms: string[]
   { to: "/menu", label: () => t.nav.menu, perms: ["menu.manage"] },
   { to: "/customers", label: () => t.nav.customers, perms: ["customers.manage"] },
   { to: "/inventory", label: () => t.nav.inventory, perms: ["inventory.view"] },
+  { to: "/accounting", label: () => t.nav.accounting, perms: ["accounting.view"] },
   { to: "/branches", label: () => t.nav.branches, perms: ["branches.manage"] },
   { to: "/users", label: () => t.nav.users, perms: ["users.manage"] },
   { to: "/devices", label: () => t.nav.devices, perms: ["devices.manage"] },

@@ -17,6 +17,7 @@ import { Menu } from "./pages/Menu";
 import { Orders } from "./pages/Orders";
 import { Customers } from "./pages/Customers";
 import { InventoryPage } from "./pages/inventory/InventoryPage";
+import { AccountingPage } from "./pages/accounting/AccountingPage";
 import { Reports } from "./pages/Reports";
 import { SettingsPage } from "./pages/Settings";
 import { NotFound } from "./pages/NotFound";
@@ -54,6 +55,7 @@ export function App() {
           <Route path="/orders" element={<Guard anyOf={["orders.manage", "orders.create"]}><Orders /></Guard>} />
           <Route path="/customers" element={<Guard perm="customers.manage"><Customers /></Guard>} />
           <Route path="/inventory" element={<Guard perm="inventory.view"><InventoryPage /></Guard>} />
+          <Route path="/accounting" element={<Guard perm="accounting.view"><AccountingPage /></Guard>} />
           <Route path="/reports" element={<Guard perm="reports.view"><Reports /></Guard>} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/branches" element={<Branches />} />

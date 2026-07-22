@@ -1,5 +1,11 @@
 import knex, { Knex } from "knex";
+import { types } from "pg";
 import { config } from "../config";
+
+// DATE columns (oid 1082) are calendar dates, not instants: parse them as
+// their literal "YYYY-MM-DD" string. The default JS Date at *local* midnight
+// re-introduces a timezone assumption and shifts the day for TZ > UTC.
+types.setTypeParser(1082, (value) => value);
 import * as m001 from "./migrations/20260705_001_foundation";
 import * as m002 from "./migrations/20260709_002_ykms_02_restaurant_mvp";
 import * as m003 from "./migrations/20260709_003_ykms_02b_operational_pos";
@@ -27,6 +33,7 @@ import * as m024 from "./migrations/20260716_024_financial_event_outbox";
 import * as m025 from "./migrations/20260716_025_accounting_ledger";
 import * as m026 from "./migrations/20260716_026_inventory_accounting_p0_integrity";
 import * as mKitchenHold from "./migrations/20260717_027_kitchen_pause_order_hold";
+import * as m028 from "./migrations/20260721_028_accounting_default_chart";
 
 /**
  * Migrations are registered in code (migrationSource) so they run identically
@@ -60,6 +67,7 @@ const MIGRATIONS: Record<string, { up: (db: Knex) => Promise<void>; down: (db: K
   "20260716_025_accounting_ledger": m025,
   "20260716_026_inventory_accounting_p0_integrity": m026,
   "20260717_027_kitchen_pause_order_hold": mKitchenHold,
+  "20260721_028_accounting_default_chart": m028,
 };
 
 const migrationSource: Knex.MigrationSource<string> = {

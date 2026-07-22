@@ -268,6 +268,21 @@ SettingsLayout بـ12 قسمًا، ToggleSwitch بدل checkboxes، «وضع ا�
 
 ---
 
+## Engineering Milestone — SCC-PILOT-01
+
+**Date:** 2026-07-22
+**Status:** Controlled internal pilot ready (92%); production hardening pending.
+**Branch:** `feat/scc-client-sdk-pilot`
+
+- YAKEBDA_MS selected as the first real Systronic Control Center pilot; Arena Hub deferred.
+- Real local SCC flow passed enrollment, heartbeat, license, configuration, redacted error/P1 ticket, backup, signed update, and audit checks.
+- Arabic RTL diagnostics and manual heartbeat validated in the local browser.
+- Full PostgreSQL restore succeeded in a disposable database with 60 public tables.
+- Production blockers: DPAPI/TPM key custody and real Windows installer/LKG rollback.
+- Evidence and runbook: `docs/scc-pilot/`.
+
+---
+
 ## Engineering Milestone - P3 Platform Hardening
 
 **Date:** 2026-07-16

@@ -30,6 +30,17 @@
 - The package contains no framework, database, environment, or side-effectful
   runtime code.
 
+### Systronic Control Center Pilot
+
+- `@scc/client-sdk` owns device identity/enrollment, bounded offline events,
+  signed offline licensing, typed LKG configuration, and signed updates.
+- The API maps allowlisted database/printer/storage/backlog signals and exposes
+  owner-only diagnostics, heartbeat, backup status, and runtime enable control.
+- The Admin application exposes Arabic RTL SCC diagnostics under `/scc`.
+- Backup and restore scripts create an ignored custom-format archive, verify
+  it, restore into a guarded disposable test database, and report posture.
+- SCC remains outside restaurant transaction paths and is disabled by default.
+
 ### Database
 
 - Numbered Knex migrations are the schema source of truth.
@@ -80,6 +91,8 @@ npm run api:test
 npm run admin:test
 npm run admin:build
 npm run ui:colors:check
+npm run scc:sdk:build
+npm run scc:sdk:test
 ```
 
 For UI changes, verify the affected operational screens at common cashier resolutions and check RTL behavior.

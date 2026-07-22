@@ -32,6 +32,12 @@ Open Shift → POS Order → Kitchen → Payment → Receipt → Reports → Clo
 
 ## Engineering Remediation Track
 
+- `SCC-PILOT-01` - first real SCC product integration with YAKEBDA_MS: 92%
+  complete and validated for controlled internal pilot on
+  `feat/scc-client-sdk-pilot`. Production key custody and Windows installer
+  hardening remain before restaurant production rollout. Arena Hub follows
+  only after this pilot evidence is accepted.
+
 - `P0` - payment, authentication, and read-permission hardening: completed.
 - `P1` - operational reliability, refunds, print claiming, and shift variance:
   completed. Refund behavior is active and tested, not a no-op flag.

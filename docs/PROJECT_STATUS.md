@@ -35,6 +35,14 @@ candidate covering observability, bounded cursor pagination, Node 22, and
 shared API/Admin wire contracts. Inventory and Accounting are separate future
 feature tracks and are not implemented by P3.
 
+SCC-PILOT-01 is implemented and locally validated on
+`feat/scc-client-sdk-pilot`. YAKEBDA_MS is the first real SCC product pilot;
+Arena Hub is deferred. Device enrollment, heartbeat, signed offline licensing,
+health, redacted error/P1 maintenance, backup/restore, typed configuration,
+signed update coordination, rollback tests, and an Arabic RTL diagnostics page
+are complete for a controlled internal pilot. Production key custody and the
+real Windows installer remain blockers; see `docs/scc-pilot/FINAL_STATUS.md`.
+
 ## Platform Direction
 
 The system remains cloud-first. Future platform work may add Windows operational clients, local device integration, resilient caching, and synchronization. These items remain architecture goals until implemented and validated.

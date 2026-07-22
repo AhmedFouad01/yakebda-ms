@@ -12,6 +12,7 @@ import {
 import { Modal, toast } from "../../../components/ui/overlays";
 import { fetchJournals, fetchResiduals, settleResiduals, type ResidualFilters } from "../accountingApi";
 import type { BranchRef, JournalEntryRow, ResidualsResponse, SettlementResult } from "../accountingTypes";
+import { financialEventTypeLabel } from "../../../lib/labels";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -171,7 +172,7 @@ export function SettlementTab({
                     <tr key={item.id}>
                       <td className="mono acc-num">{item.entry_date}</td>
                       <td>{item.branch_id ? branchNames.get(item.branch_id) ?? item.branch_id : "—"}</td>
-                      <td className="mono">{item.event_type}</td>
+                      <td>{financialEventTypeLabel(item.event_type)}</td>
                       <td className="mono acc-num">{item.source_amount}</td>
                       <td className="mono acc-num">{item.journal_amount}</td>
                       <td className="mono acc-num">{item.residual_amount}</td>

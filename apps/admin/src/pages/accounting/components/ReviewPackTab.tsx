@@ -16,6 +16,7 @@ import {
   type JournalEntryRow,
   type TrialBalanceResponse,
 } from "../accountingTypes";
+import { revenueRecognitionLabel } from "../../../lib/labels";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -115,7 +116,7 @@ export function ReviewPackTab() {
             <span className="mono acc-num">{settings?.vat_rate}%</span>
           </dd>
           <dt>الاعتراف بالإيراد</dt>
-          <dd className="mono">{settings?.revenue_recognition}</dd>
+          <dd>{revenueRecognitionLabel(settings?.revenue_recognition)}</dd>
           <dt>اليوم التشغيلي</dt>
           <dd>
             <span className="mono" dir="ltr">{settings?.timezone}</span> — يقفل الساعة{" "}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, ErrorState, LoadingState } from "../../../components/ui/primitives";
 import { fetchEvents, fmtTimestamp } from "../accountingApi";
 import { STATUS_LABELS, STATUS_TONES, type FinancialEventRow, type FinancialEventStatus } from "../accountingTypes";
+import { financialEventTypeLabel } from "../../../lib/labels";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -106,7 +107,7 @@ export function ExceptionsTab({
                   {rows.map((event) => (
                     <tr key={event.id}>
                       <td className="mono acc-num">{fmtTimestamp(event.created_at)}</td>
-                      <td className="mono">{event.event_type}</td>
+                      <td>{financialEventTypeLabel(event.event_type)}</td>
                       <td className="acc-truncate" title={event.last_error ?? undefined}>{event.last_error ?? "—"}</td>
                       <td>
                         <Button onClick={() => onOpenEvent(event.id)}>عرض</Button>

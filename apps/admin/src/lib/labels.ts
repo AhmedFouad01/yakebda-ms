@@ -103,6 +103,7 @@ const MOVEMENT_SOURCE: Record<string, string> = {
   order_consumption: "استهلاك طلب",
   shift_cash_movement: "حركة نقدية بالشيفت",
   journal_entry: "قيد محاسبي",
+  residual_settlement: "تصفية فروق",
   cp7_manual: "تسجيل يدوي",
 };
 export const movementSourceLabel = (v: unknown) => lookup(MOVEMENT_SOURCE, v, "مصدر آخر");
@@ -185,6 +186,57 @@ const RESIDUAL_STATUS: Record<string, string> = {
   reversed: "معكوس",
 };
 export const residualStatusLabel = (v: unknown) => lookup(RESIDUAL_STATUS, v, "حالة أخرى");
+
+/**
+ * نوع الحركة المالية (financial_events.event_type / journal_entries.event_type).
+ * القيم تقنية بنقطة فاصلة مثل `payment.captured` — لا تظهر للمستخدم أبدًا.
+ */
+const FINANCIAL_EVENT_TYPE: Record<string, string> = {
+  // الطلبات والدفع
+  "payment.captured": "تحصيل دفعة",
+  "refund.posted": "استرداد مبلغ",
+  "cash.movement": "حركة نقدية",
+  // المخزون (inventoryService.eventTypes)
+  "inventory.receipt": "استلام مخزون",
+  "inventory.issue": "صرف مخزون",
+  "inventory.adjustment": "تسوية مخزون",
+  "inventory.transfer": "تحويل مخزون",
+  "inventory.waste": "هالك مخزون",
+  "inventory.consumption": "استهلاك مخزون",
+  "inventory.reversal": "عكس حركة مخزون",
+  // الحسابات
+  "journal.reversal": "عكس قيد",
+  "residual.settlement": "تصفية فروق",
+  consume: "استهلاك مخزون",
+  reverse: "عكس حركة",
+  "test.manual": "حركة اختبار",
+};
+export const financialEventTypeLabel = (v: unknown) => lookup(FINANCIAL_EVENT_TYPE, v, "حركة أخرى");
+
+/** مكوّن سطر القيد (journal_lines.component). */
+const JOURNAL_LINE_COMPONENT: Record<string, string> = {
+  revenue: "إيراد",
+  tender: "تحصيل",
+  vat: "ضريبة القيمة المضافة",
+  debit: "مدين",
+  credit: "دائن",
+};
+export const journalLineComponentLabel = (v: unknown) => lookup(JOURNAL_LINE_COMPONENT, v, "مكوّن آخر");
+
+/** سياسة الاعتراف بالإيراد (accounting_settings.revenue_recognition). */
+const REVENUE_RECOGNITION: Record<string, string> = {
+  on_payment: "عند إتمام الطلب/الدفع",
+};
+export const revenueRecognitionLabel = (v: unknown) => lookup(REVENUE_RECOGNITION, v, "سياسة أخرى");
+
+/** بُعد قاعدة التوجيه (accounting_mappings.dimension_key). */
+const MAPPING_DIMENSION: Record<string, string> = {
+  default: "الافتراضي",
+  cash: "نقدي",
+  card: "بطاقة",
+  wallet: "محفظة إلكترونية",
+};
+export const mappingDimensionLabel = (v: unknown) => lookup(MAPPING_DIMENSION, v, "بُعد آخر");
 
 /* ——— سجل العمليات ——— */
 
@@ -302,6 +354,59 @@ const PERMISSION_GROUP: Record<string, string> = {
 /** يحتوي حروفًا عربية؟ (الـAPI يرسل بعض المجموعات معرّبة أصلًا). */
 function hasArabic(value: string): boolean {
   return /[؀-ۿ]/.test(value);
+}
+
+/**
+ * أسماء الصلاحيات بالعربية — تقابل كتالوج الخادم (`PERMISSIONS.name_ar`).
+ * تُستخدم حين نحتاج ذكر صلاحية في جملة موجّهة للمستخدم، بدل طبع المفتاح
+ * التقني مثل `accounting.manage` على الشاشة.
+ */
+const PERMISSION: Record<string, string> = {
+  "users.manage": "إدارة المستخدمين",
+  "roles.manage": "إدارة الأدوار والصلاحيات",
+  "permissions.manage": "إدارة خريطة الصلاحيات",
+  "branches.manage": "إدارة الفروع",
+  "devices.manage": "إدارة الأجهزة",
+  "hardware.manage": "إدارة الأجهزة الطرفية",
+  "print_jobs.create": "إنشاء أوامر الطباعة",
+  "print_jobs.manage": "إدارة أوامر الطباعة",
+  "cash_drawer.open": "فتح درج النقدية",
+  "audit.view": "عرض سجل العمليات",
+  "api_clients.manage": "إدارة التطبيقات المرتبطة",
+  "menu.manage": "إدارة المنيو",
+  "products.edit": "تعديل الأصناف والأسعار",
+  "products.disable": "إيقاف الأصناف",
+  "orders.create": "إنشاء الطلبات",
+  "orders.manage": "إدارة الطلبات وحالاتها",
+  "orders.cancel": "إلغاء الطلبات",
+  "orders.refund": "استرداد المدفوعات",
+  "orders.discount_above_limit": "اعتماد خصم فوق حد الكاشير",
+  "orders.delete_item_after_submit": "حذف صنف بعد إرسال المطبخ",
+  "payments.record": "تسجيل المدفوعات",
+  "shifts.manage": "إدارة الشيفت والنقدية",
+  "kitchen.view": "عرض شاشة المطبخ",
+  "kitchen.update": "تحديث حالة المطبخ",
+  "kitchen.manage": "إيقاف واستئناف المطبخ",
+  "tables.manage": "إدارة الطاولات",
+  "customers.view": "عرض العملاء",
+  "customers.lookup": "البحث عن العملاء من نقطة البيع",
+  "customers.manage": "إدارة العملاء",
+  "drivers.manage": "إدارة السائقين",
+  "delivery.assign": "تعيين سائق للطلبات",
+  "reports.view": "عرض التقارير",
+  "settings.view": "عرض الإعدادات",
+  "settings.manage": "إدارة الإعدادات",
+  "inventory.view": "عرض المخزون",
+  "inventory.manage": "إدارة المخزون",
+  "accounting.view": `عرض ${lexicon.accountingMovements}`,
+  "accounting.manage": `إدارة ${lexicon.accountingMovements}`,
+};
+
+/** اسم الصلاحية بالعربية — لا يُعرض مفتاح تقني للمستخدم أبدًا. */
+export function permissionLabel(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "صلاحية أخرى";
+  const key = String(v);
+  return PERMISSION[key] ?? (hasArabic(key) ? key : "صلاحية أخرى");
 }
 
 /** اسم مجموعة الصلاحيات — لا يُعرض مفتاح إنجليزي للمستخدم أبدًا. */

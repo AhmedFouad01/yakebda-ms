@@ -232,14 +232,15 @@ describe("CP5 — financial events screen", () => {
     render(<AccountingPage />);
     await waitFor(() => expect(screen.getByText("الأحداث المالية")).toBeTruthy());
     fireEvent.click(screen.getByText("الأحداث المالية"));
-    await waitFor(() => expect(screen.getAllByText("inventory.receipt").length).toBeGreaterThan(0));
+    // UX-LANG-01: نوع الحركة يظهر معرَّبًا — المفتاح الخام `inventory.receipt` لم يعد على الشاشة.
+    await waitFor(() => expect(screen.getAllByText("استلام مخزون").length).toBeGreaterThan(0));
   }
 
   it("lists events with semantic status badges and opens the detail drawer", async () => {
     primeApi();
     await openEventsTab();
-    expect(screen.getAllByText("فاشل").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("مُرحّل").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("لم تُسجّل").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("مُسجّلة").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByText("عرض")[0]);
     await waitFor(() => expect(screen.getByText("تفاصيل الحدث المالي")).toBeTruthy());
@@ -442,7 +443,8 @@ describe("CP5 — journals screen", () => {
     render(<AccountingPage />);
     await waitFor(() => expect(screen.getByText("القيود")).toBeTruthy());
     fireEvent.click(screen.getByText("القيود"));
-    await waitFor(() => expect(screen.getByText("استلام مخزون")).toBeTruthy());
+    // UX-LANG-01: النص يظهر مرتين الآن — وصف القيد وعمود نوع الحركة المعرَّب.
+    await waitFor(() => expect(screen.getAllByText("استلام مخزون").length).toBeGreaterThan(0));
   }
 
   it("shows entry lines with server totals and a balance chip", async () => {

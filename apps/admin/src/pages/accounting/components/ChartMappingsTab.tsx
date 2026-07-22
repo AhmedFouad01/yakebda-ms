@@ -25,6 +25,7 @@ import {
   type AccountingAccount,
   type AccountingMapping,
 } from "../accountingTypes";
+import { financialEventTypeLabel, mappingDimensionLabel } from "../../../lib/labels";
 
 type LoadState = "loading" | "error" | "ready";
 
@@ -147,13 +148,13 @@ export function ChartMappingsTab({ canManage }: { canManage: boolean }) {
             <tbody>
               {mappings.map((mapping) => (
                 <tr key={mapping.id}>
-                  <td className="mono">
-                    {mapping.event_type}{" "}
+                  <td>
+                    {financialEventTypeLabel(mapping.event_type)}{" "}
                     {mapping.event_type === "residual.settlement" && (
                       <Badge tone="brand">تسوية التقريب</Badge>
                     )}
                   </td>
-                  <td className="mono">{mapping.dimension_key}</td>
+                  <td>{mappingDimensionLabel(mapping.dimension_key)}</td>
                   <td>
                     <span className="mono">{mapping.debit_account_code}</span> — {mapping.debit_account_name_ar}
                   </td>
@@ -389,7 +390,11 @@ function MappingDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={mapping ? `تعديل قاعدة ${mapping.event_type}:${mapping.dimension_key}` : "قاعدة ترحيل جديدة"}
+      title={
+        mapping
+          ? `تعديل قاعدة ${financialEventTypeLabel(mapping.event_type)} — ${mappingDimensionLabel(mapping.dimension_key)}`
+          : "قاعدة ترحيل جديدة"
+      }
       footer={
         <div className="inv-actions">
           <Button

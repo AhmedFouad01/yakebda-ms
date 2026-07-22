@@ -7,8 +7,8 @@ import {
   LoadingState,
   NumberInput,
   Select,
-  StatusChip,
   TextInput,
+  ViewOnlyNotice,
 } from "../../../components/ui/primitives";
 import { toast } from "../../../components/ui/overlays";
 import { fetchAccountingSettings, updateAccountingSettings } from "../accountingApi";
@@ -89,9 +89,8 @@ export function SettingsTab({ branches, canManage }: { branches: BranchRef[]; ca
       {state === "error" && <ErrorState message={error} onRetry={() => load(branchId)} />}
       {state === "ready" && form && (
         <>
-          {!canManage && (
-            <StatusChip tone="info">وضع العرض فقط — التعديل يتطلب صلاحية accounting.manage</StatusChip>
-          )}
+          {/* UX-LANG-01: المفتاح التقني للصلاحية لا يُعرض — الإشعار الموحّد يذكر اسمها بالعربية. */}
+          {!canManage && <ViewOnlyNotice permission="accounting.manage" />}
 
           <div className="panel stack">
             <h3>القيم القابلة للتعديل (ADR-004 النوع ب)</h3>

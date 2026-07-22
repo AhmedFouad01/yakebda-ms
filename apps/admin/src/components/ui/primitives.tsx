@@ -1,5 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { permissionLabel } from "../../lib/labels";
 
 /**
  * YKMS-02F — نظام مكونات الواجهة.
@@ -222,14 +223,14 @@ export function EmptyState({ message, action }: { message: string; action?: Reac
 
 /* ——— الصلاحيات ——— */
 
-export function PermissionBadge({ permission }: { permission: string }) {
-  return <span className="uif-perm" dir="ltr">{permission}</span>;
-}
-
+/**
+ * UX-LANG-01: يُذكر اسم الصلاحية بالعربية — المفتاح التقني (مثل
+ * `accounting.manage`) لا يظهر للمستخدم على الشاشة إطلاقًا.
+ */
 export function ViewOnlyNotice({ permission }: { permission: string }) {
   return (
     <div className="uif-viewonly" role="note">
-      <strong>وضع العرض فقط</strong> — التعديل يتطلب صلاحية <PermissionBadge permission={permission} />
+      <strong>وضع العرض فقط</strong> — التعديل يتطلب صلاحية «{permissionLabel(permission)}»
     </div>
   );
 }

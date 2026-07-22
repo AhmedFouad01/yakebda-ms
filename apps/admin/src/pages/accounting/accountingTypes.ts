@@ -1,4 +1,5 @@
 import type { SemanticTone } from "../../components/ui/primitives";
+import { accountTypeLabel, financialEventStatusLabel } from "../../lib/labels";
 
 /**
  * ACC-FULL-01 CP5 — types mirror the API contracts exactly. Every monetary
@@ -28,17 +29,13 @@ export const FINANCIAL_EVENT_STATUSES: FinancialEventStatus[] = [
   "reconciled",
 ];
 
-export const STATUS_LABELS: Record<FinancialEventStatus, string> = {
-  pending: "قيد الانتظار",
-  processing: "قيد المعالجة",
-  posted: "مُرحّل",
-  failed: "فاشل",
-  dead: "متوقف نهائيًا",
-  pending_policy: "بانتظار سياسة",
-  deferred_rounding: "تقريب مؤجل",
-  non_posting: "بلا ترحيل",
-  reconciled: "مُسوّى",
-};
+/**
+ * UX-LANG-01: التسميات تأتي من المعجم المعتمد في `lib/labels` — مصدر واحد
+ * لكل الشاشات بدل خريطة محلية تتفرّع عنه.
+ */
+export const STATUS_LABELS: Record<FinancialEventStatus, string> = Object.fromEntries(
+  FINANCIAL_EVENT_STATUSES.map((status) => [status, financialEventStatusLabel(status)])
+) as Record<FinancialEventStatus, string>;
 
 export const STATUS_TONES: Record<FinancialEventStatus, SemanticTone> = {
   pending: "info",
@@ -163,13 +160,12 @@ export interface BranchRef {
 
 export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
-export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
-  asset: "أصل",
-  liability: "التزام",
-  equity: "حقوق ملكية",
-  revenue: "إيراد",
-  expense: "مصروف",
-};
+export const ACCOUNT_TYPES: AccountType[] = ["asset", "liability", "equity", "revenue", "expense"];
+
+/** UX-LANG-01: مشتقة من المعجم المعتمد، لا خريطة محلية موازية. */
+export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = Object.fromEntries(
+  ACCOUNT_TYPES.map((type) => [type, accountTypeLabel(type)])
+) as Record<AccountType, string>;
 
 export interface AccountingAccount {
   id: string;

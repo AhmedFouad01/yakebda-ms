@@ -160,10 +160,12 @@ describe("Sprint 2 — master data tabs and permission gating", () => {
     });
   });
 
-  it("contains no stock-operation forms anywhere (S2 exclusion)", async () => {
+  it("keeps the newly delivered stock operations separate from master-data dialogs", async () => {
     primeApi();
     render(<InventoryPage />);
     await waitFor(() => expect(screen.getByRole("tab", { name: "الوحدات" })).toBeTruthy());
-    expect(screen.queryByText(/استلام مشتريات|صرف مخزون|تسوية|هدر|تحويل مخزني|جرد/)).toBeNull();
+    expect(screen.getByRole("tab", { name: "استلام مشتريات" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "صرف" })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

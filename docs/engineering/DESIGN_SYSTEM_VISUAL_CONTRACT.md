@@ -1,6 +1,6 @@
 # DESIGN-SYS-01 Visual Contract
 
-Status: **DS1 Reports pilot implemented and locally validated**.
+Status: **DS2 Dashboard pilot implemented and locally validated; Gate A: CONTINUE**.
 
 This document records the repository-safe implementation contract and token
 adoption state. It contains engineering facts only; visual reference material
@@ -41,12 +41,11 @@ and review rationale remain outside the repository.
 
 ## Protected Geometry
 
-The following are outside DS0 and DS1:
+The following remain outside the completed DS0-DS2 scope:
 
 - AppShell layout, navigation, and identity.
 - POS grid, search position, cart behavior, interaction count, keyboard and
   pointer behavior, and product-option flow.
-- Dashboard layout and component extraction.
 - API contracts, report aggregation, permissions, and error isolation.
 - Shared `.card`, `.panel`, `button`, `table`, and heading selectors.
 
@@ -65,8 +64,8 @@ final color authority.
 
 | Screen | Status | Tokens used | Legacy remaining | Decision |
 |---|---|---|---|---|
-| Reports | DS1 locally validated | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas heights, responsive breakpoints, grid minimums, the visually-hidden accessibility utility, and a visible marker for a one-point line series remain approved screen/accessibility exceptions | Proceed to DS2 before Gate A |
-| Dashboard | Not started | — | Existing screen CSS | Wait for DS2 |
+| Reports | DS1 locally validated | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas heights, responsive breakpoints, grid minimums, the visually-hidden accessibility utility, and a visible marker for a one-point line series remain approved screen/accessibility exceptions | Gate A: CONTINUE |
+| Dashboard | DS2 locally validated | Reading spacing, content spacing, hero/page/section/body/label type, card radius, divider width | Existing 30px logo geometry, 640px table minimum, responsive breakpoints, and KPI grid minimums remain approved screen exceptions | Gate A: CONTINUE |
 | POS | Not started | — | Existing operational CSS | Wait for DS3 and Gate B |
 | Accounting | Not started | — | Existing tab CSS | Wait for DS4 |
 | Inventory | Not started | — | Existing screen CSS | Wait for DS5 |
@@ -127,3 +126,60 @@ baseline SHA:
 
 Candidate screenshots are local QA artifacts under
 `/tmp/yakebda-ds01-candidate` and are intentionally not committed.
+
+## DS2 Dashboard Pilot
+
+The Dashboard pilot is visual-only:
+
+- The summary KPIs use a flat definition-list structure without card surfaces.
+- Displayed values use tabular numerals and the hero type token.
+- Page and section headings, supporting text, and reading-screen spacing use
+  the approved hierarchy and spacing tokens.
+- The recent-audit table remains an explicit contained surface with horizontal
+  scrolling at narrow widths.
+- Existing request paths, permission guards, calculations, data slicing,
+  navigation, and error behavior are unchanged.
+- Reports and Dashboard now prove a repeated metric structure, but the markup
+  remains small and the grids and semantics are screen-owned. No shared
+  component is extracted; reconsider after a third real use or shared behavior.
+
+### DS2 Local Validation
+
+Completed on 2026-07-23 on the same pilot branch and against the same isolated
+`ykms_ds01_qa` database:
+
+| Gate | Result |
+|---|---|
+| `npm run check` | Pass |
+| Contracts tests | 13/13 |
+| API tests | 314/314 |
+| Admin tests | 74/74 |
+| API TypeScript build | Pass |
+| Admin production build | Pass |
+| Semantic color contract | Pass |
+| `git diff --check` | Pass |
+| Dashboard Light/Dark at 1920, 1366, and 390 | Pass |
+| Reports Light/Dark regression check at 1366 | Pass |
+| Page and main-content horizontal overflow | None |
+| Narrow audit-table containment | Pass; local horizontal scroll only |
+| Screen-owned keyboard interactions | None introduced |
+| RTL | Pass |
+| Browser console errors | None |
+| Dashboard requests | 200/304; no 500 responses |
+
+Candidate screenshots are local QA artifacts under
+`/tmp/yakebda-ds02-candidate` and are intentionally not committed.
+
+## Gate A
+
+Decision: **CONTINUE**.
+
+- The Reports and Dashboard pilots preserve the intended visual direction in
+  both themes and all required viewport widths.
+- The additive token set covers both reading screens without raw colors,
+  global selector changes, or screen-to-screen overrides.
+- Repetition is now visible in the metric structure, but it does not yet
+  justify a shared component because the markup is small and behavior is not
+  shared.
+- The remaining geometry exceptions are explicit and screen-owned rather than
+  new cross-screen CSS debt.

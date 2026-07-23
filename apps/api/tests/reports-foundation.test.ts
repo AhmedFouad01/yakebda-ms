@@ -196,32 +196,60 @@ describe("Reporting foundation", () => {
   });
 
   it("keeps products with the same snapshot name separate by product identity", async () => {
-    const order = await db("orders")
-      .where({ account_id: accountId, branch_id: branchId })
-      .whereNot("status", "cancelled")
-      .first();
-    const products = await db("products").where({ account_id: accountId }).limit(2);
-    expect(order).toBeTruthy();
-    expect(products).toHaveLength(2);
+    // Build products without modifier-group links and a dedicated order so the
+    // assertion never depends on seed product ordering or required modifiers.
+    const categoryId = newId();
+    const orderId = newId();
+    const productIds = [newId(), newId()];
+
+    await db("categories").insert({
+      id: categoryId,
+      account_id: accountId,
+      name_ar: "اختبار هوية منتجات التقارير",
+      sort_order: 900,
+      is_active: true,
+    });
+    await db("products").insert(productIds.map((id, index) => ({
+      id,
+      account_id: accountId,
+      category_id: categoryId,
+      name_ar: `منتج هوية ${index + 1}`,
+      base_price: 10,
+      sort_order: index,
+      is_active: true,
+    })));
+    await db("orders").insert({
+      id: orderId,
+      account_id: accountId,
+      branch_id: branchId,
+      order_no: 900001,
+      order_type: "takeaway",
+      status: "completed",
+      subtotal: 2030,
+      discount: 0,
+      total: 2030,
+      submitted_at: db.fn.now(),
+      completed_at: db.fn.now(),
+    });
 
     await db("order_items").insert([
       {
         id: newId(),
-        order_id: order.id,
-        product_id: products[0].id,
+        order_id: orderId,
+        product_id: productIds[0],
         name_ar: "اسم مكرر للاختبار",
-        qty: 2,
+        qty: 101,
         unit_price: 10,
-        line_total: 20,
+        line_total: 1010,
       },
       {
         id: newId(),
-        order_id: order.id,
-        product_id: products[1].id,
+        order_id: orderId,
+        product_id: productIds[1],
         name_ar: "اسم مكرر للاختبار",
-        qty: 3,
+        qty: 102,
         unit_price: 10,
-        line_total: 30,
+        line_total: 1020,
       },
     ]);
 

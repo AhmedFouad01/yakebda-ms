@@ -27,7 +27,7 @@ npm run api:migrate
 
 ## Standard Validation
 
-Full check (builds contracts, runs contracts tests, checks the semantic color contract, runs API tests, admin tests, and admin build):
+Full check (builds contracts, runs contracts tests, checks the semantic color contract, type-checks the API, runs API tests, admin tests, and admin build):
 
 ```bash
 npm run check
@@ -37,6 +37,7 @@ Individual pieces, if needed:
 
 ```bash
 npm run contracts:build   # required before api:test / admin:build after a fresh npm ci
+npm run tsc:api
 npm run api:test
 npm run admin:build
 ```

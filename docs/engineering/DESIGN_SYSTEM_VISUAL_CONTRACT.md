@@ -66,7 +66,7 @@ final color authority.
 |---|---|---|---|---|
 | Reports | DS1 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas sizing, Chart.js geometry, responsive breakpoints, grid minimums, pill geometry, and the visually-hidden accessibility utility remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
 | Dashboard | DS2 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, divider width | Existing 30px logo geometry, 640px table minimum, responsive breakpoints, and 150px KPI grid minimum remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
-| POS | DS3 locally validated / not published | Operational spacing/type roles, tabular numbers, card radius, and divider width on the frozen local branch only | Accepted AppShell/POS geometry, responsive density rules, product media sizing, cart width/position, search order, and 390px containment remain local-only evidence | Gate B: pending owner review |
+| POS | DS3 locally validated / not published | Operational spacing/type roles, tabular numbers, card radius, and divider width on the frozen local branch only | Accepted AppShell/POS geometry, responsive density rules, product media sizing, cart width/position, search order, and 390px containment remain local-only evidence | Gate B: CONTINUE |
 | Accounting | Not started | — | Existing tab CSS | Wait for DS4 |
 | Inventory | Not started | — | Existing screen CSS | Wait for DS5 |
 | Orders | Not started | — | Existing screen CSS | Wait for DS5 |
@@ -314,7 +314,7 @@ Candidate screenshots are local QA artifacts under
 | DS2 Dashboard | Done / Merged |
 | Gate A | CONTINUE / Closed |
 | DS3 POS | Locally validated / Not published |
-| Gate B | pending owner review |
+| Gate B | CONTINUE |
 | DS4 Accounting | Not started |
 
 ## DS3 Frozen Local State
@@ -326,7 +326,7 @@ Candidate screenshots are local QA artifacts under
 - Local Branch: `codex/design-sys-pos-pilot`.
 - Local HEAD: `0b8a40ffe1d3b5011f61dd53daff477ed7b09e6a`.
 - Unique commit: `feat(pos): apply visual design system pilot`.
-- Gate B: **pending owner review**.
+- Gate B: **CONTINUE** (owner reviewed).
 - DS3 must be re-established over the new `main` in a separate explicitly
   authorized task; it is not merged into or published from this closeout.
 
@@ -401,11 +401,12 @@ Candidate screenshots are local QA artifacts under
 
 ## Gate B
 
-Decision: **pending owner review**. The findings below are implementation
-evidence submitted for the owner's Gate B review; Gate B has not been held.
+Decision: **CONTINUE**. Owner Gate B review is complete; the findings below are
+the reviewed implementation evidence.
 
 1. Operational density and cashier speed are preserved; product-grid and cart
-   dimensions match the DS3 baseline exactly.
+   dimensions match the DS3 baseline exactly (live pixel measurement: 9 cards,
+   5 columns, 267px card, 520px cart — identical before and after).
 2. Interaction count is unchanged; click, context-click, keyboard, options,
    cart editing, source selection, and submission follow the existing flow.
 3. Accepted AppShell and POS geometry is preserved, including icon-only
@@ -414,4 +415,8 @@ evidence submitted for the owner's Gate B review; Gate B has not been held.
 4. The change is visual-only and limited to scoped POS CSS plus this ledger.
 5. Reports and Dashboard show no regression in either theme at 1366px.
 
-No target-contract deviations were found. DS4 is not started.
+Non-blocking observation carried forward: the flat placeholder marker (`◇`) is a
+candidate for later refinement; it does not affect Gate B.
+
+No target-contract deviations were found. DS4 may begin as an independent,
+per-tab scope.

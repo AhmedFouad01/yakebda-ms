@@ -9696,3 +9696,110 @@ button.danger,
   --ds-control-height: 36px;
   --ds-divider-width: 1px;
 }
+
+/* DESIGN-SYS-01 — DS3 POS visual pilot (screen-owned, geometry-preserving) */
+.app2-pos .posx-card2,
+.app2-pos .posx-grid > .posx-card2,
+.app2-pos .posx-order-rail,
+.app2-pos .posx-fast-line {
+  border-width: var(--ds-divider-width);
+  border-radius: var(--ds-radius-card);
+}
+
+.app2-pos .posx-card2-media {
+  border-block-end-width: var(--ds-divider-width);
+  border-block-end-color: var(--border-subtle);
+}
+
+.app2-pos .posx-card2-img.ph {
+  background: var(--surface-2);
+}
+
+.app2-pos .posx-card2-img.ph::before {
+  display: none;
+}
+
+.app2-pos .posx-card2-img.ph::after {
+  content: "◇";
+  letter-spacing: 0;
+  font-size: var(--ds-type-hero);
+  font-weight: 500;
+}
+
+.app2-pos .posx-card2-price {
+  min-width: 0;
+  min-height: 0;
+  padding: 5px 8px;
+  border-width: var(--ds-divider-width);
+  border-style: solid;
+  border-radius: calc(var(--ds-radius-card) / 2);
+  box-shadow: none;
+  font-size: var(--ds-type-label);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-card2-qty-badge {
+  border-width: var(--ds-divider-width);
+  border-style: solid;
+  border-radius: calc(var(--ds-radius-card) / 2);
+  box-shadow: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-card2-name {
+  font-weight: 600;
+}
+
+.app2-pos .posx-card2:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand) 48%, transparent);
+  outline-offset: 2px;
+}
+
+.app2-pos .posx-card2-opt-label {
+  font-weight: 500;
+}
+
+.app2-pos .posx-card2-direct {
+  font-weight: 400;
+}
+
+.app2-pos .posx-chips button {
+  font-weight: 500;
+}
+
+.app2-pos .posx-chips button.active {
+  font-weight: 600;
+}
+
+.app2-pos .posx-fast-line-thumb {
+  border-width: var(--ds-divider-width);
+  border-radius: calc(var(--ds-radius-card) - 3px);
+}
+
+.app2-pos .posx-fast-line-head strong,
+.app2-pos .posx-fast-line-price,
+.app2-pos .posx-fast-line-qty,
+.app2-pos .posx-total,
+.app2-pos .posx-order-now {
+  font-weight: 600;
+}
+
+.app2-pos .posx-fast-line-price,
+.app2-pos .posx-fast-line-qty,
+.app2-pos .posx-total {
+  font-variant-numeric: tabular-nums;
+}
+
+.app2-pos .posx-fast-line-choices span {
+  font-weight: 400;
+}
+
+.app2-pos .posx-fast-line-note-button {
+  font-weight: 500;
+}
+
+.app2-pos .posx-totals {
+  border-top-width: var(--ds-divider-width);
+}

@@ -1,6 +1,6 @@
 # DESIGN-SYS-01 Visual Contract
 
-Status: **DS2 Dashboard pilot implemented and locally validated; Gate A: CONTINUE**.
+Status: **Gate A merged and documented; decision: CONTINUE; DS3 remains local-only and unpublished**.
 
 This document records the repository-safe implementation contract and token
 adoption state. It contains engineering facts only; visual reference material
@@ -64,15 +64,130 @@ final color authority.
 
 | Screen | Status | Tokens used | Legacy remaining | Decision |
 |---|---|---|---|---|
-| Reports | DS1 locally validated | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas heights, responsive breakpoints, grid minimums, the visually-hidden accessibility utility, and a visible marker for a one-point line series remain approved screen/accessibility exceptions | Gate A: CONTINUE |
-| Dashboard | DS2 locally validated | Reading spacing, content spacing, hero/page/section/body/label type, card radius, divider width | Existing 30px logo geometry, 640px table minimum, responsive breakpoints, and KPI grid minimums remain approved screen exceptions | Gate A: CONTINUE |
-| POS | Not started | — | Existing operational CSS | Wait for DS3 and Gate B |
+| Reports | DS1 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas sizing, Chart.js geometry, responsive breakpoints, grid minimums, pill geometry, and the visually-hidden accessibility utility remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
+| Dashboard | DS2 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, divider width | Existing 30px logo geometry, 640px table minimum, responsive breakpoints, and 150px KPI grid minimum remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
+| POS | DS3 locally validated / not published | Operational spacing/type roles, tabular numbers, card radius, and divider width on the frozen local branch only | Accepted AppShell/POS geometry, responsive density rules, product media sizing, cart width/position, search order, and 390px containment remain local-only evidence | Gate B: CONTINUE locally |
 | Accounting | Not started | — | Existing tab CSS | Wait for DS4 |
 | Inventory | Not started | — | Existing screen CSS | Wait for DS5 |
 | Orders | Not started | — | Existing screen CSS | Wait for DS5 |
 | KDS | Not started | — | Existing screen CSS | Wait for DS5 |
 | Settings | Not started | — | Existing screen CSS | Wait for DS6 |
 | Users | Not started | — | Existing screen CSS | Wait for DS6 |
+
+## Adopted Token Detail
+
+### Reports
+
+- Implementation: **Done**.
+- Validation: **Done**.
+- Merge Status: **Merged**.
+- Rollout Stage: **DS1 complete**.
+
+| Token | Verified selectors or use |
+|---|---|
+| `--ds-space-reading-section` | `.rpt-page` and `.rpt-grid` gaps |
+| `--ds-space-content` | Report card padding, grids, filters, chart/table metadata, and internal gaps |
+| `--ds-type-hero` | `.rpt-metric dd` |
+| `--ds-type-page-title` | `.rpt-page .uif-pagehead h1` |
+| `--ds-type-section-title` | Report section and catalog headings |
+| `--ds-type-body` | `.rpt-page` |
+| `--ds-type-label` | Filter labels, period controls, metric labels, and metadata |
+| `--ds-radius-card` | Report cards, catalog cards, and chart canvas |
+| `--ds-control-height` | Page actions, filter action, and period controls |
+| `--ds-divider-width` | Report cards, catalog cards, warnings, chart data, and metadata borders |
+
+#### Approved Reports raw-value exceptions
+
+- Value / Selector: `.rpt-chart-canvas` uses `280px`/`220px`; at `720px` it uses `240px`/`200px`; at `440px` it uses `220px`.
+- Category: Chart-specific / Responsive.
+- Reason: Preserve readable chart plotting height while containing the chart at narrow widths.
+- Owner: Reports screen (`reports.css`).
+- Review condition: Revisit when a shared chart-sizing primitive is justified by another migrated chart screen.
+- Status: Approved exception.
+
+- Value / Selector: `ReportChart` uses line tension `0.25`, one-row point radius `4` (otherwise `0`), hover radius `4`, bar radius `6`, and maximum bar thickness `28`.
+- Category: Chart-specific.
+- Reason: Chart.js rendering geometry is dataset-specific; the one-point marker prevents a valid single-value line series from becoming invisible.
+- Owner: Reports chart adapter (`ReportChart.tsx`).
+- Review condition: Revisit if chart behavior becomes shared across another screen or the chart adapter changes.
+- Status: Approved exception.
+
+- Value / Selector: Reports breakpoints are `1280px`, `980px`, `720px`, and `440px`.
+- Category: Responsive.
+- Reason: They correspond to catalog, two-column report, filter, KPI, and chart containment transitions owned by the Reports screen.
+- Owner: Reports screen (`reports.css`).
+- Review condition: Replace only if the repository adopts reviewed global breakpoint tokens without changing the verified layouts.
+- Status: Approved exception.
+
+- Value / Selector: Filter columns use `minmax(280px, 1fr)` and `minmax(220px, 1fr)`; KPI columns use `minmax(150px, 1fr)`; report tables use a `480px` minimum inline size.
+- Category: Layout.
+- Reason: These minimums protect label/control readability and local table scrolling without changing AppShell geometry.
+- Owner: Reports screen (`reports.css`).
+- Review condition: Revisit after a shared responsive filter, metric-grid, or data-table primitive is proven.
+- Status: Approved exception.
+
+- Value / Selector: `.rpt-period-pills button` uses a `999px` radius.
+- Category: Geometry.
+- Reason: The raw radius is intrinsic to the pressed-state pill affordance rather than the card-radius hierarchy.
+- Owner: Reports screen (`reports.css`).
+- Review condition: Revisit if a shared segmented/pill control is introduced through a separately reviewed scope.
+- Status: Approved exception.
+
+- Value / Selector: `.rpt-visually-hidden` uses `1px` dimensions, `-1px` margin, and `clip: rect(0, 0, 0, 0)`.
+- Category: Accessibility.
+- Reason: The standard visually-hidden geometry exposes chart names and descriptions to assistive technology without adding visible layout.
+- Owner: Reports screen (`reports.css`).
+- Review condition: Replace only when an equivalent shared accessibility utility is reviewed and proven.
+- Status: Approved exception.
+
+### Dashboard
+
+- Implementation: **Done**.
+- Validation: **Done**.
+- Merge Status: **Merged**.
+- Rollout Stage: **DS2 complete**.
+
+| Token | Verified selectors or use |
+|---|---|
+| `--ds-space-reading-section` | `.dash-page` gap and dashboard empty-state padding |
+| `--ds-space-content` | Metric, heading, audit, and table spacing |
+| `--ds-type-hero` | `.dash-metric dd` |
+| `--ds-type-page-title` | `.dash-page-head h1` |
+| `--ds-type-section-title` | `.dash-section-head h2` |
+| `--ds-type-body` | `.dash-page` and audit table |
+| `--ds-type-label` | Supporting copy, metric labels, and table headings |
+| `--ds-radius-card` | Audit table surface |
+| `--ds-divider-width` | Audit table surface, rows, and cells |
+
+#### Approved Dashboard raw-value exceptions
+
+- Value / Selector: `.dash-page-head .brand-logo` uses `30px` inline and block size.
+- Category: Geometry.
+- Reason: Preserve the verified brand-mark geometry without changing AppShell or shared brand primitives.
+- Owner: Dashboard screen (`dashboard.css`).
+- Review condition: Revisit only with an approved shared brand-size contract.
+- Status: Approved exception.
+
+- Value / Selector: `.dash-table-wrap table` uses a `640px` minimum inline size.
+- Category: Layout.
+- Reason: Preserve audit-column readability while the screen-owned wrapper provides local horizontal scrolling.
+- Owner: Dashboard screen (`dashboard.css`).
+- Review condition: Revisit after a shared responsive data-table primitive is proven.
+- Status: Approved exception.
+
+- Value / Selector: `.dash-metrics` uses `minmax(150px, 1fr)`.
+- Category: Layout.
+- Reason: Keep hero metrics readable before the screen switches to its explicit narrow layouts.
+- Owner: Dashboard screen (`dashboard.css`).
+- Review condition: Revisit after a third migrated metric grid proves shared geometry.
+- Status: Approved exception.
+
+- Value / Selector: Dashboard breakpoints are `720px` and `440px`.
+- Category: Responsive.
+- Reason: They control the verified two-column and one-column KPI transitions without changing global navigation geometry.
+- Owner: Dashboard screen (`dashboard.css`).
+- Review condition: Replace only under a reviewed global breakpoint contract that preserves the accepted layouts.
+- Status: Approved exception.
 
 ## DS1 Reports Pilot
 
@@ -172,7 +287,13 @@ Candidate screenshots are local QA artifacts under
 
 ## Gate A
 
-Decision: **CONTINUE**.
+- Gate A Decision: **CONTINUE**.
+- Status: **Merged and documented**.
+- PR: [#49](https://github.com/AhmedFouad01/yakebda-ms/pull/49).
+- Reviewed Head: `a9b8a769b8e17006f113f3580da0f83104dc4b8e`.
+- Merge Commit: `d90b3916f731dc566e4d283732b31fbc9658a30a`.
+- Merged Into Main: `d90b3916f731dc566e4d283732b31fbc9658a30a`.
+- Merged At: `2026-07-23T13:28:36Z`.
 
 - The Reports and Dashboard pilots preserve the intended visual direction in
   both themes and all required viewport widths.
@@ -183,3 +304,28 @@ Decision: **CONTINUE**.
   shared.
 - The remaining geometry exceptions are explicit and screen-owned rather than
   new cross-screen CSS debt.
+
+## Gate A Rollout Summary
+
+| Stage | State |
+|---|---|
+| DS0 | Done |
+| DS1 Reports | Done / Merged |
+| DS2 Dashboard | Done / Merged |
+| Gate A | CONTINUE / Closed |
+| DS3 POS | Locally validated / Not published |
+| Gate B | CONTINUE locally |
+| DS4 Accounting | Not started |
+
+## DS3 Frozen Local State
+
+- Implementation: **Locally validated**.
+- Merge Status: **Not published**.
+- Remote Branch: **Absent**.
+- PR: **None**.
+- Local Branch: `codex/design-sys-pos-pilot`.
+- Local HEAD: `0b8a40ffe1d3b5011f61dd53daff477ed7b09e6a`.
+- Unique commit: `feat(pos): apply visual design system pilot`.
+- Gate B Recommendation: **CONTINUE**.
+- DS3 must be re-established over the new `main` in a separate explicitly
+  authorized task; it is not merged into or published from this closeout.

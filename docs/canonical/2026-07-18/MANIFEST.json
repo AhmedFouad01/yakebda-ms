@@ -1,0 +1,33 @@
+{
+  "package": "YAKEBDA_MS_CANONICAL_REFRESH_2026-07-18",
+  "date": "2026-07-18",
+  "main": "58d60152d4b0eba43a0a4c3a521b9a2a44f16f7a",
+  "files": [
+    {"path":"BOOT_PROMPT__YAKEBDA_MS__CURRENT__2026-07-18.md","bytes":1359,"sha256":"1c2c7367017296a34711ac50f8b2ed42d8d22f7a5c09447bb8b1251da6bc1b2b"},
+    {"path":"CHANGELOG__CANONICAL_REFRESH__2026-07-18.md","bytes":1273,"sha256":"252cf00044182d5ade517a5c646eabfe8055bd9dbb5a1b91dd51953eb689194b"},
+    {"path":"CHAT_HANDOFF__YAKEBDA_MS__2026-07-18__CANONICAL_REFRESH.md","bytes":2359,"sha256":"4932943dfeefb3ff03cfed9cfdf439d855720e716bbeae8d490d946d8ea1c76e"},
+    {"path":"CURRENT_STATUS__YAKEBDA_MS__2026-07-18__INVENTORY_REPORTING_DRAFT_STACK.md","bytes":7160,"sha256":"45a85e4c1e5fb66df32513031c674894d5391770c5291d6ed34979f0c016800d"},
+    {"path":"PROJECT_SOURCE_MAP__YAKEBDA_MS__v2.4__2026-07-18.md","bytes":3891,"sha256":"f6508020f29b02174eba292d6a71ac474453f696fd9ffe2addcd4552b7937cc4"},
+    {"path":"README_FIRST__YAKEBDA_MS_CANONICAL_REFRESH__2026-07-18.md","bytes":4080,"sha256":"4976868f5cc1c3a295e2bc6017aeca1c8d2be76c73f4ce69fb4c86518ffd4e90"},
+    {"path":"REPO_DOCUMENTATION_UPDATE_TARGETS__2026-07-18.md","bytes":1404,"sha256":"5856c5c0d5ba9c98af9569d808417ffc6756740accd75db1a9f33a4495e3f6f1"},
+    {"path":"SOURCE_EVIDENCE_MATRIX__2026-07-18.md","bytes":1914,"sha256":"9adb492527f37cbea064da6bb35179c217c79c534fe8ec00b8f7bea8c5dbe511"},
+    {"path":"SRS_V2_TO_V3_REQUIREMENT_TRACEABILITY.md","bytes":1970,"sha256":"65fd7dcc2ade0ea6c2cf7b8f0f621a0e626942c38680e690573376f0cd860422"},
+    {"path":"YAKEBDA_MS_ADR_INDEX_v2.0__2026-07-18.md","bytes":2188,"sha256":"2b44eac9ed9097920c05d0f9c6d9ead2636cf9c84fc74eabff491fde30d6e610"},
+    {"path":"YAKEBDA_MS_DFD_v1.0_AR_RTL.md","bytes":7510,"sha256":"b3f7d44254c7dc27b05bc815fbe8c143c64164fdbafb4ef73998b56f38a824ec"},
+    {"path":"YAKEBDA_MS_ERD_v1.0_AR_RTL.md","bytes":7289,"sha256":"30a0932deb8b3d14143a1643512011dd31d85f55118202908fbc31355533bae1"},
+    {"path":"YAKEBDA_MS_Execution_Roadmap_v3.0_AR_RTL.md","bytes":4846,"sha256":"001ac34e343e3137bfde88b18c9939f29ea48671a6d3caf107e90eceae76397a"},
+    {"path":"YAKEBDA_MS_Milestone_Log_v2.0_AR_RTL.md","bytes":3318,"sha256":"8e8472905f706aaaad4d71ab1074990dec9c82814bf312ca1d910d868459808e"},
+    {"path":"YAKEBDA_MS_Milestones_v3.0_AR_RTL.md","bytes":3902,"sha256":"f69b41b90daf46a4856f424c37cca92ab3a13037f5b0ca853a617dfff9e8fee4"},
+    {"path":"YAKEBDA_MS_Project_Master_v1.5_AR_RTL.md","bytes":6471,"sha256":"a1307123c22baef8edc30c894ba4034ccdb25d246b96884c661d3af800346750"},
+    {"path":"YAKEBDA_MS_SRS_v3_AR_RTL.md","bytes":20366,"sha256":"acc7c0a3b4bd3ceac83351cd245a5aeb7e5b07ed2837b0532de218382c4b4e56"},
+    {"path":"adr/ADR-001-tenant-isolation-and-identity.md","bytes":1353,"sha256":"273a372ff64d2a78565f9fa09631b3467541b897ad8b5c2de32b5f1f971d5586"},
+    {"path":"adr/ADR-002-order-sources-channel-menus-pricelists.md","bytes":1762,"sha256":"ea361a8a436ac1e0b9d82a3769b8d89d5b44dd1921238310695123c525e71237"},
+    {"path":"adr/ADR-003-sequencing-inventory-drivers-finance.md","bytes":1285,"sha256":"6f3c0a73939d3264a60b2f8f44b33d9dd9084e4f2932a0e5780ae004e029896e"},
+    {"path":"adr/ADR-004-inventory-sub-cent-residual-policy.md","bytes":1338,"sha256":"2d25e500f5a9c22bb90145a26f6ce078acdd47ebe7e1454004087529ea1fe8f5"},
+    {"path":"adr/ADR-005-kitchen-pause-order-hold.md","bytes":941,"sha256":"96b5006f6ccda99af7ae579bfac33c85cc44bfbc62eca4988a9da5806991078e"},
+    {"path":"adr/ADR-006-supported-schema-baseline-and-legacy-boundary.md","bytes":1699,"sha256":"52acda7b6f67517932725ddf04afcf95748e2484eabeaaf89bb5a40e4041de1c"},
+    {"path":"adr/ADR-007-staged-inventory-admin-delivery.md","bytes":1121,"sha256":"1702754a298566561c2475916ea9c0f295b03ef2c1d75005f3e094c196d68a2f"},
+    {"path":"adr/ADR-008-reporting-registry-and-run-contract.md","bytes":1156,"sha256":"394ee827b935e6e70a30249848a230aba4426ccd6ccd8b4b9293f983db7c6108"},
+    {"path":"adr/ADR-009-commercial-completeness-gate.md","bytes":1111,"sha256":"d82038a6c5e783bbbea93d3f6d13c4bb9f7c359f817c5f62d8db94b939460ab3"}
+  ]
+}

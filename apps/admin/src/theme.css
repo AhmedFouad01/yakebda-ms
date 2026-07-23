@@ -9679,3 +9679,20 @@ button.danger,
 .acc-payload { max-height: 320px; overflow: auto; background: var(--surface-2); border: 1px solid var(--yk-line); border-radius: 8px; padding: 10px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 .acc-truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acc-totals-row td { font-weight: 800; border-top: 2px solid var(--yk-line); }
+
+/* DESIGN-SYS-01 — additive visual tokens */
+:root {
+  --ds-space-reading-section: 32px;
+  --ds-space-operational-section: 14px;
+  --ds-space-content: 16px;
+
+  --ds-type-hero: clamp(28px, 2vw, 34px);
+  --ds-type-page-title: 22px;
+  --ds-type-section-title: 16px;
+  --ds-type-body: 14px;
+  --ds-type-label: 13px;
+
+  --ds-radius-card: 12px;
+  --ds-control-height: 36px;
+  --ds-divider-width: 1px;
+}

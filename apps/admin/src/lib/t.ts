@@ -41,6 +41,13 @@ export const t = {
     active: "نشط",
     inactive: "متوقف",
   },
+  dashboard: {
+    subtitle: "نظرة سريعة على مؤشرات اليوم وحالة التشغيل.",
+    summary: "ملخص لوحة التحكم",
+    pendingPrintJobs: "مهام طباعة بالانتظار",
+    recentAudit: "آخر العمليات المسجلة",
+    recentAuditHint: "أحدث الأنشطة المسجلة عبر النظام.",
+  },
   branches: {
     title: "الفروع",
     add: "إضافة فرع",

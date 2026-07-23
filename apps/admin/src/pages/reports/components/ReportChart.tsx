@@ -122,15 +122,15 @@ export function ReportChart({
           borderWidth: 2,
           backgroundColor:
             kind === "line"
-              ? softFill(base, 0.14)
+              ? softFill(base, 0.11)
               : values.map((value) => (value < 0 ? tokens.danger : softFill(base, 0.75))),
           fill: kind === "line",
-          tension: 0,
-          pointRadius: 3,
-          pointHoverRadius: 5,
+          tension: 0.25,
+          pointRadius: kind === "line" && validRows.length === 1 ? 4 : 0,
+          pointHoverRadius: 4,
           pointBackgroundColor: base,
           borderRadius: kind === "bar" ? 6 : undefined,
-          maxBarThickness: 52,
+          maxBarThickness: 28,
         },
       ],
     };
@@ -158,7 +158,7 @@ export function ReportChart({
     scales: {
       x: {
         grid: { display: false },
-        border: { color: tokens.grid },
+        border: { display: false },
         ticks: {
           color: tokens.axis,
           autoSkip: false,

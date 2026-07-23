@@ -21,43 +21,57 @@ export function Dashboard() {
   const audit = useList(ready && can("audit.view") ? "/audit-logs" : null);
 
   return (
-    <>
-      <div className="page-head">
+    <div className="dash-page" dir="rtl">
+      <header className="dash-page-head">
         <h1>
-          <img src={brand.logoPath} alt={brand.nameAr} className="brand-logo" /> {brand.nameAr} — {t.nav.dashboard}
+          <img src={brand.logoPath} alt="" className="brand-logo" />
+          <span>{brand.nameAr} — {t.nav.dashboard}</span>
         </h1>
-      </div>
-      <div className="cards">
+        <p>{t.dashboard.subtitle}</p>
+      </header>
+
+      <dl className="dash-metrics" aria-label={t.dashboard.summary}>
         {summary && (
           <>
-            <div className="card"><div className="num">{summary.sales_today.toFixed(2)} {t.reports.egp}</div><div className="lbl">{t.reports.salesToday}</div></div>
-            <div className="card"><div className="num">{summary.orders_today}</div><div className="lbl">{t.reports.ordersToday}</div></div>
-            <div className="card"><div className="num">{summary.open_orders}</div><div className="lbl">{t.reports.openOrders}</div></div>
+            <div className="dash-metric"><dt>{t.reports.salesToday}</dt><dd>{summary.sales_today.toFixed(2)} {t.reports.egp}</dd></div>
+            <div className="dash-metric"><dt>{t.reports.ordersToday}</dt><dd>{summary.orders_today}</dd></div>
+            <div className="dash-metric"><dt>{t.reports.openOrders}</dt><dd>{summary.open_orders}</dd></div>
           </>
         )}
-        <div className="card"><div className="num">{branches.data.length}</div><div className="lbl">{t.nav.branches}</div></div>
-        <div className="card"><div className="num">{devices.data.length}</div><div className="lbl">{t.nav.devices}</div></div>
-        <div className="card"><div className="num">{jobs.data.filter((j: any) => j.status === "pending").length}</div><div className="lbl">مهام طباعة بالانتظار</div></div>
-        <div className="card"><div className="num">{audit.data.length}</div><div className="lbl">آخر عمليات مسجلة</div></div>
-      </div>
-      <div className="panel">
-        <table>
-          <thead>
-            <tr><th>{t.audit.action}</th><th>{t.audit.user}</th><th>{t.audit.branch}</th><th>{t.audit.time}</th></tr>
-          </thead>
-          <tbody>
-            {audit.data.slice(0, 8).map((a: any) => (
-              <tr key={a.id}>
-                <td>{auditActionLabel(a.action)}</td>
-                <td>{a.user_name ?? "—"}</td>
-                <td>{a.branch_name ?? "—"}</td>
-                <td>{fmtTime(a.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {audit.data.length === 0 && <div className="empty">{t.common.empty}</div>}
-      </div>
-    </>
+        <div className="dash-metric"><dt>{t.nav.branches}</dt><dd>{branches.data.length}</dd></div>
+        <div className="dash-metric"><dt>{t.nav.devices}</dt><dd>{devices.data.length}</dd></div>
+        <div className="dash-metric"><dt>{t.dashboard.pendingPrintJobs}</dt><dd>{jobs.data.filter((j: any) => j.status === "pending").length}</dd></div>
+        <div className="dash-metric"><dt>{t.dashboard.recentAudit}</dt><dd>{audit.data.length}</dd></div>
+      </dl>
+
+      <section className="dash-audit" aria-labelledby="dash-audit-title">
+        <div className="dash-section-head">
+          <div>
+            <h2 id="dash-audit-title">{t.dashboard.recentAudit}</h2>
+            <p>{t.dashboard.recentAuditHint}</p>
+          </div>
+        </div>
+        <div className="dash-table-surface">
+          <div className="dash-table-wrap">
+            <table>
+              <thead>
+                <tr><th>{t.audit.action}</th><th>{t.audit.user}</th><th>{t.audit.branch}</th><th>{t.audit.time}</th></tr>
+              </thead>
+              <tbody>
+                {audit.data.slice(0, 8).map((a: any) => (
+                  <tr key={a.id}>
+                    <td>{auditActionLabel(a.action)}</td>
+                    <td>{a.user_name ?? "—"}</td>
+                    <td>{a.branch_name ?? "—"}</td>
+                    <td>{fmtTime(a.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {audit.data.length === 0 && <div className="dash-empty">{t.common.empty}</div>}
+        </div>
+      </section>
+    </div>
   );
 }

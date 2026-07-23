@@ -45,10 +45,14 @@ describe("ReportChart", () => {
     expect(dataset.data).toEqual([1250, 900]);
     expect(dataset.borderWidth).toBe(2);
     expect(dataset.fill).toBe(true);
+    expect(dataset.tension).toBe(0.25);
+    expect(dataset.pointRadius).toBe(0);
+    expect(dataset.pointHoverRadius).toBe(4);
     // soft fill derives from the series colour, never fully opaque
-    expect(String(dataset.backgroundColor)).toMatch(/rgba\(|color-mix/);
+    expect(String(dataset.backgroundColor)).toMatch(/0\.11|11%/);
     expect(options.plugins.legend.display).toBe(false);
     expect(options.maintainAspectRatio).toBe(false);
+    expect(options.scales.x.border.display).toBe(false);
   });
 
   it("renders bars for categorical reports and flags negative values as danger", () => {
@@ -64,9 +68,22 @@ describe("ReportChart", () => {
     const dataset = lastBar().data.datasets[0];
     expect(dataset.borderWidth).toBe(2);
     expect(dataset.fill).toBe(false);
+    expect(dataset.maxBarThickness).toBe(28);
     expect(Array.isArray(dataset.backgroundColor)).toBe(true);
     // the negative bar gets its own colour rather than the series colour
     expect(dataset.backgroundColor[0]).not.toBe(dataset.backgroundColor[1]);
+  });
+
+  it("keeps a single-point line visible without adding persistent points to longer series", () => {
+    render(
+      <ReportChart
+        title="يوم واحد"
+        kind="line"
+        rows={[{ label: "٢٣ يوليو", value: 185 }]}
+      />
+    );
+
+    expect(lastLine().data.datasets[0].pointRadius).toBe(4);
   });
 
   it("keeps an accessible description and the data table fallback", () => {

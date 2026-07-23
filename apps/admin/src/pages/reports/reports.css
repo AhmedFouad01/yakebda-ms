@@ -1,13 +1,52 @@
 .rpt-page {
   min-inline-size: 0;
   display: grid;
-  gap: var(--sp-5, 20px);
+  gap: var(--ds-space-reading-section);
+  color: var(--text-primary);
+  font-size: var(--ds-type-body);
+  font-weight: 400;
+}
+
+.rpt-page > .uif-pagehead,
+.rpt-page > .uif-card,
+.rpt-grid > .uif-card {
+  margin-block-end: 0;
+}
+
+.rpt-page .uif-pagehead h1 {
+  font-size: var(--ds-type-page-title);
+  font-weight: 500;
+}
+
+.rpt-page .uif-pagehead .uif-btn,
+.rpt-filterbar > .uif-btn {
+  min-block-size: var(--ds-control-height);
+}
+
+.rpt-page .uif-card {
+  border-width: var(--ds-divider-width);
+  border-radius: var(--ds-radius-card);
+}
+
+.rpt-page .uif-card-head {
+  padding: var(--ds-space-content);
+}
+
+.rpt-page .uif-card-head h3,
+.rpt-section-head h2,
+.rpt-catalog-card h3 {
+  font-size: var(--ds-type-section-title);
+  font-weight: 500;
+}
+
+.rpt-page .uif-card-body {
+  padding: var(--ds-space-content);
 }
 
 .rpt-filterbar {
   display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(220px, 1fr) auto;
-  gap: var(--sp-4, 16px);
+  grid-template-columns: minmax(280px, 1fr) minmax(220px, 1fr) auto;
+  gap: var(--ds-space-content);
   align-items: end;
 }
 
@@ -15,11 +54,66 @@
   margin: 0;
 }
 
+.rpt-period {
+  min-inline-size: 0;
+  display: grid;
+  gap: calc(var(--ds-space-content) / 2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rpt-period .uif-label {
+  padding: 0;
+  font-size: var(--ds-type-label);
+  font-weight: 400;
+}
+
+.rpt-period-pills {
+  min-inline-size: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ds-space-content) / 2);
+}
+
+.rpt-period-pills button {
+  min-block-size: var(--ds-control-height);
+  flex: 1 1 auto;
+  padding-inline: var(--ds-space-content);
+  border: var(--ds-divider-width) solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--ds-type-label);
+  font-weight: 400;
+  white-space: nowrap;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.rpt-period-pills button.is-active {
+  border-color: var(--brand);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+@media (hover: hover) {
+  .rpt-period-pills button:hover {
+    border-color: var(--brand);
+  }
+}
+
+.rpt-period-pills button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .rpt-section-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--sp-4, 16px);
+  gap: var(--ds-space-content);
 }
 
 .rpt-section-head h2,
@@ -29,39 +123,35 @@
   margin: 0;
 }
 
-.rpt-section-head h2 {
-  font-size: 1.15rem;
-}
-
 .rpt-section-head p,
 .rpt-catalog-card p {
   color: var(--text-secondary);
 }
 
 .rpt-section-head p {
-  margin-block-start: var(--sp-1, 4px);
+  margin-block-start: calc(var(--ds-space-content) / 4);
 }
 
 .rpt-catalog {
   min-inline-size: 0;
   display: grid;
-  gap: var(--sp-3, 12px);
+  gap: var(--ds-space-content);
 }
 
 .rpt-catalog-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-3, 12px);
+  gap: var(--ds-space-content);
 }
 
 .rpt-catalog-card {
   min-inline-size: 0;
   display: grid;
   align-content: start;
-  gap: var(--sp-2, 8px);
-  padding: var(--sp-4, 16px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg, 12px);
+  gap: calc(var(--ds-space-content) / 2);
+  padding: var(--ds-space-content);
+  border: var(--ds-divider-width) solid var(--border-subtle);
+  border-radius: var(--ds-radius-card);
   background: var(--surface-1);
   color: var(--text-primary);
 }
@@ -71,21 +161,35 @@
   inline-size: auto;
 }
 
-.rpt-catalog-card h3 {
-  font-size: 1rem;
-}
-
 .rpt-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: var(--sp-3, 12px);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--ds-space-content);
+  margin: 0;
 }
 
-.rpt-summary-grid .card {
+.rpt-metric {
   min-inline-size: 0;
+  display: grid;
+  align-content: start;
+  gap: calc(var(--ds-space-content) / 2);
+  padding-block: var(--ds-space-content);
 }
 
-.rpt-summary-grid .num {
+.rpt-metric dt {
+  color: var(--text-secondary);
+  font-size: var(--ds-type-label);
+  font-weight: 400;
+}
+
+.rpt-metric dd {
+  min-inline-size: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--ds-type-hero);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
   overflow-wrap: anywhere;
 }
 
@@ -93,7 +197,7 @@
   min-inline-size: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-4, 16px);
+  gap: var(--ds-space-reading-section);
   align-items: start;
 }
 
@@ -104,7 +208,7 @@
 .rpt-chart {
   min-inline-size: 0;
   display: grid;
-  gap: var(--sp-3, 12px);
+  gap: var(--ds-space-content);
 }
 
 .rpt-chart-canvas {
@@ -112,15 +216,15 @@
   min-inline-size: 0;
   block-size: 280px;
   min-block-size: 220px;
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--ds-radius-card);
   overflow: hidden;
 }
 
 .rpt-chart-warning {
   margin: 0;
-  padding: var(--sp-2, 8px) var(--sp-3, 12px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 10px);
+  padding: calc(var(--ds-space-content) / 2) var(--ds-space-content);
+  border: var(--ds-divider-width) solid var(--border-subtle);
+  border-radius: var(--radius);
   background: var(--surface-2);
   color: var(--text-secondary);
 }
@@ -138,20 +242,20 @@
 }
 
 .rpt-chart-data {
-  border-block-start: 1px solid var(--border-subtle);
-  padding-block-start: var(--sp-2, 8px);
+  border-block-start: var(--ds-divider-width) solid var(--border-subtle);
+  padding-block-start: calc(var(--ds-space-content) / 2);
 }
 
 .rpt-chart-data summary {
   cursor: pointer;
   color: var(--brand);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .rpt-chart-data summary:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius);
 }
 
 .rpt-table-wrap {
@@ -163,17 +267,22 @@
   min-inline-size: 480px;
 }
 
+.rpt-table-wrap :is(th, td) {
+  font-variant-numeric: tabular-nums;
+}
+
 .rpt-meta {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--sp-2, 8px) var(--sp-4, 16px);
-  padding: var(--sp-3, 12px) var(--sp-4, 16px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 10px);
+  gap: calc(var(--ds-space-content) / 2) var(--ds-space-content);
+  padding: var(--ds-space-content);
+  border: var(--ds-divider-width) solid var(--border-subtle);
+  border-radius: var(--ds-radius-card);
   background: var(--surface-2);
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: var(--ds-type-label);
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
@@ -224,5 +333,11 @@
 
   .rpt-chart-canvas {
     block-size: 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rpt-period-pills button {
+    transition: none;
   }
 }

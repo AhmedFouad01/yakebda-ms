@@ -145,7 +145,7 @@ describe("Reporting foundation Admin", () => {
     render(<Reports />);
     await waitFor(() => expect(screen.getByText("ساندوتش كبدة")).toBeTruthy());
 
-    fireEvent.change(screen.getByLabelText("الفترة"), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "آخر 7 أيام" }));
     fireEvent.change(screen.getByLabelText("الفرع"), { target: { value: branchId } });
     fireEvent.click(screen.getByRole("button", { name: "تطبيق" }));
 
@@ -158,6 +158,7 @@ describe("Reporting foundation Admin", () => {
       expect(paths).toContain(`/reports/payment-methods?days=7&branch_id=${branchId}`);
       expect(paths).toContain(`/reports/summary?branch_id=${branchId}`);
     });
+    expect(screen.getByRole("button", { name: "آخر 7 أيام" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("keeps invalid client-side numeric values explicit instead of a fake zero", async () => {

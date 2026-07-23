@@ -64,6 +64,12 @@ const CATEGORY_AR: Record<ReportDefinition["category"], string> = {
   finance: t.reports.categories.finance,
 };
 
+const PERIOD_OPTIONS = [
+  { value: 7, label: t.reports.days7 },
+  { value: 30, label: t.reports.days30 },
+  { value: 90, label: t.reports.days90 },
+] as const;
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : t.reports.loadError;
 }
@@ -178,13 +184,22 @@ export function Reports() {
 
       <SectionCard title={t.reports.filters} hint={t.reports.filtersHint}>
         <div className="rpt-filterbar">
-          <FormField label={t.reports.period}>
-            <Select value={draftDays} onChange={(event) => setDraftDays(Number(event.target.value))}>
-              <option value={7}>{t.reports.days7}</option>
-              <option value={30}>{t.reports.days30}</option>
-              <option value={90}>{t.reports.days90}</option>
-            </Select>
-          </FormField>
+          <fieldset className="rpt-period">
+            <legend className="uif-label">{t.reports.period}</legend>
+            <div className="rpt-period-pills">
+              {PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={draftDays === option.value}
+                  className={draftDays === option.value ? "is-active" : ""}
+                  onClick={() => setDraftDays(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <FormField label={t.reports.branch}>
             <Select
               value={draftBranchId}
@@ -233,15 +248,15 @@ export function Reports() {
       )}
 
       {summary && (
-        <section className="rpt-summary-grid" aria-label={t.reports.operationalSummary}>
-          <div className="card"><div className="num">{formatReportMoney(summary.sales_today)}</div><div className="lbl">{t.reports.salesToday}</div></div>
-          <div className="card"><div className="num">{formatReportNumber(summary.orders_today)}</div><div className="lbl">{t.reports.ordersToday}</div></div>
-          <div className="card"><div className="num">{formatReportNumber(summary.open_orders)}</div><div className="lbl">{t.reports.openOrders}</div></div>
-          <div className="card"><div className="num">{formatReportNumber(summary.kitchen_pending)}</div><div className="lbl">{t.reports.kitchenPending}</div></div>
-          <div className="card"><div className="num">{formatReportNumber(summary.cancelled_today)}</div><div className="lbl">{t.reports.cancelledToday}</div></div>
-          <div className="card"><div className="num">{formatReportNumber(summary.open_shifts)}</div><div className="lbl">{t.reports.openShifts}</div></div>
-          <div className="card"><div className="num">{formatReportMoney(summary.open_shift_cash_sales)}</div><div className="lbl">{t.reports.openShiftCashSales}</div></div>
-        </section>
+        <dl className="rpt-summary-grid" aria-label={t.reports.operationalSummary}>
+          <div className="rpt-metric"><dt>{t.reports.salesToday}</dt><dd>{formatReportMoney(summary.sales_today)}</dd></div>
+          <div className="rpt-metric"><dt>{t.reports.ordersToday}</dt><dd>{formatReportNumber(summary.orders_today)}</dd></div>
+          <div className="rpt-metric"><dt>{t.reports.openOrders}</dt><dd>{formatReportNumber(summary.open_orders)}</dd></div>
+          <div className="rpt-metric"><dt>{t.reports.kitchenPending}</dt><dd>{formatReportNumber(summary.kitchen_pending)}</dd></div>
+          <div className="rpt-metric"><dt>{t.reports.cancelledToday}</dt><dd>{formatReportNumber(summary.cancelled_today)}</dd></div>
+          <div className="rpt-metric"><dt>{t.reports.openShifts}</dt><dd>{formatReportNumber(summary.open_shifts)}</dd></div>
+          <div className="rpt-metric"><dt>{t.reports.openShiftCashSales}</dt><dd>{formatReportMoney(summary.open_shift_cash_sales)}</dd></div>
+        </dl>
       )}
 
       <div className="rpt-grid">

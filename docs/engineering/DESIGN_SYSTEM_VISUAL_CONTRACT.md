@@ -41,11 +41,11 @@ and review rationale remain outside the repository.
 
 ## Protected Geometry
 
-The following remain outside the completed DS0-DS2 scope:
+The following remain outside the completed DS0-DS3 scope:
 
 - AppShell layout, navigation, and identity.
-- POS grid, search position, cart behavior, interaction count, keyboard and
-  pointer behavior, and product-option flow.
+- POS grid, search position, cart dimensions, interaction count, keyboard and
+  pointer behavior, product-option flow, pricing, and submission behavior.
 - API contracts, report aggregation, permissions, and error isolation.
 - Shared `.card`, `.panel`, `button`, `table`, and heading selectors.
 
@@ -66,7 +66,7 @@ final color authority.
 |---|---|---|---|---|
 | Reports | DS1 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas sizing, Chart.js geometry, responsive breakpoints, grid minimums, pill geometry, and the visually-hidden accessibility utility remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
 | Dashboard | DS2 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, divider width | Existing 30px logo geometry, 640px table minimum, responsive breakpoints, and 150px KPI grid minimum remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
-| POS | DS3 locally validated / not published | Operational spacing/type roles, tabular numbers, card radius, and divider width on the frozen local branch only | Accepted AppShell/POS geometry, responsive density rules, product media sizing, cart width/position, search order, and 390px containment remain local-only evidence | Gate B: CONTINUE locally |
+| POS | DS3 locally validated / not published | Operational spacing/type roles, tabular numbers, card radius, and divider width on the frozen local branch only | Accepted AppShell/POS geometry, responsive density rules, product media sizing, cart width/position, search order, and 390px containment remain local-only evidence | Gate B: CONTINUE |
 | Accounting | Not started | — | Existing tab CSS | Wait for DS4 |
 | Inventory | Not started | — | Existing screen CSS | Wait for DS5 |
 | Orders | Not started | — | Existing screen CSS | Wait for DS5 |
@@ -314,7 +314,7 @@ Candidate screenshots are local QA artifacts under
 | DS2 Dashboard | Done / Merged |
 | Gate A | CONTINUE / Closed |
 | DS3 POS | Locally validated / Not published |
-| Gate B | CONTINUE locally |
+| Gate B | CONTINUE |
 | DS4 Accounting | Not started |
 
 ## DS3 Frozen Local State
@@ -326,6 +326,97 @@ Candidate screenshots are local QA artifacts under
 - Local Branch: `codex/design-sys-pos-pilot`.
 - Local HEAD: `0b8a40ffe1d3b5011f61dd53daff477ed7b09e6a`.
 - Unique commit: `feat(pos): apply visual design system pilot`.
-- Gate B Recommendation: **CONTINUE**.
+- Gate B: **CONTINUE** (owner reviewed).
 - DS3 must be re-established over the new `main` in a separate explicitly
   authorized task; it is not merged into or published from this closeout.
+
+## DS3 POS Baseline
+
+Captured on 2026-07-23 before DS3 changes at exact Gate A head
+`a9b8a769b8e17006f113f3580da0f83104dc4b8e` using the local in-app browser and
+the isolated `ykms_ds01_qa` database.
+
+- Account/user role: seeded owner account / `المالك`.
+- Branch: `فرع رئيسي`.
+- Test data: six categories, nine products, direct order source, empty cart,
+  and no active shift at baseline.
+- Light and Dark were captured at `1920x1080`, `1366x768`, and `390x844`.
+- Page and main-content widths had no horizontal overflow in all six states.
+- The 390px state was evaluated for containment only; no mobile redesign was
+  introduced.
+
+Baseline screenshots are local QA artifacts under
+`/tmp/yakebda-ds03-before` and are intentionally not committed.
+
+## DS3 POS Visual Pilot
+
+The POS pilot is visual-only:
+
+- Product prices retain their position and source while using a neutral
+  semantic surface, primary text, 600 weight, and tabular numerals instead of
+  a brand-filled badge.
+- Missing product images use a flat neutral surface and a simple muted marker;
+  radial, repeating, and ornamental gradients are removed.
+- Product and cart quantity indicators use a restrained brand-soft semantic
+  treatment with tabular numerals rather than competing with the primary order
+  action.
+- Product cards, order rail, and cart lines use the approved card radius and
+  one-pixel semantic structural borders.
+- Decorative product-card elevation is removed. Order rail, cart lines, and
+  the anchored totals surface retain reduced functional elevation.
+- Product/card labels default to 400/500; operational names, values, active
+  choices, totals, and the primary action use 600 where needed.
+- Active categories, active option chips, and the primary order action remain
+  brand treatments.
+- No React, request, pricing, permission, routing, state, keyboard, pointer,
+  cart, or submission code changed.
+
+### DS3 Local Validation
+
+| Gate | Result |
+|---|---|
+| `npm run check` | Pass |
+| Contracts tests | 13/13 |
+| API tests | 314/314 |
+| Admin tests | 74/74 |
+| API TypeScript build | Pass |
+| Admin production build | Pass |
+| Semantic color contract | Pass; `global-colors.css` remains last and contains no raw colors |
+| `git diff --check` | Pass |
+| POS Light/Dark at 1920, 1366, and 390 | Pass |
+| Grid columns and menu/cart rectangles vs baseline | Exact match in all six states |
+| Page and main-content horizontal overflow | None |
+| Accepted POS/AppShell geometry | Preserved |
+| Left click / right click / Enter / Space | Pass |
+| Size and bread controls / no accidental add | Pass |
+| Quantity / notes / source / payment / remove | Pass |
+| Submission flow | Pass; QA order 4 created and cart cleared after success |
+| Reports and Dashboard regression at 1366 Light/Dark | Pass |
+| RTL and Arabic containment | Pass |
+| Browser console errors | None |
+| Network | 200/201/304; no 500 responses |
+
+Candidate screenshots are local QA artifacts under
+`/tmp/yakebda-ds03-candidate` and are intentionally not committed.
+
+## Gate B
+
+Decision: **CONTINUE**. Owner Gate B review is complete; the findings below are
+the reviewed implementation evidence.
+
+1. Operational density and cashier speed are preserved; product-grid and cart
+   dimensions match the DS3 baseline exactly (live pixel measurement: 9 cards,
+   5 columns, 267px card, 520px cart — identical before and after).
+2. Interaction count is unchanged; click, context-click, keyboard, options,
+   cart editing, source selection, and submission follow the existing flow.
+3. Accepted AppShell and POS geometry is preserved, including icon-only
+   history, Store/History/Search order, compact account/shift cluster, fixed
+   cart rail, and 390px containment.
+4. The change is visual-only and limited to scoped POS CSS plus this ledger.
+5. Reports and Dashboard show no regression in either theme at 1366px.
+
+Non-blocking observation carried forward: the flat placeholder marker (`◇`) is a
+candidate for later refinement; it does not affect Gate B.
+
+No target-contract deviations were found. DS4 may begin as an independent,
+per-tab scope.

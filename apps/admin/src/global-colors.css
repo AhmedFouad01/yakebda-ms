@@ -308,12 +308,8 @@ body,
 }
 
 .app2-pos .posx-order-rail {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--brand) 8%, var(--surface-1)),
-    var(--surface-1)
-  );
-  box-shadow: 0 8px 22px var(--theme-shadow);
+  background: var(--surface-1);
+  box-shadow: 0 4px 14px var(--theme-shadow);
 }
 
 .app2-pos .posx-source-field {
@@ -333,11 +329,16 @@ body,
 .app2-pos .seg.dark button.active,
 .app2-pos .posx-chips button.active,
 .app2-pos .posx-fast-qty output,
-.app2-pos .posx-card2-price,
 .app2-pos .posx-order-now {
   border-color: var(--brand);
   background: var(--selection-surface);
   color: var(--selection-text);
+}
+
+.app2-pos .posx-card2-price {
+  border-color: var(--border-subtle);
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 /* Product cards */
@@ -345,7 +346,7 @@ body,
   border-color: var(--border-subtle);
   background: var(--surface-1);
   color: var(--text-primary);
-  box-shadow: 0 8px 24px var(--theme-shadow);
+  box-shadow: none;
 }
 
 .app2-pos .posx-card2:hover {
@@ -370,9 +371,7 @@ body,
 }
 
 .app2-pos .posx-card2-img.ph {
-  background:
-    radial-gradient(circle at 72% 20%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 28%),
-    repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-1) 12px 24px);
+  background: var(--surface-2);
 }
 
 .app2-pos .posx-card2-img.ph::before {
@@ -382,14 +381,21 @@ body,
 }
 
 .app2-pos .posx-card2-img.ph::after {
-  color: var(--brand);
+  color: var(--text-secondary);
+}
+
+.app2-pos .posx-card2-qty-badge,
+.app2-pos .posx-fast-line-qty {
+  border-color: var(--border-strong);
+  background: var(--theme-brand-soft);
+  color: var(--text-primary);
 }
 
 /* Fast Rail cart lines */
 .app2-pos .posx-fast-line {
   border-color: var(--border-subtle);
   background: var(--surface-1);
-  box-shadow: 0 7px 20px var(--theme-shadow);
+  box-shadow: 0 2px 8px var(--theme-shadow);
 }
 
 .app2-pos .posx-fast-line:hover {
@@ -399,10 +405,8 @@ body,
 
 .app2-pos .posx-fast-line-thumb {
   border-color: var(--border-subtle);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), transparent 55%),
-    repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface-1) 8px 16px);
-  color: var(--brand);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 .app2-pos .posx-fast-line-actions {
@@ -416,6 +420,10 @@ body,
 
 .app2-pos .posx-fast-line-head b {
   color: var(--brand);
+}
+
+.app2-pos .posx-fast-line-price {
+  color: var(--text-primary);
 }
 
 .app2-pos .posx-fast-line-choices span {
@@ -453,16 +461,19 @@ body,
 .app2-pos .posx-totals {
   border-top-color: var(--border-strong);
   background: var(--surface-1);
-  box-shadow: 0 -10px 24px var(--theme-shadow);
+  box-shadow: 0 -4px 12px var(--theme-shadow);
 }
 
 .app2-pos .posx-fire-wrap {
   background: var(--surface-1);
 }
 
-.app2-pos .posx-total > span:last-child,
+.app2-pos .posx-total > span:last-child {
+  color: var(--text-primary);
+}
+
 .app2-pos .posx-total-helper {
-  color: var(--brand);
+  color: var(--text-secondary);
 }
 
 /* Semantic feedback */

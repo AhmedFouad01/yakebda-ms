@@ -9696,3 +9696,40 @@ button.danger,
   --ds-control-height: 36px;
   --ds-divider-width: 1px;
 }
+
+/* DESIGN-SYS-01 — DS4 Accounting reading-screen pilot (scoped, screen-owned).
+   Scope hook: a single `acc-page` className on the accounting page root. The
+   global `.crm-*`, `.panel`, and table definitions are NEVER modified — these
+   rules only override within `.acc-page`, so shared screens (e.g. Customers)
+   stay pixel-identical. Reading-screen treatment: hero metric numbers, token
+   radius, token dividers, and reading content spacing.
+   Tab 1 checkpoint: لوحة الحالة (status). These primitives are shared across
+   the accounting tabs, so the reading treatment applies page-wide within
+   `.acc-page`; each tab is validated in its own checkpoint. */
+.acc-page .crm-kpis {
+  gap: var(--ds-space-content);
+}
+.acc-page .crm-kpi {
+  border-width: var(--ds-divider-width);
+  border-radius: var(--ds-radius-card);
+  padding: var(--ds-space-content);
+}
+.acc-page .crm-kpi b {
+  font-size: var(--ds-type-hero);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.acc-page .crm-kpi span {
+  font-size: var(--ds-type-label);
+}
+.acc-page .panel {
+  border-width: var(--ds-divider-width);
+  border-radius: var(--ds-radius-card);
+}
+.acc-page .crm-table th {
+  font-size: var(--ds-type-label);
+}
+.acc-page .crm-table th,
+.acc-page .crm-table td {
+  border-bottom-width: var(--ds-divider-width);
+}

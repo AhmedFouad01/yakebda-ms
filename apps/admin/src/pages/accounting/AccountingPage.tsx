@@ -96,7 +96,7 @@ export function AccountingPage() {
   }, []);
 
   return (
-    <div dir="rtl">
+    <div dir="rtl" className="acc-page">
       <PageHeader title="الحسابات" subtitle="الأحداث المالية والقيود — كل الأرقام من الخادم مباشرة" />
       {!canManage && <ViewOnlyNotice permission="accounting.manage" />}
 

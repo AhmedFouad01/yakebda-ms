@@ -67,7 +67,7 @@ final color authority.
 | Reports | DS1 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, control height, divider width | Chart canvas sizing, Chart.js geometry, responsive breakpoints, grid minimums, pill geometry, and the visually-hidden accessibility utility remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
 | Dashboard | DS2 done / merged | Reading spacing, content spacing, hero/page/section/body/label type, card radius, divider width | Existing 30px logo geometry, 640px table minimum, responsive breakpoints, and 150px KPI grid minimum remain approved screen-owned exceptions | Gate A: CONTINUE / Closed |
 | POS | DS3 locally validated / not published | Operational spacing/type roles, tabular numbers, card radius, and divider width on the frozen local branch only | Accepted AppShell/POS geometry, responsive density rules, product media sizing, cart width/position, search order, and 390px containment remain local-only evidence | Gate B: CONTINUE locally |
-| Accounting | Not started | — | Existing tab CSS | Wait for DS4 |
+| Accounting | DS4 in progress (tab 1: status) | Reading content spacing, hero metric type, label type, card radius, divider width — scoped under `.acc-page` | Shared `.crm-kpi`/`.crm-table`/`.panel` global definitions untouched; per-tab validation ongoing (events, journals, chart/mappings, periods, settlement, trial balance, exceptions, settings, review pack) | Gate C: pending per-tab completion |
 | Inventory | Not started | — | Existing screen CSS | Wait for DS5 |
 | Orders | Not started | — | Existing screen CSS | Wait for DS5 |
 | KDS | Not started | — | Existing screen CSS | Wait for DS5 |
@@ -329,3 +329,34 @@ Candidate screenshots are local QA artifacts under
 - Gate B Recommendation: **CONTINUE**.
 - DS3 must be re-established over the new `main` in a separate explicitly
   authorized task; it is not merged into or published from this closeout.
+
+### Accounting (DS4)
+
+- Implementation: **In progress** — tab 1 (`لوحة الحالة` / status).
+- Local branch: `codex/design-sys-accounting-pilot`, based on `main`
+  `d4c1576f3c8b005a1e2291d4f119131fa443981c`.
+- Classification: **reading screen** (financial tables and summary metrics).
+
+| Token | Verified selectors or use (scoped under `.acc-page`) |
+|---|---|
+| `--ds-space-content` | `.acc-page .crm-kpis` gap; `.acc-page .crm-kpi` padding |
+| `--ds-type-hero` | `.acc-page .crm-kpi b` (status counts and summary metrics) |
+| `--ds-type-label` | `.acc-page .crm-kpi span`; `.acc-page .crm-table th` |
+| `--ds-radius-card` | `.acc-page .crm-kpi`; `.acc-page .panel` |
+| `--ds-divider-width` | `.acc-page .crm-kpi`, `.acc-page .panel`, `.acc-page .crm-table` borders |
+
+#### Approved Accounting scope exception
+
+- Exception: **DS4 scope hook** — a single `className="acc-page"` was added to
+  the accounting page root (`AccountingPage.tsx`). No logic, structure,
+  conditions, handlers, or props changed; it is only a CSS scoping hook.
+- Reason: the accounting screen reuses the shared `.crm-kpi`, `.crm-kpis`,
+  `.crm-table`, and `.panel` primitives (also used by Customers). To apply the
+  reading-screen treatment without a mixed migration of a shared primitive, the
+  DS4 rules are scoped exclusively under `.acc-page`; the global definitions are
+  never modified.
+- Verification: Customers was confirmed pixel-identical before and after
+  (`.acc-page` absent there; `.crm-table` width `1556`, radius `0`, font `14px`
+  unchanged in both themes).
+- Owner: Accounting screen (`AccountingPage.tsx` root + scoped `theme.css`).
+- Status: Approved exception (single scoping className).

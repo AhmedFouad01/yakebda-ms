@@ -9,7 +9,7 @@ import { newId } from "../src/lib/ids";
 import { getStorage, setStorage, StorageAdapter, StoredFile } from "../src/lib/storage";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-const FALLBACK_LOGO = "/brand/yakebda-logo-placeholder.svg";
+const FALLBACK_LOGO = "/brand/yakebda-logo-default.png";
 
 class MemoryStorage implements StorageAdapter {
   readonly files = new Map<string, Buffer>();

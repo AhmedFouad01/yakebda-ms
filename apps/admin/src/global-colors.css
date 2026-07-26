@@ -506,6 +506,38 @@ body,
   color: var(--danger);
 }
 
+/* Shared semantic feedback colors. Geometry remains in theme.css. */
+.uif-toast.success,
+.uif-badge.success,
+.uif-status.success {
+  border-color: var(--success);
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.uif-toast.error,
+.uif-badge.danger,
+.uif-status.danger {
+  border-color: var(--danger);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.uif-toast.info,
+.uif-badge.info,
+.uif-status.info {
+  border-color: var(--info);
+  background: var(--info-surface);
+  color: var(--info);
+}
+
+.uif-badge.warning,
+.uif-status.warning {
+  border-color: var(--warning);
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
 .app2 :is(.uif-btn, .btn, button, input, select, textarea):disabled,
 .app2-main:not(.full) :is(.uif-btn, .btn, button, input, select, textarea):disabled,
 .uif-drawer :is(.uif-btn, .btn, button, input, select, textarea):disabled,

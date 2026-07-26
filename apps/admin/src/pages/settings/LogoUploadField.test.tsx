@@ -96,7 +96,7 @@ describe("restaurant logo upload field", () => {
     fireEvent.change(input, { target: { files: [oversized] } });
     expect(screen.getByRole("alert").textContent).toContain("3 ميجابايت");
 
-    vi.mocked(api).mockResolvedValue({ data: { logo_url: "/brand/yakebda-logo-placeholder.svg" } });
+    vi.mocked(api).mockResolvedValue({ data: { logo_url: "/brand/yakebda-logo-default.png" } });
     fireEvent.click(screen.getByRole("button", { name: "العودة للافتراضي" }));
     await waitFor(() => expect(api).toHaveBeenCalledWith("/settings/logo", { method: "DELETE" }));
   });

@@ -41,7 +41,7 @@ describe("Dashboard visual pilot", () => {
 
     await waitFor(() => expect(screen.getByText("185.00 ج.م")).toBeTruthy());
 
-    expect(screen.getByRole("heading", { level: 1, name: "يا كبدة — لوحة التحكم" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "لوحة التحكم" })).toBeTruthy();
     expect(container.querySelector('dl[aria-label="ملخص لوحة التحكم"]')).toBeTruthy();
     expect(container.querySelectorAll(".dash-metric")).toHaveLength(7);
     expect(container.querySelectorAll(".dash-metric dd")).toHaveLength(7);

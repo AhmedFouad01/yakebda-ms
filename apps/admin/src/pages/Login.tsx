@@ -32,10 +32,8 @@ export function Login() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <div className="brand">
-          <img src={brand.logoPath} alt={brand.nameAr} className="brand-logo big" />
-          <span className="brand-mark">{brand.nameAr}</span>
-          <span className="brand-sub">{brand.systemName} — {t.appTagline}</span>
+        <div className="brand login-brand">
+          <img src={brand.logoPath} alt={brand.nameAr} className="login-brand-logo" />
         </div>
         <h1>{t.login.title}</h1>
         {error && <div className="error-note">{error}</div>}

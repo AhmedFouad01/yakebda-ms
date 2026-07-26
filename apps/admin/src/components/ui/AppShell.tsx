@@ -129,7 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <Link to="/" className="app2-brand" title={t.nav.dashboard} aria-label={t.nav.dashboard}>
-          <BrandLogo src={logoUrl} alt="" />
+          <BrandLogo src={logoUrl} alt="" className="app2-brand-logo" />
         </Link>
 
         <div className="app2-shell-session" aria-label="جلسة المستخدم">
@@ -175,10 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         bodyClassName="app2-navdrawer-body"
         closeContent={<ShellIcon name="close" />}
         title={(
-          <>
-            <BrandLogo src={logoUrl} alt="" className="app2-navdrawer-logo" />
-            {brand.nameAr}
-          </>
+          <BrandLogo src={logoUrl} alt={brand.nameAr} className="app2-navdrawer-logo" />
         )}
         footer={<button type="button" className="uif-btn ghost" onClick={logout}>{t.nav.logout}</button>}
       >

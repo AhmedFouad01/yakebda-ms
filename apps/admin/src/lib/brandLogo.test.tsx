@@ -24,6 +24,10 @@ beforeEach(() => {
 });
 
 describe("brand logo loading and fallback", () => {
+  it("uses the bundled YAKEBDA logo as the default fallback", () => {
+    expect(brand.logoPath).toBe("/brand/yakebda-logo-default.png");
+  });
+
   it("يقبل fallback أو مسار الحساب فقط ويرفض الروابط الخارجية وحسابًا آخر", () => {
     expect(resolveBrandLogoUrl(brand.logoPath, ACCOUNT_ID)).toBe(brand.logoPath);
     expect(resolveBrandLogoUrl(UPLOADED_LOGO, ACCOUNT_ID)).toBe(UPLOADED_LOGO);

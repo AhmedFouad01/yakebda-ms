@@ -133,7 +133,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   address: "",
   phone: "",
   tax_number: "",
-  logo_url: "/brand/yakebda-logo-placeholder.svg",
+  logo_url: "/brand/yakebda-logo-default.png",
   brand_primary_color: "#F5B301",
   brand_secondary_color: "#111111",
   default_language: "ar",

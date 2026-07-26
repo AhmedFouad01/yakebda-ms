@@ -6,7 +6,7 @@ export const brand = {
   nameAr: "يا كبدة",
   systemName: "YAKEBDA MS",
   projectKey: "YAKEBDA_MS",
-  logoPath: "/brand/yakebda-logo-placeholder.svg",
+  logoPath: "/brand/yakebda-logo-default.png",
   defaultBranchName: "فرع رئيسي",
   tagline: "نظام إدارة المطاعم",
   receiptThanks: "شكرًا لاختيارك يا كبدة",

@@ -183,12 +183,22 @@ describe("Immutable accounting ledger", () => {
   });
 
   it("creates one immutable reversal and keeps the trial balance balanced", async () => {
-    const first = await request(app).post(`/api/v1/accounting/journals/${firstPaymentEntryId}/reverse`).set(auth()).send({ reason: "Approved correction" });
-    const second = await request(app).post(`/api/v1/accounting/journals/${firstPaymentEntryId}/reverse`).set(auth()).send({ reason: "Approved correction replay" });
+    const reversibleOrderId = await createOrder("12.00", "1.68");
+    const payment = await request(app)
+      .post(`/api/v1/orders/${reversibleOrderId}/payments`)
+      .set(auth())
+      .send({ method: "card", amount: 12, idempotency_key: "ledger-fresh-reversal" });
+    expect(payment.status).toBe(201);
+    await processPending();
+    const reversibleEntry = await db("journal_entries")
+      .where({ account_id: accountId, payment_id: payment.body.data.id, event_type: "payment.captured" })
+      .first();
+    const first = await request(app).post(`/api/v1/accounting/journals/${reversibleEntry.id}/reverse`).set(auth()).send({ reason: "Approved correction" });
+    const second = await request(app).post(`/api/v1/accounting/journals/${reversibleEntry.id}/reverse`).set(auth()).send({ reason: "Approved correction replay" });
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
     expect(second.body.data.id).toBe(first.body.data.id);
-    const originalLines = await entryLines(firstPaymentEntryId);
+    const originalLines = await entryLines(reversibleEntry.id);
     const reversalLines = await entryLines(first.body.data.id);
     expect(reversalLines.map((line) => [Number(line.debit), Number(line.credit)])).toEqual(originalLines.map((line) => [Number(line.credit), Number(line.debit)]));
 
@@ -213,6 +223,16 @@ describe("Immutable accounting ledger", () => {
   });
 
   it("blocks posting and reversal inside a locked period", async () => {
+    const reversibleOrderId = await createOrder("9.00", "1.26");
+    const payment = await request(app)
+      .post(`/api/v1/orders/${reversibleOrderId}/payments`)
+      .set(auth())
+      .send({ method: "wallet", amount: 9, idempotency_key: "ledger-locked-reversal" });
+    expect(payment.status).toBe(201);
+    await processPending();
+    const reversibleEntry = await db("journal_entries")
+      .where({ account_id: accountId, payment_id: payment.body.data.id, event_type: "payment.captured" })
+      .first();
     const today = new Date().toISOString().slice(0, 10);
     const lock = await request(app).post("/api/v1/accounting/periods/lock").set(auth()).send({ starts_on: today, ends_on: today });
     expect(lock.status).toBe(201);
@@ -220,7 +240,7 @@ describe("Immutable accounting ledger", () => {
     const processed = await processPending();
     expect(processed.find((row) => row.event_id === eventId)?.status).toBe("failed");
     expect((await db("financial_events").where({ id: eventId }).first()).status).toBe("failed");
-    const reversal = await request(app).post(`/api/v1/accounting/journals/${firstPaymentEntryId}/reverse`).set(auth()).send({ reason: "Locked-period reversal" });
+    const reversal = await request(app).post(`/api/v1/accounting/journals/${reversibleEntry.id}/reverse`).set(auth()).send({ reason: "Locked-period reversal" });
     expect(reversal.status).toBe(409);
   });
 });

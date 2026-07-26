@@ -80,10 +80,68 @@ interface JournalDraft {
   orderId?: string | null;
   paymentId?: string | null;
   originalPaymentId?: string | null;
+  reversalOfEntryId?: string | null;
   description: string;
   meta: Record<string, unknown>;
   lines: DraftLine[];
 }
+
+interface JournalEntryForReversalState {
+  id: string;
+  account_id: string;
+  event_type: string;
+  source_type: string;
+  source_id: string;
+  payment_id: string | null;
+  reversal_of_entry_id: string | null;
+}
+
+interface ReversalEvidenceRow {
+  id: string;
+  event_type: string;
+  entry_date: string | Date;
+  description: string;
+  created_by: string | null;
+}
+
+export interface JournalReversalEvidence extends ReversalEvidenceRow {
+  linkage_mode: "reversal_of_entry_id" | "inventory_movement_fallback";
+}
+
+export interface PostedRefundEvidence {
+  journal_entry_ids: string[];
+  total_gross_minor: string | null;
+  has_ambiguous_minor_units: boolean;
+}
+
+export type ManualReversalBlockCode =
+  | "entry_is_reversal"
+  | "manual_reversal_exists"
+  | "refund_posted"
+  | "inventory_reversal_exists"
+  | "economic_reversal_exists";
+
+export interface JournalEconomicReversalState {
+  originalIsReversal: boolean;
+  linkedReversal: JournalReversalEvidence | null;
+  manualReversal: JournalReversalEvidence | null;
+  inventoryReversal: JournalReversalEvidence | null;
+  postedRefunds: PostedRefundEvidence | null;
+  manualReversalAllowed: boolean;
+  manualReversalBlockReason: { code: ManualReversalBlockCode; message: string } | null;
+  economicallyReversedBy: {
+    manual_journal_reversal: JournalReversalEvidence | null;
+    inventory_reversal: JournalReversalEvidence | null;
+    posted_refunds: PostedRefundEvidence | null;
+    other_linked_reversal: JournalReversalEvidence | null;
+  } | null;
+}
+
+const OPERATIONAL_REVERSAL_CONFLICT_MESSAGE =
+  "لا يمكن عكس القيد يدويًا لأن أثره المالي تم تصحيحه بالفعل من خلال مسار تشغيلي آخر.";
+const REFUND_REVERSAL_CONFLICT_MESSAGE =
+  "لا يمكن عكس قيد التحصيل يدويًا بعد تسجيل مردود. استخدم مسار المردودات لإكمال التصحيح.";
+const REVERSAL_ENTRY_MESSAGE = "لا يمكن عكس قيد عكسي — القيد الأصلي هو محل التصحيح.";
 
 interface ReconciliationDraft {
   sourceAmount: string;
@@ -149,6 +207,149 @@ function allocationSnapshot(payload: Record<string, unknown>, gross: bigint) {
   return { revenueMinor, vatMinor };
 }
 
+function journalMeta(value: Record<string, unknown> | string): Record<string, unknown> {
+  return typeof value === "string" ? JSON.parse(value) : value;
+}
+
+function reversalEvidence(
+  row: ReversalEvidenceRow | undefined,
+  linkageMode: JournalReversalEvidence["linkage_mode"]
+): JournalReversalEvidence | null {
+  return row ? { ...row, linkage_mode: linkageMode } : null;
+}
+
+/**
+ * Computes every known economic-reversal path for one immutable journal.
+ * Callers that mutate reversal state must lock the original journal row first;
+ * the shared row is the serialization point for manual, refund and inventory
+ * reversal posting.
+ */
+export async function loadJournalEconomicReversalState(
+  db: Knex,
+  original: JournalEntryForReversalState
+): Promise<JournalEconomicReversalState> {
+  const linkedRow = await db("journal_entries")
+    .where({ account_id: original.account_id, reversal_of_entry_id: original.id })
+    .select("id", "event_type", "entry_date", "description", "created_by")
+    .first<ReversalEvidenceRow>();
+  const linkedReversal = reversalEvidence(linkedRow, "reversal_of_entry_id");
+  const manualReversal = linkedReversal?.event_type === "journal.reversal" ? linkedReversal : null;
+
+  let historicalInventoryRow: ReversalEvidenceRow | undefined;
+  if (original.source_type === "stock_movement" && original.source_id) {
+    historicalInventoryRow = await db("journal_entries as reversal")
+      .leftJoin("financial_events as event", function joinEvent() {
+        this.on("event.id", "=", "reversal.financial_event_id")
+          .andOn("event.account_id", "=", "reversal.account_id");
+      })
+      .where({ "reversal.account_id": original.account_id, "reversal.event_type": "inventory.reversal" })
+      .whereNull("reversal.reversal_of_entry_id")
+      .where((query) => {
+        query
+          .whereRaw("reversal.meta->>'reversal_of_stock_movement_id' = ?", [original.source_id])
+          .orWhereRaw("event.payload->>'reversal_of_movement_id' = ?", [original.source_id]);
+      })
+      .select(
+        "reversal.id",
+        "reversal.event_type",
+        "reversal.entry_date",
+        "reversal.description",
+        "reversal.created_by"
+      )
+      .orderBy("reversal.created_at", "asc")
+      .first<ReversalEvidenceRow>();
+  }
+  const inventoryReversal = linkedReversal?.event_type === "inventory.reversal"
+    ? linkedReversal
+    : reversalEvidence(historicalInventoryRow, "inventory_movement_fallback");
+
+  let postedRefunds: PostedRefundEvidence | null = null;
+  if (original.event_type === "payment.captured" && original.payment_id) {
+    const refundRows = await db("journal_entries")
+      .where({
+        account_id: original.account_id,
+        original_payment_id: original.payment_id,
+        event_type: "refund.posted",
+      })
+      .select("id", "meta")
+      .orderBy("created_at", "asc");
+    let totalGrossMinor = 0n;
+    let hasAmbiguousMinorUnits = false;
+    for (const row of refundRows) {
+      const raw = journalMeta(row.meta).gross_minor;
+      if (raw === undefined || !/^\d+$/.test(String(raw))) {
+        hasAmbiguousMinorUnits = true;
+      } else {
+        totalGrossMinor += BigInt(String(raw));
+      }
+    }
+    if (totalGrossMinor > 0n || hasAmbiguousMinorUnits) {
+      postedRefunds = {
+        journal_entry_ids: refundRows.map((row) => String(row.id)),
+        total_gross_minor: hasAmbiguousMinorUnits ? null : totalGrossMinor.toString(),
+        has_ambiguous_minor_units: hasAmbiguousMinorUnits,
+      };
+    }
+  }
+
+  const originalIsReversal = Boolean(original.reversal_of_entry_id)
+    || original.event_type === "journal.reversal"
+    || original.event_type === "inventory.reversal";
+  const otherLinkedReversal = linkedReversal
+    && linkedReversal.event_type !== "journal.reversal"
+    && linkedReversal.event_type !== "inventory.reversal"
+    ? linkedReversal
+    : null;
+  let manualReversalBlockReason: JournalEconomicReversalState["manualReversalBlockReason"] = null;
+  if (originalIsReversal) {
+    manualReversalBlockReason = { code: "entry_is_reversal", message: REVERSAL_ENTRY_MESSAGE };
+  } else if (manualReversal) {
+    manualReversalBlockReason = {
+      code: "manual_reversal_exists",
+      message: "تم إنشاء قيد عكسي يدوي لهذا القيد بالفعل.",
+    };
+  } else if (postedRefunds) {
+    manualReversalBlockReason = { code: "refund_posted", message: REFUND_REVERSAL_CONFLICT_MESSAGE };
+  } else if (inventoryReversal) {
+    manualReversalBlockReason = {
+      code: "inventory_reversal_exists",
+      message: OPERATIONAL_REVERSAL_CONFLICT_MESSAGE,
+    };
+  } else if (linkedReversal) {
+    manualReversalBlockReason = {
+      code: "economic_reversal_exists",
+      message: OPERATIONAL_REVERSAL_CONFLICT_MESSAGE,
+    };
+  }
+
+  const economicallyReversedBy = manualReversal || inventoryReversal || postedRefunds || otherLinkedReversal
+    ? {
+        manual_journal_reversal: manualReversal,
+        inventory_reversal: inventoryReversal,
+        posted_refunds: postedRefunds,
+        other_linked_reversal: otherLinkedReversal,
+      }
+    : null;
+  return {
+    originalIsReversal,
+    linkedReversal,
+    manualReversal,
+    inventoryReversal,
+    postedRefunds,
+    manualReversalAllowed: manualReversalBlockReason === null,
+    manualReversalBlockReason,
+    economicallyReversedBy,
+  };
+}
+
+function rejectOperationalReversalConflict(state: JournalEconomicReversalState): void {
+  if (!state.linkedReversal && !state.inventoryReversal) return;
+  throw err.conflict(
+    { reversal: OPERATIONAL_REVERSAL_CONFLICT_MESSAGE, reason: state.manualReversalBlockReason?.code },
+    OPERATIONAL_REVERSAL_CONFLICT_MESSAGE
+  );
+}
+
 async function draftPayment(trx: Knex.Transaction, event: FinancialEventRow): Promise<JournalDraft> {
   const payload = payloadOf(event);
   const method = String(payload.method);
@@ -202,8 +403,10 @@ async function draftRefund(trx: Knex.Transaction, event: FinancialEventRow): Pro
   const originalPaymentId = String(payload.reversal_of_payment_id);
   const original = await trx("journal_entries")
     .where({ account_id: event.account_id, payment_id: originalPaymentId, event_type: "payment.captured" })
+    .forUpdate()
     .first();
   if (!original) throw err.validation({ original_payment: "Original payment journal is not posted" });
+  rejectOperationalReversalConflict(await loadJournalEconomicReversalState(trx, original));
   const gross = absolute(toMinorUnits(String(payload.amount)));
   let allocation = allocationSnapshot(payload, gross);
   if (!allocation) {
@@ -327,6 +530,7 @@ async function draftInventoryReversal(trx: Knex.Transaction, event: FinancialEve
   }
   const originalEntry = await trx("journal_entries")
     .where({ account_id: event.account_id, financial_event_id: originalEvent.id })
+    .forUpdate()
     .first();
   const originalReconciliation = await trx("financial_event_reconciliations")
     .where({ account_id: event.account_id, financial_event_id: originalEvent.id })
@@ -334,11 +538,15 @@ async function draftInventoryReversal(trx: Knex.Transaction, event: FinancialEve
   if (!originalEntry && !originalReconciliation) {
     throw err.validation({ original_movement: "Original movement has no journal or reconciliation evidence" });
   }
+  if (originalEntry) {
+    rejectOperationalReversalConflict(await loadJournalEconomicReversalState(trx, originalEntry));
+  }
   const originalLines = originalEntry
     ? await trx("journal_lines").where({ entry_id: originalEntry.id }).orderBy("id")
     : [];
   const journal: JournalDraft | null = originalEntry
     ? {
+        reversalOfEntryId: originalEntry.id,
         description: `Inventory reversal of ${originalMovementId}`,
         meta: { reversal_of_stock_movement_id: originalMovementId },
         lines: originalLines.map((line) => ({
@@ -416,6 +624,7 @@ export async function postClaimedFinancialEvent(
           order_id: plan.journal.orderId ?? null,
           payment_id: plan.journal.paymentId ?? null,
           original_payment_id: plan.journal.originalPaymentId ?? null,
+          reversal_of_entry_id: plan.journal.reversalOfEntryId ?? null,
           entry_date: entryDate,
           description: plan.journal.description,
           meta: JSON.stringify(plan.journal.meta),
@@ -665,11 +874,25 @@ export async function reverseJournalEntry(
   input: { accountId: string; entryId: string; reason: string; createdBy: string; entryDate?: string }
 ): Promise<string> {
   return db.transaction(async (trx) => {
-    const original = await trx("journal_entries").where({ id: input.entryId, account_id: input.accountId }).first();
+    const original = await trx("journal_entries")
+      .where({ id: input.entryId, account_id: input.accountId })
+      .forUpdate()
+      .first();
     if (!original) throw err.notFound();
-    if (original.reversal_of_entry_id) {
-      throw err.validation({ reversal_of_entry_id: "لا يمكن عكس قيد عكسي — القيد الأصلي هو محل التصحيح." });
+    const reversalState = await loadJournalEconomicReversalState(trx, original);
+    if (reversalState.originalIsReversal) {
+      throw err.validation({ reversal_of_entry_id: REVERSAL_ENTRY_MESSAGE });
     }
+    // A replay is a read of the already-committed result. It must remain
+    // idempotent even if the requested date now belongs to a locked period.
+    if (reversalState.manualReversal) return reversalState.manualReversal.id;
+    if (reversalState.postedRefunds) {
+      throw err.conflict(
+        { reversal: REFUND_REVERSAL_CONFLICT_MESSAGE, reason: "refund_posted" },
+        REFUND_REVERSAL_CONFLICT_MESSAGE
+      );
+    }
+    rejectOperationalReversalConflict(reversalState);
     const reversalDate = input.entryDate ?? new Date().toISOString().slice(0, 10);
     const lockedPeriod = await trx("accounting_periods")
       .where({ account_id: input.accountId, status: "locked" })
@@ -677,8 +900,6 @@ export async function reverseJournalEntry(
       .where("ends_on", ">=", reversalDate)
       .first();
     if (lockedPeriod) throw err.conflict();
-    const existing = await trx("journal_entries").where({ reversal_of_entry_id: original.id }).first();
-    if (existing) return existing.id;
     if (original.event_type === "residual.settlement") {
       // Reversing a settlement logically reopens its residuals. That is only
       // legal while every reopened row still lies in an OPEN period —

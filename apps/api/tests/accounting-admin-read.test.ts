@@ -472,6 +472,9 @@ describe("journal detail", () => {
     expect(beforeReversal.body.data.lines).toHaveLength(2);
     expect(beforeReversal.body.data.totals).toEqual({ debit: "10.00", credit: "10.00" });
     expect(beforeReversal.body.data.reversed_by).toBeNull();
+    expect(beforeReversal.body.data.manual_reversal_allowed).toBe(true);
+    expect(beforeReversal.body.data.manual_reversal_block_reason).toBeNull();
+    expect(beforeReversal.body.data.economically_reversed_by).toBeNull();
     expect(beforeReversal.body.data.financial_event).toBeNull();
 
     const reversal = await request(app)
@@ -485,6 +488,9 @@ describe("journal detail", () => {
       .get(`/api/v1/accounting/journals/${manualEntryJuneMidId}`)
       .set(auth(ownerToken));
     expect(afterReversal.body.data.reversed_by.id).toBe(reversalId);
+    expect(afterReversal.body.data.manual_reversal_allowed).toBe(false);
+    expect(afterReversal.body.data.manual_reversal_block_reason.code).toBe("manual_reversal_exists");
+    expect(afterReversal.body.data.economically_reversed_by.manual_journal_reversal.id).toBe(reversalId);
 
     const reversalDetail = await request(app)
       .get(`/api/v1/accounting/journals/${reversalId}`)

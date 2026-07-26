@@ -6,7 +6,12 @@ import { err } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { canAccessBranch, requirePermission, requireUser } from "../middleware/auth";
 import { createCursorPage, parseCursorPage, type CursorDefinition } from "../lib/cursor";
-import { postClaimedFinancialEvent, reverseJournalEntry, settleOpenResiduals } from "./accountingLedger";
+import {
+  loadJournalEconomicReversalState,
+  postClaimedFinancialEvent,
+  reverseJournalEntry,
+  settleOpenResiduals,
+} from "./accountingLedger";
 import { claimFinancialEvents } from "./financialOutbox";
 
 const dateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -352,10 +357,7 @@ export function accountingRoutes(db: Knex): Router {
       if (!entry) throw err.notFound();
       if (entry.branch_id && !canAccessBranch(req.user!, entry.branch_id)) throw err.forbidden();
       const byEntry = await loadJournalLines(db, req.user!.accountId, [entry.id]);
-      const reversedBy = await db("journal_entries")
-        .where({ reversal_of_entry_id: entry.id, account_id: req.user!.accountId })
-        .select("id", "entry_date", "description", "created_by")
-        .first();
+      const reversalState = await loadJournalEconomicReversalState(db, entry);
       const financialEvent = entry.financial_event_id
         ? await db("financial_events")
             .where({ id: entry.financial_event_id, account_id: req.user!.accountId })
@@ -373,7 +375,10 @@ export function accountingRoutes(db: Knex): Router {
           ...entry,
           lines: byEntry.get(entry.id) ?? [],
           totals: { debit: totals!.debit, credit: totals!.credit },
-          reversed_by: reversedBy ?? null,
+          reversed_by: reversalState.linkedReversal,
+          manual_reversal_allowed: reversalState.manualReversalAllowed,
+          manual_reversal_block_reason: reversalState.manualReversalBlockReason,
+          economically_reversed_by: reversalState.economicallyReversedBy,
           financial_event: financialEvent ?? null,
         },
       });

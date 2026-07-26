@@ -3,7 +3,6 @@ import { t, fmtTime } from "../lib/t";
 import { auditActionLabel } from "../lib/labels";
 import { useList } from "./hooks";
 import { api } from "../lib/api";
-import { brand } from "../config/brand";
 import { useMe } from "../lib/me";
 
 export function Dashboard() {
@@ -23,10 +22,7 @@ export function Dashboard() {
   return (
     <div className="dash-page" dir="rtl">
       <header className="dash-page-head">
-        <h1>
-          <img src={brand.logoPath} alt="" className="brand-logo" />
-          <span>{brand.nameAr} — {t.nav.dashboard}</span>
-        </h1>
+        <h1>{t.nav.dashboard}</h1>
         <p>{t.dashboard.subtitle}</p>
       </header>
 
